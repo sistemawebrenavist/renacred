@@ -284,11 +284,7 @@ export const listCompanies = async (req: Request, res: Response) => {
     const search = req.query.search as string;
     const accountType = req.query.accountType as any;
 
-    const where: any = {
-      users: {
-        none: { isSuperAdmin: true }
-      }
-    };
+    const where: any = {};
     if (accountType) {
       where.accountType = accountType;
     }

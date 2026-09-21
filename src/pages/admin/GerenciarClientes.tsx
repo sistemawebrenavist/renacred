@@ -33,6 +33,7 @@ export default function GerenciarClientes() {
   // Modal de Criação de Novo Assinante (Create)
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createdCompanyDetails, setCreatedCompanyDetails] = useState<any | null>(null);
   const [newCompany, setNewCompany] = useState({
     cnpjCpf: '',
     razaoSocial: '',
@@ -65,8 +66,8 @@ export default function GerenciarClientes() {
   const [adjusting, setAdjusting] = useState(false);
 
   const fetchCompanies = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const res = await api.get(`/api/admin/companies?search=${encodeURIComponent(search)}`);
       if (res.data?.success) setCompanies(res.data.data);
     } catch (err) {
@@ -98,6 +99,11 @@ export default function GerenciarClientes() {
       if (res.data?.success) {
         toast.success('Cliente cadastrado com sucesso!');
         setShowCreateModal(false);
+        setCreatedCompanyDetails({
+          ...res.data.data,
+          adminEmail: newCompany.adminEmail,
+          adminPassword: newCompany.adminPassword,
+        });
         setNewCompany({
           cnpjCpf: '',
           razaoSocial: '',
@@ -303,9 +309,9 @@ export default function GerenciarClientes() {
                   <th className="py-3 px-4">Vencimento</th>
                   <th className="py-3 px-4">Valor por Consulta</th>
                   <th className="py-3 px-4">Saldo ou Limite</th>
-                  <th className="py-3 px-4">Acesso API</th>
+                  <th className="py-3 px-4 min-w-[280px]">Acesso API</th>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Ações</th>
+                  <th className="py-3 px-4 text-right min-w-[165px] whitespace-nowrap">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -341,27 +347,62 @@ export default function GerenciarClientes() {
                         <span className="text-blue-700 font-bold">Limite: R$ {Number(c.creditLimit).toFixed(2)}</span>
                       )}
                     </td>
-                    <td className="py-3 px-4">
-                      {c.apiKeys && c.apiKeys.filter((k: any) => k.isActive).length > 0 ? (
-                        <div className="flex items-center space-x-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setApiKeyModalCompany(c)}
-                            className="px-2 py-1 rounded-lg text-[10px] font-mono font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center transition cursor-pointer"
-                            title="Ver todas as chaves deste cliente"
-                          >
-                            <KeyRound className="w-3 h-3 mr-1 text-purple-600" />
-                            <span>{c.apiKeys.find((k: any) => k.isActive)?.key.substring(0, 15)}...</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => copyKeyToClipboard(c.apiKeys.find((k: any) => k.isActive)?.key, c.id)}
-                            className="p-1 hover:text-purple-700 text-slate-400 transition cursor-pointer"
-                            title="Copiar Chave Ativa"
-                          >
-                            {copiedKeyId === c.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
+                    <td className="py-3 px-4 min-w-[280px]">
+                      {c.apiKeys && c.apiKeys.length > 0 ? (
+                        (() => {
+                          const activeKeyObj = c.apiKeys.find((k: any) => k.isActive) || c.apiKeys[0];
+                          const activeKey = activeKeyObj?.key || '';
+                          const prodUrl = `https://api.renacred.com.br/v1/imobiliario/historico?token=${activeKey}&query=DOCUMENTO`;
+                          return (
+                            <div className="space-y-1.5">
+                              {/* Token */}
+                              <div className="flex items-center space-x-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setApiKeyModalCompany(c)}
+                                  className="px-2 py-0.5 rounded-lg text-[10.5px] font-mono font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center transition cursor-pointer"
+                                  title="Ver/Gerenciar todas as chaves deste cliente"
+                                >
+                                  <KeyRound className="w-3 h-3 mr-1 text-purple-600 shrink-0" />
+                                  <span className="truncate max-w-[150px]">{activeKey}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => copyKeyToClipboard(activeKey, `token-${c.id}`)}
+                                  className="p-1 hover:text-purple-700 text-slate-400 hover:bg-slate-100 rounded-lg transition cursor-pointer shrink-0"
+                                  title="Copiar Chave/Token"
+                                >
+                                  {copiedKeyId === `token-${c.id}` ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                                {c.apiKeys.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setApiKeyModalCompany(c)}
+                                    className="text-[10px] text-purple-600 font-bold hover:underline shrink-0"
+                                    title="Chaves adicionais"
+                                  >
+                                    +{c.apiKeys.length - 1}
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Link em Produção Abaixo */}
+                              <div className="flex items-center space-x-1 bg-slate-50 border border-slate-200/80 rounded-lg px-2 py-1 max-w-[300px] group hover:border-blue-300 transition">
+                                <span className="text-[10px] text-blue-700 font-mono truncate select-all flex-1" title={prodUrl}>
+                                  {prodUrl}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => copyKeyToClipboard(prodUrl, `url-${c.id}`)}
+                                  className="p-0.5 hover:text-blue-700 text-slate-400 transition shrink-0 cursor-pointer"
+                                  title="Copiar Link de Produção Completo"
+                                >
+                                  {copiedKeyId === `url-${c.id}` ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()
                       ) : (
                         <button
                           type="button"
@@ -383,13 +424,13 @@ export default function GerenciarClientes() {
                         {c.isActive ? 'Ativo' : 'Bloqueado'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="py-3 px-4 text-right whitespace-nowrap min-w-[165px]">
+                      <div className="inline-flex items-center justify-end gap-1.5 flex-nowrap">
                         <button
                           type="button"
                           onClick={() => setApiKeyModalCompany(c)}
                           title="Chaves de API"
-                          className="w-8 h-8 flex items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl transition cursor-pointer"
+                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl transition cursor-pointer"
                         >
                           <KeyRound className="w-3.5 h-3.5" />
                         </button>
@@ -397,7 +438,7 @@ export default function GerenciarClientes() {
                           type="button"
                           onClick={() => openEditModal(c)}
                           title="Configurar Plano"
-                          className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer"
+                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer"
                         >
                           <SlidersHorizontal className="w-3.5 h-3.5" />
                         </button>
@@ -405,7 +446,7 @@ export default function GerenciarClientes() {
                           type="button"
                           onClick={() => setCreditModalCompany(c)}
                           title="Ajustar Saldo"
-                          className="w-8 h-8 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition cursor-pointer"
+                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition cursor-pointer"
                         >
                           <Wallet className="w-3.5 h-3.5" />
                         </button>
@@ -413,7 +454,7 @@ export default function GerenciarClientes() {
                           type="button"
                           onClick={() => handleDeleteCompany(c)}
                           title="Excluir Cliente"
-                          className="w-8 h-8 flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl transition cursor-pointer"
+                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl transition cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -627,6 +668,121 @@ export default function GerenciarClientes() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Sucesso: Novo Cliente Criado com Chave de API */}
+      {createdCompanyDetails && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl space-y-6 my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <Check className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Cliente Cadastrado com Sucesso!</h3>
+                  <p className="text-xs text-slate-500">{createdCompanyDetails.razaoSocial}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreatedCompanyDetails(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Token de API Gerado */}
+              <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-purple-900 uppercase tracking-wider text-[11px] flex items-center">
+                    <KeyRound className="w-3.5 h-3.5 mr-1.5 text-purple-700" />
+                    Chave de API de Produção
+                  </span>
+                  <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-bold">Ativa</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={createdCompanyDetails.apiKey}
+                    className="flex-1 bg-white border border-purple-200 rounded-xl px-3 py-2 font-mono text-[11px] text-purple-950 select-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copyKeyToClipboard(createdCompanyDetails.apiKey, 'created-key')}
+                    className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition cursor-pointer shrink-0"
+                    title="Copiar Token"
+                  >
+                    {copiedKeyId === 'created-key' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* URL de Produção Pronta para o Cliente */}
+              <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 space-y-2">
+                <span className="font-bold text-blue-900 uppercase tracking-wider text-[11px] block">
+                  Link de Produção para Consultas (GET)
+                </span>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`https://api.renacred.com.br/v1/imobiliario/historico?token=${createdCompanyDetails.apiKey}&query=DOCUMENTO`}
+                    className="flex-1 bg-white border border-blue-200 rounded-xl px-3 py-2 font-mono text-[11px] text-blue-950 select-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copyKeyToClipboard(`https://api.renacred.com.br/v1/imobiliario/historico?token=${createdCompanyDetails.apiKey}&query=DOCUMENTO`, 'created-url')}
+                    className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition cursor-pointer shrink-0"
+                    title="Copiar Link Completo"
+                  >
+                    {copiedKeyId === 'created-url' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-blue-600">Substitua DOCUMENTO pelo CPF ou CNPJ que o cliente desejar pesquisar.</p>
+              </div>
+
+              {/* Credenciais de Acesso ao Portal do Assinante */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px] block">
+                  Acesso ao Portal do Assinante
+                </span>
+                <p className="text-slate-600">
+                  Login: <strong className="text-slate-900 font-mono">{createdCompanyDetails.adminEmail}</strong>
+                </p>
+                <p className="text-slate-600">
+                  Senha Inicial: <strong className="text-slate-900 font-mono">{createdCompanyDetails.adminPassword}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  const payload = `*DADOS DE ACESSO RENACRED*\nEmpresa: ${createdCompanyDetails.razaoSocial}\n\n*Acesso ao Portal do Assinante:*\nLink: https://renacred.com.br/login\nLogin: ${createdCompanyDetails.adminEmail}\nSenha: ${createdCompanyDetails.adminPassword}\n\n*Acesso via API / Sistema:*\nToken: ${createdCompanyDetails.apiKey}\nEndpoint de Consulta:\nhttps://api.renacred.com.br/v1/imobiliario/historico?token=${createdCompanyDetails.apiKey}&query=DOCUMENTO`;
+                  navigator.clipboard.writeText(payload);
+                  toast.success('Todos os dados de acesso foram copiados para a área de transferência!');
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-xs inline-flex items-center cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5 mr-1.5" />
+                Copiar Todos os Dados (WhatsApp/E-mail)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCreatedCompanyDetails(null)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -880,6 +1036,21 @@ export default function GerenciarClientes() {
                           ) : (
                             <Copy className="w-3.5 h-3.5" />
                           )}
+                        </button>
+                      </div>
+
+                      {/* Link em Produção Completo com a Chave */}
+                      <div className="flex items-center space-x-1.5 bg-blue-50/70 border border-blue-200/70 rounded-xl px-2.5 py-1.5 text-[10.5px]">
+                        <span className="text-blue-700 font-mono truncate select-all flex-1" title={`https://api.renacred.com.br/v1/imobiliario/historico?token=${k.key}&query=DOCUMENTO`}>
+                          https://api.renacred.com.br/v1/imobiliario/historico?token={k.key}&query=DOCUMENTO
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => copyKeyToClipboard(`https://api.renacred.com.br/v1/imobiliario/historico?token=${k.key}&query=DOCUMENTO`, `modal-url-${k.id}`)}
+                          className="p-1 hover:text-blue-900 text-blue-600 transition shrink-0 cursor-pointer"
+                          title="Copiar Link de Produção Completo"
+                        >
+                          {copiedKeyId === `modal-url-${k.id}` ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
                       </div>
 
