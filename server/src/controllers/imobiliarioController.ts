@@ -47,6 +47,10 @@ export const consultarWeb = async (req: any, res: Response) => {
     const result = await fetchbrasilService.consultarHistoricoImobiliario(cleanDoc);
     const processingTimeMs = Date.now() - startTime;
 
+    const totalDeclaracoes = result.total_declaracoes || (result.declaracoes ? result.declaracoes.length : 0);
+    const hasData = totalDeclaracoes > 0 && Array.isArray(result.declaracoes) && result.declaracoes.length > 0;
+    const finalCost = (!isSuperAdmin && hasData) ? eligibility.price : 0;
+
     // 3. Registrar a consulta no banco de dados
     const queryRecord = await prisma.query.create({
       data: {
@@ -55,23 +59,23 @@ export const consultarWeb = async (req: any, res: Response) => {
         identifier: cleanDoc,
         source: QuerySource.WEB,
         status: QueryStatus.COMPLETED,
-        cost: isSuperAdmin ? 0 : eligibility.price,
-        totalDeclaracoes: result.total_declaracoes || (result.declaracoes ? result.declaracoes.length : 0),
+        cost: finalCost,
+        totalDeclaracoes,
         processingTimeMs,
         resultData: result as any,
       }
     });
 
-    // 4. Executar a cobrança / débito financeiro apenas para clientes regulares
-    if (!isSuperAdmin && eligibility.price > 0) {
-      await billingService.chargeQuery(companyId, queryRecord.id, eligibility.price);
+    // 4. Executar a cobrança / débito financeiro apenas quando houver dados e para clientes regulares
+    if (finalCost > 0) {
+      await billingService.chargeQuery(companyId, queryRecord.id, finalCost);
     }
 
     return res.json({
       success: true,
       queryId: queryRecord.id,
       data: result,
-      custoDebitado: eligibility.price,
+      custoDebitado: finalCost,
       tempoProcessamentoMs: processingTimeMs,
     });
   } catch (error: any) {
@@ -110,7 +114,9 @@ export const consultarWeb = async (req: any, res: Response) => {
 };
 
 /**
- * Consulta de Histórico Imobiliário via API Externa REST (POST /v1/imobiliario/historico)
+ * Consulta de Histórico Imobiliário via API Externa REST (POST / GET /v1/imobiliario/historico)
+ * Compatível 100% com chamadas diretas no formato:
+ * https://api.renacred.com.br/v1/imobiliario/historico?token={TOKEN}&query={DOCUMENTO}
  */
 export const consultarApiV1 = async (req: any, res: Response) => {
   const startTime = Date.now();
@@ -118,23 +124,30 @@ export const consultarApiV1 = async (req: any, res: Response) => {
   const apiKey = req.apiKey;
   const clientIp = req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || '';
 
-  const { query, documento } = req.body;
-  const targetDoc = query || documento || req.query.query;
+  const targetDoc =
+    req.query.query ||
+    req.query.documento ||
+    req.query.cpf ||
+    req.query.cnpj ||
+    req.body?.query ||
+    req.body?.documento ||
+    req.body?.cpf ||
+    req.body?.cnpj;
 
   if (!targetDoc) {
     return res.status(400).json({
       success: false,
       code: 'MISSING_DOCUMENT',
-      message: 'Parâmetro query (CPF ou CNPJ) é obrigatório.',
+      message: 'Parâmetro query (CPF ou CNPJ) é obrigatório. Exemplo: ?query=12345678900 ou no corpo da requisição.',
     });
   }
 
-  const validation = validateIdentifier(targetDoc);
+  const validation = validateIdentifier(String(targetDoc));
   if (!validation.valid) {
     return res.status(400).json({
       success: false,
       code: 'INVALID_DOCUMENT',
-      message: 'O CPF ou CNPJ fornecido não possui formato válido.',
+      message: 'O CPF ou CNPJ fornecido não possui formato numérico válido.',
     });
   }
 
@@ -147,8 +160,8 @@ export const consultarApiV1 = async (req: any, res: Response) => {
       data: {
         apiKeyId: apiKey.id,
         companyId: company.id,
-        endpoint: '/v1/imobiliario/historico',
-        method: 'POST',
+        endpoint: req.originalUrl || '/v1/imobiliario/historico',
+        method: req.method,
         statusCode: 402,
         responseTimeMs: Date.now() - startTime,
         ipAddress: clientIp,
@@ -166,42 +179,90 @@ export const consultarApiV1 = async (req: any, res: Response) => {
     // 2. Chamar FetchBrasil em tempo real
     const result = await fetchbrasilService.consultarHistoricoImobiliario(cleanDoc);
     const responseTimeMs = Date.now() - startTime;
+    const totalDeclaracoes = result.total_declaracoes || (Array.isArray(result.declaracoes) ? result.declaracoes.length : 0);
+    const hasData = totalDeclaracoes > 0 && Array.isArray(result.declaracoes) && result.declaracoes.length > 0;
 
-    // 3. Salvar registro da Query
+    // 3. Regra de Negócio: Se NÃO houver dados, CUSTO ZERO (Não debitar do cliente)
+    if (!hasData) {
+      const queryRecord = await prisma.query.create({
+        data: {
+          companyId: company.id,
+          identifier: cleanDoc,
+          source: QuerySource.API,
+          status: QueryStatus.COMPLETED,
+          cost: 0, // Não tarifado
+          totalDeclaracoes: 0,
+          processingTimeMs: responseTimeMs,
+          resultData: result as any,
+        }
+      });
+
+      await prisma.apiLog.create({
+        data: {
+          apiKeyId: apiKey.id,
+          companyId: company.id,
+          endpoint: req.originalUrl || '/v1/imobiliario/historico',
+          method: req.method,
+          statusCode: 200,
+          responseTimeMs,
+          ipAddress: clientIp,
+          creditsUsed: 0,
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        periodo: result.periodo || '',
+        total_declaracoes: 0,
+        declaracoes: [],
+        mensagem: 'Nenhum histórico imobiliário ou declaração cartorária encontrada para este documento.',
+        custo_debitado: 0.00,
+        api_central: {
+          api_utilizada: 'historico_imobiliario',
+          parametro_utilizado: 'query',
+          query_fornecida: cleanDoc,
+          timestamp: new Date().toISOString(),
+          tempo_resposta_ms: responseTimeMs,
+        }
+      });
+    }
+
+    // 4. Caso TENHA DADOS: Efetuar cobrança e registrar query tarifada
+    const queryCost = eligibility.price;
     const queryRecord = await prisma.query.create({
       data: {
         companyId: company.id,
         identifier: cleanDoc,
         source: QuerySource.API,
         status: QueryStatus.COMPLETED,
-        cost: eligibility.price,
-        totalDeclaracoes: result.total_declaracoes || (result.declaracoes ? result.declaracoes.length : 0),
+        cost: queryCost,
+        totalDeclaracoes,
         processingTimeMs: responseTimeMs,
         resultData: result as any,
       }
     });
 
-    // 4. Efetuar cobrança
-    await billingService.chargeQuery(company.id, queryRecord.id, eligibility.price);
+    await billingService.chargeQuery(company.id, queryRecord.id, queryCost);
 
-    // 5. Salvar Log da API
     await prisma.apiLog.create({
       data: {
         apiKeyId: apiKey.id,
         companyId: company.id,
-        endpoint: '/v1/imobiliario/historico',
-        method: 'POST',
+        endpoint: req.originalUrl || '/v1/imobiliario/historico',
+        method: req.method,
         statusCode: 200,
         responseTimeMs,
         ipAddress: clientIp,
-        creditsUsed: eligibility.price,
+        creditsUsed: queryCost,
       }
     });
 
     return res.status(200).json({
+      success: true,
       periodo: result.periodo,
-      total_declaracoes: result.total_declaracoes,
+      total_declaracoes: totalDeclaracoes,
       declaracoes: result.declaracoes,
+      custo_debitado: queryCost,
       api_central: {
         api_utilizada: 'historico_imobiliario',
         parametro_utilizado: 'query',
@@ -218,8 +279,8 @@ export const consultarApiV1 = async (req: any, res: Response) => {
       data: {
         apiKeyId: apiKey.id,
         companyId: company.id,
-        endpoint: '/v1/imobiliario/historico',
-        method: 'POST',
+        endpoint: req.originalUrl || '/v1/imobiliario/historico',
+        method: req.method,
         statusCode: 500,
         responseTimeMs,
         ipAddress: clientIp,

@@ -15,7 +15,7 @@ import api from '../../services/api';
 
 export default function PortalDevDocs() {
   const [copiedLang, setCopiedLang] = useState<string | null>(null);
-  const [activeLang, setActiveLang] = useState<'curl' | 'node' | 'python' | 'php' | 'csharp'>('curl');
+  const [activeLang, setActiveLang] = useState<'url_get' | 'curl' | 'node' | 'python' | 'php' | 'csharp'>('url_get');
 
   // Playground
   const [testDoc, setTestDoc] = useState('01036115925');
@@ -30,10 +30,13 @@ export default function PortalDevDocs() {
   };
 
   const codeSnippets = {
-    curl: `curl -X POST "https://api.renacred.com.br/v1/imobiliario/historico" \\
-  -H "x-api-key: SUA_CHAVE_API_AQUI" \\
-  -H "Content-Type: application/json" \\
-  -d '{"query": "01036115925"}'`,
+    url_get: `# 1. Chamada direta via GET (pode ser colada no navegador, webhook ou ERP):
+https://api.renacred.com.br/v1/imobiliario/historico?token=SUA_CHAVE_API&query=01036115925
+
+# 2. Compatibilidade com provedores de mercado (FetchBrasil, etc.):
+https://api.renacred.com.br/v1/imobiliario/historico?token=SUA_CHAVE_API&api=historico_imobiliario&query=01036115925`,
+
+    curl: `curl -X GET "https://api.renacred.com.br/v1/imobiliario/historico?token=SUA_CHAVE_API&query=01036115925"`,
 
     node: `const axios = require('axios');
 
@@ -147,14 +150,17 @@ class Program {
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div className="flex items-center space-x-3">
-            <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+            <span className="px-2 py-0.5 rounded-lg text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+              GET
+            </span>
+            <span className="px-2 py-0.5 rounded-lg text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
               POST
             </span>
             <span className="text-sm font-bold text-slate-900 font-mono">
               /v1/imobiliario/historico
             </span>
           </div>
-          <span className="text-xs text-slate-500 font-medium">Tarifado por consulta</span>
+          <span className="text-xs text-slate-500 font-medium">Tarifado apenas se encontrar declarações</span>
         </div>
 
         {/* Parâmetros de Requisição e Retorno */}
@@ -199,8 +205,8 @@ class Program {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Exemplos de Código</h4>
-            <div className="flex space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
-              {(['curl', 'node', 'python', 'php', 'csharp'] as const).map((lang) => (
+            <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+              {(['url_get', 'curl', 'node', 'python', 'php', 'csharp'] as const).map((lang) => (
                 <button
                   key={lang}
                   onClick={() => setActiveLang(lang)}
@@ -210,7 +216,7 @@ class Program {
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  {lang.toUpperCase()}
+                  {lang === 'url_get' ? 'URL (GET)' : lang.toUpperCase()}
                 </button>
               ))}
             </div>

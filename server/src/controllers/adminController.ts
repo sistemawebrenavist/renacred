@@ -111,19 +111,33 @@ export const createCompany = async (req: Request, res: Response) => {
         });
       }
 
-      return { company, user };
+      // Gerar chave de API inicial da empresa automaticamente
+      const randomSecret = crypto.randomBytes(24).toString('hex');
+      const initialApiKey = `rena_live_${randomSecret}`;
+      const apiKey = await tx.apiKey.create({
+        data: {
+          companyId: company.id,
+          name: `Chave Produção - ${razaoSocial}`,
+          key: initialApiKey,
+          rateLimitMin: 60,
+          isActive: true,
+        }
+      });
+
+      return { company, user, apiKey };
     });
 
-    logger.info(`[ADMIN] Nova empresa cadastrada: ${razaoSocial} (${cleanDoc}) com usuário ${adminEmail}`);
+    logger.info(`[ADMIN] Nova empresa cadastrada: ${razaoSocial} (${cleanDoc}) com chave ${result.apiKey.key}`);
 
     return res.status(201).json({
       success: true,
-      message: 'Empresa e usuário administrador cadastrados com sucesso!',
+      message: 'Empresa, usuário administrador e chave de API cadastrados com sucesso!',
       data: {
         companyId: result.company.id,
         razaoSocial: result.company.razaoSocial,
         cnpjCpf: result.company.cnpjCpf,
         accountType: result.company.accountType,
+        apiKey: result.apiKey.key,
         adminUser: {
           id: result.user.id,
           name: result.user.name,
@@ -178,6 +192,12 @@ export const getDashboardMetrics = async (req: Request, res: Response) => {
 
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    const isClientCompany = {
+      users: {
+        none: { isSuperAdmin: true }
+      }
+    };
+
     const [
       totalCompanies,
       activeCompanies,
@@ -186,29 +206,43 @@ export const getDashboardMetrics = async (req: Request, res: Response) => {
       totalRevenueAggregate,
       recentQueries
     ] = await Promise.all([
-      prisma.company.count(),
-      prisma.company.count({ where: { isActive: true } }),
+      prisma.company.count({
+        where: isClientCompany
+      }),
+      prisma.company.count({
+        where: {
+          isActive: true,
+          ...isClientCompany
+        }
+      }),
       prisma.query.count({
         where: {
           createdAt: { gte: today },
           source: 'API',
-          status: 'COMPLETED'
+          status: 'COMPLETED',
+          company: isClientCompany
         }
       }),
       prisma.query.count({
         where: {
           createdAt: { gte: firstDayOfMonth },
           source: 'API',
-          status: 'COMPLETED'
+          status: 'COMPLETED',
+          company: isClientCompany
         }
       }),
       prisma.query.aggregate({
-        where: { status: 'COMPLETED', source: 'API' },
+        where: {
+          status: 'COMPLETED',
+          source: 'API',
+          company: isClientCompany
+        },
         _sum: { cost: true }
       }),
       prisma.query.findMany({
         where: {
-          source: 'API' // Apenas consultas efetuadas pelas APIs dos clientes
+          source: 'API', // Apenas consultas efetuadas pelas APIs dos clientes
+          company: isClientCompany
         },
         take: 25,
         orderBy: { createdAt: 'desc' },
@@ -250,15 +284,23 @@ export const listCompanies = async (req: Request, res: Response) => {
     const search = req.query.search as string;
     const accountType = req.query.accountType as any;
 
-    const where: any = {};
+    const where: any = {
+      users: {
+        none: { isSuperAdmin: true }
+      }
+    };
     if (accountType) {
       where.accountType = accountType;
     }
     if (search) {
-      where.OR = [
-        { razaoSocial: { contains: search, mode: 'insensitive' } },
-        { cnpjCpf: { contains: search } },
-        { email: { contains: search, mode: 'insensitive' } },
+      where.AND = [
+        {
+          OR: [
+            { razaoSocial: { contains: search, mode: 'insensitive' } },
+            { cnpjCpf: { contains: search } },
+            { email: { contains: search, mode: 'insensitive' } },
+          ]
+        }
       ];
     }
 

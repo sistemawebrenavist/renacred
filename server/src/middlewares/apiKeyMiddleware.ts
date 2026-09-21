@@ -16,19 +16,31 @@ export interface ApiKeyRequest extends Request {
 }
 
 export const authenticateApiKey = async (req: ApiKeyRequest, res: Response, next: NextFunction) => {
-  const apiKeyHeader = req.headers['x-api-key'] as string;
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader && authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.substring(7).trim()
+    : undefined;
 
-  if (!apiKeyHeader) {
+  const rawApiKey =
+    (req.headers['x-api-key'] as string) ||
+    bearerToken ||
+    (req.query.token as string) ||
+    (req.query.api_key as string) ||
+    (req.query.key as string);
+
+  const apiKeyValue = rawApiKey ? String(rawApiKey).trim() : '';
+
+  if (!apiKeyValue) {
     return res.status(401).json({
       success: false,
       code: 'API_KEY_REQUIRED',
-      message: 'Cabeçalho x-api-key não fornecido. Obtenha sua chave no painel do desenvolvedor.',
+      message: 'Token ou Chave de API não fornecido. Envie via parâmetro ?token=... na URL, cabeçalho x-api-key ou Authorization: Bearer.',
     });
   }
 
   try {
     const apiKey = await prisma.apiKey.findUnique({
-      where: { key: apiKeyHeader },
+      where: { key: apiKeyValue },
       include: {
         company: {
           select: {

@@ -98,6 +98,23 @@ export class BillingService {
 
     const price = company.customQueryPrice ? Number(company.customQueryPrice) : await this.getCompanyQueryPrice(companyId);
 
+    // 0. Bloqueio automático de inadimplência: Fatura vencida em atraso (OVERDUE)
+    const overdueInvoice = await prisma.invoice.findFirst({
+      where: {
+        companyId,
+        status: InvoiceStatus.OVERDUE,
+      }
+    });
+
+    if (overdueInvoice) {
+      return {
+        allowed: false,
+        code: 'INVOICE_OVERDUE',
+        message: 'Assinatura suspensa por fatura em atraso. Regularize o pagamento pendente no portal para continuar consultando.',
+        price,
+      };
+    }
+
     // 1. Regra para PRÉ-PAGO: saldo deve ser >= preço da consulta
     if (company.accountType === 'PRE_PAID') {
       const balance = Number(company.creditsBalance);

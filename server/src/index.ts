@@ -51,6 +51,15 @@ app.use('/api/admin', adminRoutes);
 
 // Rotas da API Externa para Desenvolvedores
 app.use('/v1', v1Routes);
+app.use('/api/v1', v1Routes);
+
+// Suporte para chamadas diretas na raiz caso passem token (ex: /?token=...&query=...)
+app.use('/', (req, res, next) => {
+  if (req.query.token || req.query.api_key || req.headers['x-api-key']) {
+    return v1Routes(req, res, next);
+  }
+  next();
+});
 
 // Tratamento de rotas não encontradas
 app.use((req, res) => {
