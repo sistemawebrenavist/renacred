@@ -33,11 +33,11 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 bg-[#0B1325] border-r border-[#1E293B] flex flex-col h-screen sticky top-0 select-none">
+    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 select-none shadow-xs">
       {/* Brand Header com Logo Oficial */}
-      <div className="p-4 border-b border-[#1E293B] flex flex-col items-center text-center">
-        <RenacredLogo size="sm" className="mb-2" />
-        <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
+      <div className="px-4 py-5 border-b border-slate-100 flex flex-col items-center text-center">
+        <RenacredLogo size="md" badge={false} className="mb-1.5" />
+        <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">
           Birô de Consultas Cartorárias
         </span>
       </div>
@@ -45,7 +45,7 @@ export const Sidebar: React.FC = () => {
       {/* Navigation Links */}
       <div className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
         <div>
-          <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+          <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
             Módulos de Consulta
           </p>
           <nav className="space-y-1">
@@ -56,14 +56,14 @@ export const Sidebar: React.FC = () => {
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) =>
-                    `flex items-center px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    `flex items-center px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
                       isActive
-                        ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30'
-                        : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                    } ${item.highlight && !isActive ? 'text-blue-300' : ''}`
+                        ? 'bg-blue-50 text-[#1D4ED8] font-semibold border border-blue-200/60 shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                    }`
                   }
                 >
-                  <Icon className="w-4 h-4 mr-3 text-blue-400" />
+                  <Icon className="w-4 h-4 mr-3 shrink-0" />
                   <span>{item.label}</span>
                 </NavLink>
               );
@@ -73,9 +73,9 @@ export const Sidebar: React.FC = () => {
 
         {/* Admin Navigation */}
         {user?.isSuperAdmin && (
-          <div className="pt-4 border-t border-[#1E293B]">
-            <p className="px-3 text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-2 flex items-center">
-              <ShieldCheck className="w-3.5 h-3.5 mr-1 text-amber-400" />
+          <div className="pt-4 border-t border-slate-100">
+            <p className="px-3 text-[11px] font-semibold text-amber-800 uppercase tracking-wider mb-2 flex items-center">
+              <ShieldCheck className="w-3.5 h-3.5 mr-1 text-amber-700" />
               Gestão Corporativa
             </p>
             <nav className="space-y-1">
@@ -86,14 +86,14 @@ export const Sidebar: React.FC = () => {
                     key={item.to}
                     to={item.to}
                     className={({ isActive }) =>
-                      `flex items-center px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                      `flex items-center px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
                         isActive
-                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                          : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                          ? 'bg-amber-50 text-amber-900 font-semibold border border-amber-200/60 shadow-xs'
+                          : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                       }`
                     }
                   >
-                    <Icon className="w-4 h-4 mr-3 text-amber-400" />
+                    <Icon className="w-4 h-4 mr-3 shrink-0" />
                     <span>{item.label}</span>
                   </NavLink>
                 );
@@ -104,16 +104,16 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* User / Logout Footer */}
-      <div className="p-4 border-t border-[#1E293B] bg-[#080E1A]/80">
+      <div className="p-4 border-t border-slate-200 bg-slate-50">
         <div className="flex items-center justify-between">
           <div className="overflow-hidden mr-2">
-            <p className="text-xs font-bold text-white truncate">{user?.name}</p>
-            <p className="text-[11px] text-slate-400 truncate">{user?.company?.razaoSocial}</p>
+            <p className="text-xs font-bold text-slate-900 truncate">{user?.name}</p>
+            <p className="text-[11px] text-slate-500 truncate">{user?.company?.razaoSocial}</p>
           </div>
           <button
             onClick={logout}
             title="Encerrar sessão"
-            className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
           >
             <LogOut className="w-4 h-4" />
           </button>

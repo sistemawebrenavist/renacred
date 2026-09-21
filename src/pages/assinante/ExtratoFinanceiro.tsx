@@ -76,27 +76,27 @@ export default function ExtratoFinanceiro() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Topo / Card de Resumo Financeiro */}
-      <div className="bg-[#0b1325] border border-slate-800/80 rounded-3xl p-8 shadow-xl flex flex-wrap items-center justify-between gap-6">
+      <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs flex flex-wrap items-center justify-between gap-6">
         <div>
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Situação Financeira</span>
           <div className="flex items-center space-x-4 mt-2">
             {isPrePaid ? (
               <div>
-                <span className="text-3xl font-extrabold text-white font-mono">
+                <span className="text-3xl font-extrabold text-slate-900 font-mono">
                   R$ {(company?.creditsBalance || 0).toFixed(2)}
                 </span>
-                <p className="text-xs text-emerald-400 font-medium mt-1 flex items-center">
-                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                  Conta Pré-paga (Saldo Disponível)
+                <p className="text-xs text-emerald-700 font-medium mt-1 flex items-center">
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                  Conta Pré-paga (Saldo Disponível para Consultas)
                 </p>
               </div>
             ) : (
               <div>
-                <span className="text-3xl font-extrabold text-sky-400 font-mono">
+                <span className="text-3xl font-extrabold text-blue-700 font-mono">
                   Pós-pago
                 </span>
-                <p className="text-xs text-slate-300 font-medium mt-1 flex items-center">
-                  <Calendar className="w-3.5 h-3.5 mr-1 text-sky-400" />
+                <p className="text-xs text-slate-500 font-medium mt-1 flex items-center">
+                  <Calendar className="w-3.5 h-3.5 mr-1 text-blue-600" />
                   Fechamento mensal com vencimento no dia {company?.billingDueDate || 10}
                 </p>
               </div>
@@ -107,7 +107,7 @@ export default function ExtratoFinanceiro() {
         {isPrePaid && (
           <button
             onClick={() => setShowRechargeModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-2xl text-sm flex items-center shadow-md shadow-blue-600/20 transition"
+            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-6 py-3 rounded-2xl text-sm flex items-center shadow-xs transition"
           >
             <PlusCircle className="w-4 h-4 mr-2" />
             Recarregar Saldo via Pix
@@ -116,13 +116,13 @@ export default function ExtratoFinanceiro() {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-2 border-b border-slate-800 pb-2">
+      <div className="flex space-x-2 border-b border-slate-200 pb-2">
         <button
           onClick={() => setActiveTab('extrato')}
           className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
             activeTab === 'extrato'
-              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-              : 'text-slate-400 hover:text-white'
+              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+              : 'text-slate-500 hover:text-slate-900'
           }`}
         >
           Extrato de Movimentações
@@ -132,8 +132,8 @@ export default function ExtratoFinanceiro() {
             onClick={() => setActiveTab('faturas')}
             className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
               activeTab === 'faturas'
-                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             Faturas Mensais do Ciclo
@@ -142,18 +142,18 @@ export default function ExtratoFinanceiro() {
       </div>
 
       {/* Conteúdo da Tab */}
-      <div className="bg-[#0b1325] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
         {loading ? (
-          <div className="py-12 text-center text-xs text-slate-500">Carregando dados financeiros...</div>
+          <div className="py-12 text-center text-xs text-slate-400">Carregando dados financeiros...</div>
         ) : activeTab === 'extrato' ? (
           transactions.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-500">
+            <div className="py-12 text-center text-xs text-slate-400">
               Nenhuma movimentação financeira registrada até o momento.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="text-slate-400 uppercase tracking-wider border-b border-slate-800/80">
+                <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
                   <tr>
                     <th className="py-3 px-4">Tipo</th>
                     <th className="py-3 px-4">Descrição</th>
@@ -162,39 +162,39 @@ export default function ExtratoFinanceiro() {
                     <th className="py-3 px-4 text-right">Data</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-slate-100">
                   {transactions.map((tx) => {
                     const isCredit = tx.type === 'RECHARGE' || tx.type === 'MANUAL_ADJUSTMENT';
                     return (
-                      <tr key={tx.id} className="hover:bg-slate-800/30 transition">
+                      <tr key={tx.id} className="hover:bg-slate-50/80 transition">
                         <td className="py-3 px-4">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
                               isCredit
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-slate-100 text-slate-700 border border-slate-200'
                             }`}
                           >
                             {isCredit ? (
-                              <ArrowDownLeft className="w-3 h-3 mr-1" />
+                              <ArrowDownLeft className="w-3 h-3 mr-1 text-emerald-600" />
                             ) : (
-                              <ArrowUpRight className="w-3 h-3 mr-1" />
+                              <ArrowUpRight className="w-3 h-3 mr-1 text-slate-500" />
                             )}
                             {tx.type}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-200">{tx.description}</td>
+                        <td className="py-3 px-4 text-slate-900 font-medium">{tx.description}</td>
                         <td
                           className={`py-3 px-4 font-bold font-mono ${
-                            isCredit ? 'text-emerald-400' : 'text-slate-300'
+                            isCredit ? 'text-emerald-700' : 'text-slate-900'
                           }`}
                         >
                           {isCredit ? '+' : '-'} R$ {Number(tx.amount).toFixed(2)}
                         </td>
-                        <td className="py-3 px-4 text-slate-400 font-mono">
+                        <td className="py-3 px-4 text-slate-600 font-mono">
                           R$ {Number(tx.balance).toFixed(2)}
                         </td>
-                        <td className="py-3 px-4 text-right text-slate-400">
+                        <td className="py-3 px-4 text-right text-slate-500">
                           {new Date(tx.createdAt).toLocaleString('pt-BR')}
                         </td>
                       </tr>
@@ -206,13 +206,13 @@ export default function ExtratoFinanceiro() {
           )
         ) : (
           invoices.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-500">
+            <div className="py-12 text-center text-xs text-slate-400">
               Nenhuma fatura fechada no momento. Suas consultas estão sendo acumuladas para o próximo vencimento.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="text-slate-400 uppercase tracking-wider border-b border-slate-800/80">
+                <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
                   <tr>
                     <th className="py-3 px-4">Ciclo de Consumo</th>
                     <th className="py-3 px-4">Vencimento</th>
@@ -222,22 +222,22 @@ export default function ExtratoFinanceiro() {
                     <th className="py-3 px-4 text-right">Ação</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-slate-100">
                   {invoices.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-slate-800/30 transition">
-                      <td className="py-3 px-4 text-slate-200">
+                    <tr key={inv.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-3 px-4 text-slate-900 font-medium">
                         {new Date(inv.cycleStart).toLocaleDateString('pt-BR')} até{' '}
                         {new Date(inv.cycleEnd).toLocaleDateString('pt-BR')}
                       </td>
-                      <td className="py-3 px-4 font-bold text-white">
+                      <td className="py-3 px-4 font-bold text-slate-900 font-mono">
                         {new Date(inv.dueDate).toLocaleDateString('pt-BR')}
                       </td>
-                      <td className="py-3 px-4 text-slate-300">{inv.totalQueries} consultas</td>
-                      <td className="py-3 px-4 font-bold text-emerald-400 font-mono">
+                      <td className="py-3 px-4 text-slate-600">{inv.totalQueries} consultas</td>
+                      <td className="py-3 px-4 font-bold text-slate-900 font-mono">
                         R$ {Number(inv.totalAmount).toFixed(2)}
                       </td>
                       <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                           {inv.status}
                         </span>
                       </td>
@@ -247,12 +247,12 @@ export default function ExtratoFinanceiro() {
                             href={inv.checkoutUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-xs font-semibold text-emerald-400 hover:underline"
+                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
                           >
                             Pagar Fatura Pix &rarr;
                           </a>
                         ) : (
-                          <span className="text-slate-500">Em processamento</span>
+                          <span className="text-slate-400">Em processamento</span>
                         )}
                       </td>
                     </tr>
@@ -266,22 +266,22 @@ export default function ExtratoFinanceiro() {
 
       {/* Modal de Recarga Pix */}
       {showRechargeModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#0b1325] border border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <h3 className="text-lg font-bold text-white flex items-center">
-                <Wallet className="w-5 h-5 mr-2 text-blue-500" />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-md w-full shadow-xl space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center">
+                <Wallet className="w-5 h-5 mr-2 text-blue-600" />
                 Recarga de Saldo Pix
               </h3>
               <button
                 onClick={() => setShowRechargeModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-slate-400 hover:text-slate-600 text-sm"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-slate-300">
+            <p className="text-xs text-slate-500 leading-relaxed">
               Selecione um pacote de créditos para recarga imediata. O saldo é liberado automaticamente após a confirmação do Pix pela credenciadora.
             </p>
 
@@ -297,8 +297,8 @@ export default function ExtratoFinanceiro() {
                   }}
                   className={`py-3 rounded-2xl border text-sm font-bold transition font-mono ${
                     rechargeAmount === val && !customAmount
-                      ? 'bg-blue-500/10 border-blue-500 text-blue-400'
-                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                      ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   R$ {val}
@@ -308,7 +308,7 @@ export default function ExtratoFinanceiro() {
 
             {/* Valor Personalizado */}
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1.5">Outro Valor (R$)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Outro Valor (R$)</label>
               <input
                 type="number"
                 min="20"
@@ -316,16 +316,16 @@ export default function ExtratoFinanceiro() {
                 value={customAmount}
                 onChange={(e) => setCustomAmount(e.target.value)}
                 placeholder="Ex: 150.00"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 font-mono"
+                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
               />
             </div>
 
             <button
               onClick={handleGenerateCheckout}
               disabled={generatingPayment}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-2xl text-sm transition shadow-md shadow-blue-600/20 disabled:opacity-50"
+              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3.5 rounded-2xl text-sm transition shadow-xs disabled:opacity-50"
             >
-              {generatingPayment ? 'Gerando Link InfinityPay...' : 'Prosseguir para o Pix'}
+              {generatingPayment ? 'Gerando Link de Pagamento...' : 'Prosseguir para o Pix'}
             </button>
           </div>
         </div>

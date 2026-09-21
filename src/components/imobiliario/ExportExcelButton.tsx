@@ -36,9 +36,9 @@ export const ExportExcelButton: React.FC<ExportExcelProps> = ({ documento, decla
   return (
     <button
       onClick={handleExport}
-      className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition shadow-sm"
+      className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition shadow-xs"
     >
-      <Table className="w-4 h-4 mr-2 text-emerald-400" />
+      <Table className="w-4 h-4 mr-2 text-emerald-600" />
       Exportar Planilha Excel
     </button>
   );

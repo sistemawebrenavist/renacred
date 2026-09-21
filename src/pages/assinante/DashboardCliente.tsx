@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-  Search, 
-  Wallet, 
-  Building2, 
-  Clock, 
-  FileText, 
+import {
+  Search,
+  Wallet,
+  Building2,
+  Clock,
+  FileText,
   ArrowUpRight,
   ShieldCheck,
   Calendar
@@ -47,18 +47,18 @@ export default function DashboardCliente() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Banner Principal Institucional */}
-      <div className="bg-[#0B1325] border border-[#1E293B] rounded-2xl p-8 shadow-xl">
+      {/* Banner Principal de Consulta */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-xs">
         <div className="max-w-3xl">
-          <div className="flex items-center space-x-2 text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>Rede Nacional de Proteção ao Crédito • Base Cartorária & DOI</span>
+          <div className="inline-flex items-center space-x-2 text-xs font-semibold text-[#1D4ED8] bg-blue-50 border border-blue-200/60 px-3 py-1 rounded-lg mb-3">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#1D4ED8]" />
+            <span>Consultas Oficiais Cartorárias & Declarações DOI</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Consulta de Histórico Imobiliário Nacional
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+            Consulta de histórico imobiliário nacional
           </h2>
-          <p className="text-slate-300 text-xs sm:text-sm mt-2 leading-relaxed">
-            Consulte a titularidade, histórico de compras, vendas e registros em cartórios de imóveis vinculados a qualquer CPF ou CNPJ em tempo real.
+          <p className="text-slate-600 text-sm mt-2 leading-relaxed">
+            Pesquise titularidades, registros de alienações, compras e vendas lavradas em cartórios de imóveis vinculadas a qualquer CPF ou CNPJ.
           </p>
 
           <form onSubmit={handleQuickSearch} className="mt-6 flex flex-col sm:flex-row gap-3">
@@ -69,14 +69,14 @@ export default function DashboardCliente() {
                 value={documentoRapido}
                 onChange={(e) => setDocumentoRapido(e.target.value)}
                 placeholder="Informe o CPF ou CNPJ para consulta..."
-                className="w-full bg-[#0F172A] border border-[#1E293B] rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition font-mono"
+                className="w-full bg-white border border-slate-300 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 font-mono transition shadow-xs"
               />
             </div>
             <button
               type="submit"
-              className="bg-[#1D4ED8] hover:bg-[#2563EB] text-white font-bold px-6 py-3 rounded-xl text-xs sm:text-sm flex items-center justify-center transition shadow-lg shadow-blue-900/20"
+              className="bg-[#1D4ED8] hover:bg-[#1E40AF] active:bg-[#172554] text-white font-medium px-6 py-3 rounded-xl text-sm flex items-center justify-center transition shadow-xs"
             >
-              Consultar Agora
+              Consultar agora
               <ArrowUpRight className="w-4 h-4 ml-1.5" />
             </button>
           </form>
@@ -86,33 +86,33 @@ export default function DashboardCliente() {
       {/* Cards de Métricas e Saldo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Card Saldo / Modalidade */}
-        <div className="bg-[#0B1325] border border-[#1E293B] rounded-xl p-6 shadow-md">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-            <span>Modalidade Comercial</span>
-            <Wallet className="w-4 h-4 text-emerald-500" />
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">
+            <span>Modalidade comercial</span>
+            <Wallet className="w-4 h-4 text-emerald-600" />
           </div>
           {company?.accountType === 'PRE_PAID' ? (
             <div>
-              <p className="text-2xl font-extrabold text-white font-mono">
+              <p className="text-2xl font-bold text-slate-900 font-mono">
                 R$ {(company?.creditsBalance || 0).toFixed(2)}
               </p>
-              <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs text-emerald-400 font-semibold">Conta Pré-paga</span>
-                <Link to="/extrato" className="text-xs font-bold text-blue-400 hover:text-blue-300">
-                  + Recarga Pix &rarr;
+              <div className="mt-4 flex items-center justify-between text-xs">
+                <span className="text-emerald-700 font-medium">Conta pré-paga ativa</span>
+                <Link to="/extrato" className="font-semibold text-[#1D4ED8] hover:underline">
+                  Recarga Pix &rarr;
                 </Link>
               </div>
             </div>
           ) : (
             <div>
-              <p className="text-2xl font-extrabold text-blue-400">Pós-pago</p>
-              <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
+              <p className="text-2xl font-bold text-slate-900">Pós-pago</p>
+              <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
                 <span className="flex items-center">
-                  <Calendar className="w-3.5 h-3.5 mr-1 text-blue-400" />
+                  <Calendar className="w-3.5 h-3.5 mr-1 text-[#1D4ED8]" />
                   Vencimento dia {company?.billingDueDate || 10}
                 </span>
-                <Link to="/extrato" className="font-bold text-blue-400 hover:underline">
-                  Ver Faturas
+                <Link to="/extrato" className="font-semibold text-[#1D4ED8] hover:underline">
+                  Ver faturas
                 </Link>
               </div>
             </div>
@@ -120,43 +120,43 @@ export default function DashboardCliente() {
         </div>
 
         {/* Card Integração API */}
-        <div className="bg-[#0B1325] border border-[#1E293B] rounded-xl p-6 shadow-md">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-            <span>Integração de Sistemas</span>
-            <FileText className="w-4 h-4 text-blue-400" />
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">
+            <span>Integração de sistemas</span>
+            <FileText className="w-4 h-4 text-[#1D4ED8]" />
           </div>
-          <p className="text-2xl font-extrabold text-white">API REST v1</p>
+          <p className="text-2xl font-bold text-slate-900">API REST v1</p>
           <div className="mt-4 flex items-center justify-between text-xs">
-            <span className="text-slate-400">JSON • Alta Confiabilidade</span>
-            <Link to="/docs" className="text-xs font-bold text-blue-400 hover:underline">
+            <span className="text-slate-500">Payload estruturado JSON</span>
+            <Link to="/docs" className="font-semibold text-[#1D4ED8] hover:underline">
               Documentação &rarr;
             </Link>
           </div>
         </div>
 
         {/* Card Segurança e Fontes */}
-        <div className="bg-[#0B1325] border border-[#1E293B] rounded-xl p-6 shadow-md">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-            <span>Fontes Oficiais</span>
-            <Building2 className="w-4 h-4 text-slate-400" />
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">
+            <span>Fontes oficiais</span>
+            <Building2 className="w-4 h-4 text-slate-500" />
           </div>
-          <p className="text-2xl font-extrabold text-white">Cartórios & DOI</p>
+          <p className="text-2xl font-bold text-slate-900">Cartórios & DOI</p>
           <div className="mt-4 flex items-center justify-between text-xs">
-            <span className="text-slate-400">Receita Federal do Brasil</span>
-            <span className="text-emerald-400 font-bold">Cobertura Nacional</span>
+            <span className="text-slate-500">Serventias de imóveis</span>
+            <span className="text-emerald-700 font-semibold">Cobertura nacional</span>
           </div>
         </div>
       </div>
 
       {/* Histórico Recente de Consultas */}
-      <div className="bg-[#0B1325] border border-[#1E293B] rounded-xl p-6 shadow-md">
+      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center">
-            <Clock className="w-4 h-4 mr-2 text-blue-400" />
-            Últimas Consultas Realizadas
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center">
+            <Clock className="w-4 h-4 mr-2 text-[#1D4ED8]" />
+            Últimas consultas realizadas
           </h3>
-          <Link to="/consultar" className="text-xs font-bold text-blue-400 hover:underline">
-            Nova Pesquisa &rarr;
+          <Link to="/consultar" className="text-xs font-semibold text-[#1D4ED8] hover:underline">
+            Nova pesquisa &rarr;
           </Link>
         </div>
 
@@ -169,38 +169,38 @@ export default function DashboardCliente() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="text-slate-400 uppercase tracking-wider border-b border-[#1E293B]">
+              <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4">Documento</th>
-                  <th className="py-3 px-4">Canal</th>
-                  <th className="py-3 px-4">Declarações</th>
-                  <th className="py-3 px-4">Tarifa</th>
-                  <th className="py-3 px-4">Data/Hora</th>
-                  <th className="py-3 px-4 text-right">Ação</th>
+                  <th className="py-3 px-4 font-semibold">Documento</th>
+                  <th className="py-3 px-4 font-semibold">Canal</th>
+                  <th className="py-3 px-4 font-semibold">Declarações</th>
+                  <th className="py-3 px-4 font-semibold">Tarifa</th>
+                  <th className="py-3 px-4 font-semibold">Data e hora</th>
+                  <th className="py-3 px-4 font-semibold text-right">Ação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1E293B]/60">
+              <tbody className="divide-y divide-slate-100">
                 {recentQueries.map((q) => (
-                  <tr key={q.id} className="hover:bg-slate-800/30 transition">
-                    <td className="py-3 px-4 font-bold font-mono text-slate-200">{q.identifier}</td>
+                  <tr key={q.id} className="hover:bg-slate-50/70 transition">
+                    <td className="py-3 px-4 font-bold font-mono text-slate-900">{q.identifier}</td>
                     <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#0F172A] border border-[#1E293B] text-slate-300">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 border border-slate-200 text-slate-700">
                         {q.source}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-slate-300">
+                    <td className="py-3 px-4 text-slate-600">
                       {q.totalDeclaracoes} declarações
                     </td>
-                    <td className="py-3 px-4 text-emerald-400 font-bold font-mono">
+                    <td className="py-3 px-4 text-emerald-700 font-bold font-mono">
                       R$ {Number(q.cost).toFixed(2)}
                     </td>
-                    <td className="py-3 px-4 text-slate-400">
+                    <td className="py-3 px-4 text-slate-500">
                       {new Date(q.createdAt).toLocaleString('pt-BR')}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <Link
                         to={`/consultar?doc=${q.identifier}`}
-                        className="text-xs text-blue-400 hover:text-blue-300 font-bold"
+                        className="text-xs text-[#1D4ED8] hover:text-[#1E40AF] font-semibold"
                       >
                         Visualizar
                       </Link>

@@ -43,27 +43,27 @@ export default function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-150"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget && !loading) onClose();
       }}
     >
-      <div className="bg-[#0b1325] border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-xs">
-        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-          <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-xl space-y-4 text-xs">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
             {title}
           </h3>
           <button
             onClick={onClose}
             disabled={loading}
-            className="text-slate-400 hover:text-white transition disabled:opacity-50 text-sm p-1"
+            className="text-slate-400 hover:text-slate-600 transition disabled:opacity-50 text-sm p-1"
             aria-label="Fechar"
           >
             ✕
           </button>
         </div>
 
-        <div className="text-slate-300 text-xs leading-relaxed py-1">
+        <div className="text-slate-600 text-xs leading-relaxed py-1">
           {typeof description === 'string' ? (
             <p className="whitespace-pre-line">{description}</p>
           ) : (
@@ -71,12 +71,12 @@ export default function ConfirmModal({
           )}
         </div>
 
-        <div className="flex items-center justify-end space-x-2.5 pt-2 border-t border-slate-800/80">
+        <div className="flex items-center justify-end space-x-2.5 pt-3 border-t border-slate-100">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 rounded-xl font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 border border-slate-700/80 transition disabled:opacity-50"
+            className="px-4 py-2 rounded-xl font-medium text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 transition shadow-xs disabled:opacity-50"
           >
             {cancelText}
           </button>
@@ -84,7 +84,7 @@ export default function ConfirmModal({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={`px-4 py-2 rounded-xl font-semibold transition shadow-sm disabled:opacity-50 inline-flex items-center ${confirmBtnClasses}`}
+            className={`px-4 py-2 rounded-xl font-semibold transition shadow-xs disabled:opacity-50 inline-flex items-center ${confirmBtnClasses}`}
           >
             {loading ? 'Processando...' : confirmText}
           </button>

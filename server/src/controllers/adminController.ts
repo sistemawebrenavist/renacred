@@ -415,7 +415,17 @@ export const superAdminQuery = async (req: Request, res: Response) => {
       aviso: 'Consulta realizada no modo SuperAdmin (isenta de tarifação).'
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message || 'Erro na consulta.' });
+    logger.error(`[ADMIN] Erro na consulta super admin: ${error.message}`);
+    const isProviderBlocked = error.message && error.message.includes('403');
+    const userMessage = isProviderBlocked
+      ? 'O provedor de dados cartorários (FetchBrasil) bloqueou o acesso deste servidor (HTTP 403 Cloudflare). Verifique a liberação do IP 209.50.245.165 no painel da FetchBrasil.'
+      : (error.message || 'Erro na consulta.');
+
+    return res.status(isProviderBlocked ? 502 : 500).json({
+      success: false,
+      code: isProviderBlocked ? 'PROVIDER_BLOCKED_403' : 'QUERY_ERROR',
+      message: userMessage
+    });
   }
 };
 

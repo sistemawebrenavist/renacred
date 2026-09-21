@@ -19,10 +19,14 @@ const PORT = process.env.PORT || 3002;
 
 // Middlewares
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'X-Requested-With', 'Accept', 'Origin'],
 }));
+
+// Responder preflight OPTIONS para todas as rotas
+app.options('*', cors());
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -53,6 +57,20 @@ app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: `Rota ${req.method} ${req.url} não encontrada no servidor Renacred.`,
+  });
+});
+
+// Middleware global de tratamento de erros garantindo cabeçalhos CORS
+app.use((err: any, req: any, res: any, next: any) => {
+  logger.error(`[EXPRESS ERROR] ${req.method} ${req.url} - ${err.message}`);
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Erro interno no servidor.',
   });
 });
 

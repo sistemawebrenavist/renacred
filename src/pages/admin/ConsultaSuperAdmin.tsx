@@ -38,15 +38,15 @@ export default function ConsultaSuperAdmin() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      <div className="bg-[#0b1325] border border-amber-500/30 rounded-3xl p-8 shadow-xl">
-        <div className="flex items-center space-x-2 text-amber-400 text-xs font-bold uppercase tracking-wider mb-2">
-          <ShieldAlert className="w-4 h-4" />
+      <div className="bg-white border border-amber-200 rounded-3xl p-8 shadow-xs">
+        <div className="flex items-center space-x-2 text-amber-800 text-xs font-bold uppercase tracking-wider mb-2">
+          <ShieldAlert className="w-4 h-4 text-amber-600" />
           <span>Ambiente de Testes Master (Sem Cobrança)</span>
         </div>
-        <h2 className="text-2xl font-bold text-white tracking-tight">
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
           Consulta Direta Super Admin
         </h2>
-        <p className="text-slate-400 text-xs mt-1">
+        <p className="text-slate-500 text-xs mt-1">
           Execute testes e auditorias livres de consumo diretamente na fonte da FetchBrasil.
         </p>
 
@@ -58,13 +58,13 @@ export default function ConsultaSuperAdmin() {
               value={documento}
               onChange={(e) => setDocumento(e.target.value)}
               placeholder="Digite o CPF ou CNPJ para teste..."
-              className="w-full bg-slate-900 border border-slate-700 rounded-2xl pl-12 pr-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-mono"
+              className="w-full bg-white border border-slate-300 rounded-2xl pl-12 pr-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600/20 font-mono"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-6 py-3.5 rounded-2xl text-sm flex items-center justify-center transition shadow-lg shadow-amber-600/20 disabled:opacity-50"
+            className="bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-semibold px-6 py-3.5 rounded-2xl text-sm flex items-center justify-center transition shadow-xs disabled:opacity-50"
           >
             {loading ? <RotateCw className="w-4 h-4 animate-spin" /> : 'Auditar CPF/CNPJ'}
           </button>
@@ -73,12 +73,12 @@ export default function ConsultaSuperAdmin() {
 
       {result && (
         <div className="space-y-6">
-          <div className="bg-[#0b1325] border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-wrap items-center justify-between gap-4">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
             <div>
               <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Resultado SuperAdmin</span>
               <div className="flex items-center space-x-3 mt-1">
-                <span className="text-xl font-bold text-white font-mono">{documento}</span>
-                <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <span className="text-xl font-bold text-slate-900 font-mono">{documento}</span>
+                <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
                   {result.total_declaracoes} declarações
                 </span>
               </div>

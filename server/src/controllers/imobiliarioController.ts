@@ -83,9 +83,15 @@ export const consultarWeb = async (req: any, res: Response) => {
       }
     });
 
-    return res.status(500).json({
+    const isProviderBlocked = error.message && error.message.includes('403');
+    const userMessage = isProviderBlocked
+      ? 'O provedor de dados cartorários (FetchBrasil) bloqueou o acesso deste servidor (HTTP 403 Cloudflare). Verifique a liberação do IP 209.50.245.165 no painel da FetchBrasil.'
+      : (error.message || 'Erro ao processar consulta de histórico imobiliário.');
+
+    return res.status(isProviderBlocked ? 502 : 500).json({
       success: false,
-      message: error.message || 'Erro ao processar consulta de histórico imobiliário.',
+      code: isProviderBlocked ? 'PROVIDER_BLOCKED_403' : 'QUERY_ERROR',
+      message: userMessage,
     });
   }
 };

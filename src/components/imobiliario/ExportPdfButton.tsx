@@ -93,9 +93,9 @@ export const ExportPdfButton: React.FC<ExportPdfProps> = ({
   return (
     <button
       onClick={handleExport}
-      className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition shadow-sm"
+      className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition shadow-xs"
     >
-      <FileDown className="w-4 h-4 mr-2 text-blue-400" />
+      <FileDown className="w-4 h-4 mr-2 text-blue-600" />
       Exportar Relatório PDF
     </button>
   );
