@@ -9,10 +9,12 @@ import Home from './pages/Home';
 import DashboardCliente from './pages/assinante/DashboardCliente';
 import ConsultarImobiliario from './pages/assinante/ConsultarImobiliario';
 import ExtratoFinanceiro from './pages/assinante/ExtratoFinanceiro';
+import MinhaAssinatura from './pages/assinante/MinhaAssinatura';
 import GerenciarApi from './pages/assinante/GerenciarApi';
 import PortalDevDocs from './pages/assinante/PortalDevDocs';
+import ConfiguracoesCliente from './pages/assinante/ConfiguracoesCliente';
 
-// Páginas Administrativas
+// Páginas Administrativas (Wellington)
 import DashboardAdmin from './pages/admin/DashboardAdmin';
 import GerenciarClientes from './pages/admin/GerenciarClientes';
 import LogsApi from './pages/admin/LogsApi';
@@ -73,22 +75,24 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          {/* Visão Geral Única (Diferenciada pelo perfil do usuário) */}
+          {/* Visão Geral (Renderização condicional por perfil) */}
           <Route path="/dashboard" element={<UnifiedDashboard />} />
           <Route path="/painel" element={<Navigate to="/dashboard" replace />} />
           <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
 
-          {/* Consulta de Imóvel Única */}
+          {/* Consulta de Imóvel Unificada */}
           <Route path="/consultar" element={<ConsultarImobiliario />} />
           <Route path="/admin/consulta" element={<Navigate to="/consultar" replace />} />
 
-          {/* Financeiro e API do Assinante */}
+          {/* Módulos do Assinante */}
           <Route path="/extrato" element={<ExtratoFinanceiro />} />
+          <Route path="/minha-assinatura" element={<MinhaAssinatura />} />
           <Route path="/api-keys" element={<GerenciarApi />} />
           <Route path="/docs" element={<PortalDevDocs />} />
+          <Route path="/configuracoes" element={<ConfiguracoesCliente />} />
           <Route path="/pagamento/sucesso" element={<Navigate to="/extrato" replace />} />
 
-          {/* Rotas Exclusivas do Super Admin */}
+          {/* Módulos Exclusivos do Super Admin (Wellington) */}
           <Route
             path="/admin/clientes"
             element={

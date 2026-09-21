@@ -9,6 +9,13 @@ interface Company {
   creditsBalance: number;
   creditLimit: number;
   billingDueDate: number;
+  nomeFantasia?: string;
+  telefone?: string;
+  endereco?: string;
+  cidade?: string;
+  estado?: string;
+  cep?: string;
+  customQueryPrice?: number;
 }
 
 interface User {

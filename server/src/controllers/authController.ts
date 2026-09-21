@@ -246,3 +246,45 @@ export const updateProfile = async (req: any, res: Response) => {
   }
 };
 
+/**
+ * Atualização dos dados cadastrais de contato e endereço da Empresa (Assinante)
+ */
+export const updateCompanyContact = async (req: any, res: Response) => {
+  try {
+    const companyId = req.user.companyId;
+    const { nomeFantasia, telefone, endereco, cidade, estado, cep } = req.body;
+
+    const company = await prisma.company.findUnique({
+      where: { id: companyId }
+    });
+
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Empresa não encontrada.' });
+    }
+
+    const updatedCompany = await prisma.company.update({
+      where: { id: companyId },
+      data: {
+        nomeFantasia: typeof nomeFantasia === 'string' ? nomeFantasia.trim() || null : company.nomeFantasia,
+        telefone: typeof telefone === 'string' ? telefone.trim() || null : company.telefone,
+        endereco: typeof endereco === 'string' ? endereco.trim() || null : company.endereco,
+        cidade: typeof cidade === 'string' ? cidade.trim() || null : company.cidade,
+        estado: typeof estado === 'string' ? estado.trim().toUpperCase() || null : company.estado,
+        cep: typeof cep === 'string' ? cep.replace(/\D/g, '') || null : company.cep,
+      }
+    });
+
+    logger.info(`[AUTH] Dados de contato da empresa ${updatedCompany.razaoSocial} (${companyId}) atualizados.`);
+
+    return res.json({
+      success: true,
+      message: 'Dados cadastrais da empresa atualizados com sucesso!',
+      data: updatedCompany
+    });
+  } catch (error: any) {
+    logger.error(`[AUTH] Erro ao atualizar dados da empresa: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao atualizar dados cadastrais.' });
+  }
+};
+
+
