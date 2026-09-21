@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Search, 
-  Edit3, 
   Wallet, 
   Calendar, 
   Check, 
   X, 
-  PlusCircle, 
+  Plus, 
+  Trash2,
   SlidersHorizontal 
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -18,7 +18,26 @@ export default function GerenciarClientes() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Modal de Edição de Parâmetros
+  // Modal de Criação de Novo Assinante (Create)
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newCompany, setNewCompany] = useState({
+    cnpjCpf: '',
+    razaoSocial: '',
+    nomeFantasia: '',
+    email: '',
+    telefone: '',
+    accountType: 'PRE_PAID' as 'PRE_PAID' | 'POST_PAID',
+    billingDueDate: 10,
+    customQueryPrice: '',
+    creditLimit: '',
+    initialBalance: '',
+    adminName: '',
+    adminEmail: '',
+    adminPassword: '',
+  });
+
+  // Modal de Edição de Parâmetros (Update)
   const [editingCompany, setEditingCompany] = useState<any | null>(null);
   const [accountType, setAccountType] = useState<'PRE_PAID' | 'POST_PAID'>('PRE_PAID');
   const [billingDueDate, setBillingDueDate] = useState<number>(10);
@@ -48,6 +67,65 @@ export default function GerenciarClientes() {
   useEffect(() => {
     fetchCompanies();
   }, [search]);
+
+  // Handler para criar novo assinante
+  const handleCreateCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCompany.cnpjCpf || !newCompany.razaoSocial || !newCompany.email) {
+      toast.error('Preencha os campos obrigatórios da empresa.');
+      return;
+    }
+    if (!newCompany.adminEmail || !newCompany.adminPassword) {
+      toast.error('Preencha o e-mail e a senha do administrador da empresa.');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const res = await api.post('/api/admin/companies', newCompany);
+      if (res.data?.success) {
+        toast.success('Assinante e usuário cadastrados com sucesso!');
+        setShowCreateModal(false);
+        setNewCompany({
+          cnpjCpf: '',
+          razaoSocial: '',
+          nomeFantasia: '',
+          email: '',
+          telefone: '',
+          accountType: 'PRE_PAID',
+          billingDueDate: 10,
+          customQueryPrice: '',
+          creditLimit: '',
+          initialBalance: '',
+          adminName: '',
+          adminEmail: '',
+          adminPassword: '',
+        });
+        fetchCompanies();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erro ao cadastrar novo assinante.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // Handler para excluir assinante
+  const handleDeleteCompany = async (c: any) => {
+    if (!confirm(`Deseja realmente excluir o assinante "${c.razaoSocial}" (${c.cnpjCpf})?\n\nEsta ação excluirá todos os dados, usuários e consultas vinculados.`)) {
+      return;
+    }
+
+    try {
+      const res = await api.delete(`/api/admin/companies/${c.id}`);
+      if (res.data?.success) {
+        toast.success(res.data.message || 'Assinante removido com sucesso.');
+        fetchCompanies();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erro ao remover assinante.');
+    }
+  };
 
   const openEditModal = (c: any) => {
     setEditingCompany(c);
@@ -114,23 +192,33 @@ export default function GerenciarClientes() {
       <div className="bg-[#0b1325] border border-slate-800/80 rounded-3xl p-8 shadow-xl flex flex-wrap items-center justify-between gap-6">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight flex items-center">
-            <Users className="w-6 h-6 mr-2.5 text-emerald-400" />
+            <Users className="w-6 h-6 mr-2.5 text-blue-500" />
             Gestão de Assinantes & Clientes
           </h2>
           <p className="text-slate-400 text-xs mt-1">
-            Defina planos Pré-pago/Pós-pago, datas de vencimento, preços personalizados da consulta e limites de crédito.
+            Cadastre novos clientes, defina planos Pré-pago/Pós-pago, datas de vencimento, tarifas e limites.
           </p>
         </div>
 
-        <div className="w-full sm:w-72 relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por razão social, CNPJ ou e-mail..."
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-sans"
-          />
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="w-full sm:w-64 relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar razão social, CNPJ..."
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-sans"
+            />
+          </div>
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-sm inline-flex items-center"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Novo Assinante
+          </button>
         </div>
       </div>
 
@@ -139,7 +227,9 @@ export default function GerenciarClientes() {
         {loading ? (
           <div className="py-12 text-center text-xs text-slate-500">Carregando lista de clientes...</div>
         ) : companies.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-500">Nenhum cliente encontrado.</div>
+          <div className="py-12 text-center text-xs text-slate-500">
+            Nenhum cliente cadastrado. Clique em "Novo Assinante" para criar um.
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -196,7 +286,7 @@ export default function GerenciarClientes() {
                         {c.isActive ? 'Ativo' : 'Bloqueado'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right space-x-2">
+                    <td className="py-3 px-4 text-right space-x-1.5">
                       <button
                         onClick={() => openEditModal(c)}
                         title="Configurar Parâmetros Comerciais"
@@ -211,6 +301,13 @@ export default function GerenciarClientes() {
                       >
                         <Wallet className="w-3.5 h-3.5" />
                       </button>
+                      <button
+                        onClick={() => handleDeleteCompany(c)}
+                        title="Excluir Assinante"
+                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -220,7 +317,211 @@ export default function GerenciarClientes() {
         )}
       </div>
 
-      {/* Modal de Configuração Comercial */}
+      {/* Modal de Cadastro de Novo Assinante (Create) */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-[#0b1325] border border-slate-800 rounded-3xl p-8 max-w-2xl w-full shadow-2xl space-y-6 my-8">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-white">Cadastrar Novo Assinante</h3>
+                <p className="text-xs text-slate-400">Crie a empresa e o usuário administrador inicial de acesso</p>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCompany} className="space-y-6 text-xs">
+              {/* Seção 1: Dados da Empresa */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider">1. Dados da Empresa</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">CNPJ ou CPF *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="00.000.000/0000-00"
+                      value={newCompany.cnpjCpf}
+                      onChange={(e) => setNewCompany({ ...newCompany, cnpjCpf: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Razão Social / Nome *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nome Empresarial Ltda"
+                      value={newCompany.razaoSocial}
+                      onChange={(e) => setNewCompany({ ...newCompany, razaoSocial: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Nome Fantasia</label>
+                    <input
+                      type="text"
+                      placeholder="Marca ou Fantasia"
+                      value={newCompany.nomeFantasia}
+                      onChange={(e) => setNewCompany({ ...newCompany, nomeFantasia: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">E-mail Corporativo *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="contato@empresa.com.br"
+                      value={newCompany.email}
+                      onChange={(e) => setNewCompany({ ...newCompany, email: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-300 font-semibold mb-1">Telefone / WhatsApp</label>
+                    <input
+                      type="text"
+                      placeholder="(11) 99999-9999"
+                      value={newCompany.telefone}
+                      onChange={(e) => setNewCompany({ ...newCompany, telefone: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção 2: Parâmetros Comerciais */}
+              <div className="space-y-3 pt-2 border-t border-slate-800">
+                <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider">2. Parâmetros Comerciais</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Modalidade</label>
+                    <select
+                      value={newCompany.accountType}
+                      onChange={(e) => setNewCompany({ ...newCompany, accountType: e.target.value as any })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="PRE_PAID">Pré-pago (Créditos)</option>
+                      <option value="POST_PAID">Pós-pago (Fatura Mensal)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Dia de Vencimento</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={newCompany.billingDueDate}
+                      onChange={(e) => setNewCompany({ ...newCompany, billingDueDate: parseInt(e.target.value, 10) || 10 })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-mono"
+                    />
+                  </div>
+
+                  {newCompany.accountType === 'PRE_PAID' ? (
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">Saldo Inicial Bonificado (R$)</label>
+                      <input
+                        type="number"
+                        step="10"
+                        min="0"
+                        placeholder="Ex: 50.00"
+                        value={newCompany.initialBalance}
+                        onChange={(e) => setNewCompany({ ...newCompany, initialBalance: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-mono"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">Limite de Crédito Pós-pago (R$)</label>
+                      <input
+                        type="number"
+                        step="100"
+                        min="0"
+                        placeholder="Ex: 2000.00"
+                        value={newCompany.creditLimit}
+                        onChange={(e) => setNewCompany({ ...newCompany, creditLimit: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-mono"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Tarifa Customizada (R$) (Opcional)</label>
+                    <input
+                      type="number"
+                      step="0.10"
+                      min="0"
+                      placeholder="Deixe vazio para padrão (R$ 5,00)"
+                      value={newCompany.customQueryPrice}
+                      onChange={(e) => setNewCompany({ ...newCompany, customQueryPrice: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção 3: Administrador de Acesso Inicial */}
+              <div className="space-y-3 pt-2 border-t border-slate-800">
+                <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider">3. Acesso do Administrador</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Nome do Administrador</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: João da Silva"
+                      value={newCompany.adminName}
+                      onChange={(e) => setNewCompany({ ...newCompany, adminName: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">E-mail de Login *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="admin@empresa.com.br"
+                      value={newCompany.adminEmail}
+                      onChange={(e) => setNewCompany({ ...newCompany, adminEmail: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-300 font-semibold mb-1">Senha Inicial de Acesso *</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Defina uma senha segura"
+                      value={newCompany.adminPassword}
+                      onChange={(e) => setNewCompany({ ...newCompany, adminPassword: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-3">
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl text-xs transition shadow-sm disabled:opacity-50"
+                >
+                  {creating ? 'Cadastrando Assinante...' : 'Concluir Cadastro do Assinante'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Configuração Comercial (Update) */}
       {editingCompany && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#0b1325] border border-slate-800 rounded-3xl p-8 max-w-lg w-full shadow-2xl space-y-6">
