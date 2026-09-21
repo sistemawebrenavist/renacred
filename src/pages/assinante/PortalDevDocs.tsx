@@ -157,13 +157,41 @@ class Program {
           <span className="text-xs text-slate-500 font-medium">Tarifado por consulta</span>
         </div>
 
-        {/* Parâmetros do Body */}
-        <div>
-          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Exemplo de Envio (JSON)</h4>
-          <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-200">
-            <pre>{`{
+        {/* Parâmetros de Requisição e Retorno */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Exemplo de Envio (JSON)</h4>
+            <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-200">
+              <pre>{`{
   "query": "01036115925" // CPF ou CNPJ (apenas números)
 }`}</pre>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Exemplo de Resposta (JSON)</h4>
+            <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-200 overflow-x-auto max-h-48">
+              <pre>{`{
+  "periodo": "1990 até 2024",
+  "total_declaracoes": 1,
+  "declaracoes": [
+    {
+      "numDeclaracao": "10023456",
+      "tipoDeclaracao": "Aquisição",
+      "matricula": "54210",
+      "cartorio": "1º Cartório de Registro de Imóveis",
+      "dataLavratura": "2023-08-10",
+      "alienantes": [{ "nome": "EMPRESA VENDEDORA LTDA", "cpfCnpj": "..." }],
+      "adquirentes": [{ "nome": "PROPRIETÁRIO ATUAL", "cpfCnpj": "..." }]
+    }
+  ],
+  "api_central": {
+    "api_utilizada": "historico_imobiliario",
+    "query_fornecida": "01036115925",
+    "timestamp": "2026-09-21T18:30:00.000Z"
+  }
+}`}</pre>
+            </div>
           </div>
         </div>
 

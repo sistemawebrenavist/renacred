@@ -84,9 +84,14 @@ export const consultarWeb = async (req: any, res: Response) => {
     });
 
     const isProviderBlocked = error.message && error.message.includes('403');
+    const isSuperAdmin = req.user?.role === 'SUPERADMIN';
     const userMessage = isProviderBlocked
-      ? 'O provedor de dados cartorários (FetchBrasil) bloqueou o acesso deste servidor (HTTP 403 Cloudflare). Verifique a liberação do IP 209.50.245.165 no painel da FetchBrasil.'
-      : (error.message || 'Erro ao processar consulta de histórico imobiliário.');
+      ? (isSuperAdmin
+          ? 'O provedor de dados cartorários bloqueou o acesso deste servidor (HTTP 403 Cloudflare). Verifique a liberação do IP 209.50.245.165.'
+          : 'Serviço de consulta temporariamente indisponível no momento. Tente novamente em alguns instantes.')
+      : (isSuperAdmin
+          ? (error.message || 'Erro ao processar consulta de histórico imobiliário.')
+          : 'Erro ao processar consulta de histórico imobiliário. Tente novamente em alguns instantes.');
 
     return res.status(isProviderBlocked ? 502 : 500).json({
       success: false,
@@ -215,8 +220,8 @@ export const consultarApiV1 = async (req: any, res: Response) => {
 
     return res.status(500).json({
       success: false,
-      code: 'EXTERNAL_PROVIDER_ERROR',
-      message: error.message || 'Erro ao processar consulta de histórico imobiliário no provedor.',
+      code: 'QUERY_ERROR',
+      message: 'Não foi possível processar a consulta de histórico imobiliário no momento. Tente novamente em instantes.',
     });
   }
 };
