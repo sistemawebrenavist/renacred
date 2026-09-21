@@ -25,29 +25,29 @@ export default function LogsApi() {
       <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs">
         <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
           <Activity className="w-6 h-6 mr-2.5 text-blue-600" />
-          Logs de Requisições da API Externa
+          Histórico de Consultas da API
         </h2>
         <p className="text-slate-500 text-xs mt-1">
-          Monitoramento em tempo real de latência, códigos HTTP e consumo por chave de API.
+          Registro de consultas realizadas via integração, tempo de resposta e consumo.
         </p>
       </div>
 
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
         {loading ? (
-          <div className="py-12 text-center text-xs text-slate-400">Carregando logs da API...</div>
+          <div className="py-12 text-center text-xs text-slate-400">Carregando histórico...</div>
         ) : logs.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-400">Nenhum log registrado ainda.</div>
+          <div className="py-12 text-center text-xs text-slate-400">Nenhuma consulta registrada até o momento.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
                 <tr>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Endpoint</th>
+                  <th className="py-3 px-4">Serviço</th>
                   <th className="py-3 px-4">Empresa</th>
-                  <th className="py-3 px-4">Latência</th>
-                  <th className="py-3 px-4">Tarifa</th>
-                  <th className="py-3 px-4">IP Origem</th>
+                  <th className="py-3 px-4">Tempo</th>
+                  <th className="py-3 px-4">Valor</th>
+                  <th className="py-3 px-4">Origem (IP)</th>
                   <th className="py-3 px-4 text-right">Data/Hora</th>
                 </tr>
               </thead>

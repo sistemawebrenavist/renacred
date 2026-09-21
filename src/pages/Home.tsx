@@ -166,7 +166,7 @@ export default function Home() {
 
               <div className="p-6 rounded-xl border border-slate-200 bg-white">
                 <h4 className="text-sm font-semibold text-slate-900 mb-1.5">
-                  Birôs de Crédito & Cobrança
+                  Análise de Crédito & Cobrança
                 </h4>
                 <p className="text-xs text-slate-600 leading-relaxed">
                   Enriquecimento cadastral e cruzamento de solvência com histórico imobiliário consolidado.

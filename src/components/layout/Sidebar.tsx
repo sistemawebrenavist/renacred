@@ -21,32 +21,29 @@ export const Sidebar: React.FC = () => {
     { to: '/dashboard', label: 'Visão Geral', icon: LayoutDashboard },
     { to: '/consultar', label: 'Consultar Imóvel', icon: Search },
     { to: '/extrato', label: 'Extrato & Saldo', icon: Wallet },
-    { to: '/api-keys', label: 'Chaves de API', icon: KeyRound },
-    { to: '/docs', label: 'Documentação API', icon: FileCode2, highlight: true },
+    { to: '/api-keys', label: 'Chaves de Acesso', icon: KeyRound },
+    { to: '/docs', label: 'Guia de Integração', icon: FileCode2, highlight: true },
   ];
 
   const adminLinks = [
-    { to: '/admin', label: 'Painel Geral Admin', icon: ShieldCheck },
-    { to: '/admin/clientes', label: 'Gestão de Clientes', icon: Users },
-    { to: '/admin/consulta', label: 'Consulta Super Admin', icon: Search },
-    { to: '/admin/logs', label: 'Logs da API', icon: Activity },
+    { to: '/admin', label: 'Painel Geral', icon: ShieldCheck },
+    { to: '/admin/clientes', label: 'Clientes', icon: Users },
+    { to: '/admin/consulta', label: 'Consulta Avulsa', icon: Search },
+    { to: '/admin/logs', label: 'Histórico de Consultas', icon: Activity },
   ];
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 select-none shadow-xs">
       {/* Brand Header com Logo Oficial */}
-      <div className="px-4 py-5 border-b border-slate-100 flex flex-col items-center text-center">
-        <RenacredLogo size="md" badge={false} className="mb-1.5" />
-        <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">
-          Birô de Consultas Cartorárias
-        </span>
+      <div className="px-5 py-6 border-b border-slate-100 flex items-center justify-center">
+        <RenacredLogo size="md" badge={false} />
       </div>
 
       {/* Navigation Links */}
       <div className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
         <div>
           <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Módulos de Consulta
+            Menu
           </p>
           <nav className="space-y-1">
             {clientLinks.map((item) => {
@@ -76,7 +73,7 @@ export const Sidebar: React.FC = () => {
           <div className="pt-4 border-t border-slate-100">
             <p className="px-3 text-[11px] font-semibold text-amber-800 uppercase tracking-wider mb-2 flex items-center">
               <ShieldCheck className="w-3.5 h-3.5 mr-1 text-amber-700" />
-              Gestão Corporativa
+              Administração
             </p>
             <nav className="space-y-1">
               {adminLinks.map((item) => {

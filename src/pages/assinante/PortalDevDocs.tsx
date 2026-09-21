@@ -122,22 +122,22 @@ class Program {
       <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs">
         <div className="flex items-center space-x-2 text-blue-700 text-xs font-bold uppercase tracking-wider mb-2">
           <ShieldCheck className="w-4 h-4 text-blue-600" />
-          <span>Documentação Oficial de Integração API</span>
+          <span>Guia de Integração</span>
         </div>
-        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          API REST de Histórico Imobiliário e DOI
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          Integração Direta via API
         </h2>
         <p className="text-slate-600 text-sm mt-2 leading-relaxed max-w-3xl">
-          Integre sua plataforma diretamente aos serviços da Renacred. Todas as consultas retornam dados estruturados das serventias notariais e declarações de operações imobiliárias em tempo real.
+          Conecte seu sistema à Renacred para consultar histórico de imóveis e dados cartorários em tempo real.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-4 text-xs font-mono">
           <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-slate-700">
-            <span className="text-slate-500">Base URL: </span>
+            <span className="text-slate-500 font-sans">Endereço da API: </span>
             <span className="text-blue-700 font-bold">https://api.renacred.com.br</span>
           </div>
           <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-slate-700">
-            <span className="text-slate-500">Header Obrigatório: </span>
+            <span className="text-slate-500 font-sans">Chave no Cabeçalho: </span>
             <span className="text-slate-900 font-bold">x-api-key: rena_live_...</span>
           </div>
         </div>
@@ -154,15 +154,15 @@ class Program {
               /v1/imobiliario/historico
             </span>
           </div>
-          <span className="text-xs text-slate-500 font-medium">Tarifado por consulta realizada</span>
+          <span className="text-xs text-slate-500 font-medium">Tarifado por consulta</span>
         </div>
 
         {/* Parâmetros do Body */}
         <div>
-          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Corpo da Requisição (JSON)</h4>
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Exemplo de Envio (JSON)</h4>
           <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-200">
             <pre>{`{
-  "query": "01036115925" // CPF (11 dígitos) ou CNPJ (14 dígitos)
+  "query": "01036115925" // CPF ou CNPJ (apenas números)
 }`}</pre>
           </div>
         </div>
@@ -198,12 +198,12 @@ class Program {
             >
               {copiedLang === activeLang ? (
                 <>
-                  <Check className="w-3.5 h-3.5 mr-1 text-emerald-400" />
-                  Copiado
+                  <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+                  Copiado!
                 </>
               ) : (
                 <>
-                  <Copy className="w-3.5 h-3.5 mr-1" />
+                  <Copy className="w-3.5 h-3.5 mr-1.5" />
                   Copiar
                 </>
               )}
@@ -213,31 +213,31 @@ class Program {
 
         {/* Códigos de Retorno HTTP */}
         <div>
-          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Códigos de Status HTTP</h4>
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Respostas do Sistema</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-              <span className="font-bold text-emerald-700 font-mono">200 OK</span>
-              <p className="text-slate-600 mt-1">Consulta executada com sucesso. Retorna array com declarações DOI.</p>
+              <span className="font-bold text-emerald-700 font-mono">200 Sucesso</span>
+              <p className="text-slate-600 mt-1">Consulta realizada com sucesso. Retorna as declarações encontradas.</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-              <span className="font-bold text-amber-800 font-mono">400 Bad Request</span>
-              <p className="text-slate-600 mt-1">CPF ou CNPJ inválido ou parâmetro ausente.</p>
+              <span className="font-bold text-amber-800 font-mono">400 Dados Incompletos</span>
+              <p className="text-slate-600 mt-1">Documento informado inválido ou formato incorreto.</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-              <span className="font-bold text-rose-700 font-mono">401 Unauthorized</span>
-              <p className="text-slate-600 mt-1">Chave x-api-key inválida, inativa ou ausente no cabeçalho.</p>
+              <span className="font-bold text-rose-700 font-mono">401 Não Autorizado</span>
+              <p className="text-slate-600 mt-1">Chave de acesso inválida, inativa ou ausente no cabeçalho.</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-              <span className="font-bold text-rose-700 font-mono">402 Payment Required</span>
-              <p className="text-slate-600 mt-1">Saldo insuficiente (pré-pago) ou limite de crédito atingido (pós-pago).</p>
+              <span className="font-bold text-rose-700 font-mono">402 Saldo Insuficiente</span>
+              <p className="text-slate-600 mt-1">Saldo insuficiente (pré-pago) ou limite mensal atingido (pós-pago).</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-              <span className="font-bold text-amber-800 font-mono">429 Rate Limit</span>
-              <p className="text-slate-600 mt-1">Limite de requisições por minuto excedido para esta chave de API.</p>
+              <span className="font-bold text-amber-800 font-mono">429 Limite de Requisições</span>
+              <p className="text-slate-600 mt-1">Muitas requisições em curto período de tempo.</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-              <span className="font-bold text-slate-700 font-mono">500 Server Error</span>
-              <p className="text-slate-600 mt-1">Instabilidade temporária nos cartórios de origem.</p>
+              <span className="font-bold text-slate-700 font-mono">500 Erro Temporário</span>
+              <p className="text-slate-600 mt-1">Instabilidade temporária na base de dados de origem.</p>
             </div>
           </div>
         </div>
@@ -247,10 +247,10 @@ class Program {
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
         <div className="flex items-center space-x-2">
           <Code2 className="w-5 h-5 text-blue-600" />
-          <h3 className="text-base font-bold text-slate-900">Playground Interativo de Testes</h3>
+          <h3 className="text-base font-bold text-slate-900">Testar Consulta em Tempo Real</h3>
         </div>
         <p className="text-xs text-slate-500">
-          Execute uma requisição de homologação em tempo real para inspecionar a carga útil JSON retornada pela API.
+          Faça um teste rápido para visualizar o formato dos dados retornados pela plataforma.
         </p>
 
         <div className="flex gap-3">

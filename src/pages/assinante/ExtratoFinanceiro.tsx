@@ -87,7 +87,7 @@ export default function ExtratoFinanceiro() {
                 </span>
                 <p className="text-xs text-emerald-700 font-medium mt-1 flex items-center">
                   <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-                  Conta Pré-paga (Saldo Disponível para Consultas)
+                  Saldo disponível para consultas
                 </p>
               </div>
             ) : (
@@ -97,7 +97,7 @@ export default function ExtratoFinanceiro() {
                 </span>
                 <p className="text-xs text-slate-500 font-medium mt-1 flex items-center">
                   <Calendar className="w-3.5 h-3.5 mr-1 text-blue-600" />
-                  Fechamento mensal com vencimento no dia {company?.billingDueDate || 10}
+                  Faturamento mensal com vencimento no dia {company?.billingDueDate || 10}
                 </p>
               </div>
             )}
@@ -110,7 +110,7 @@ export default function ExtratoFinanceiro() {
             className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-6 py-3 rounded-2xl text-sm flex items-center shadow-xs transition"
           >
             <PlusCircle className="w-4 h-4 mr-2" />
-            Recarregar Saldo via Pix
+            Adicionar Saldo via Pix
           </button>
         )}
       </div>

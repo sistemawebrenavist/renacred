@@ -32,11 +32,11 @@ export default function DashboardAdmin() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       <div>
-        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          Painel Geral da Administração
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          Painel Administrativo
         </h2>
         <p className="text-slate-500 text-xs mt-1">
-          Acompanhamento consolidado de clientes cadastrados, volume de consultas e faturamento da plataforma.
+          Acompanhamento em tempo real de clientes, volume de consultas e faturamento.
         </p>
       </div>
 
@@ -44,7 +44,7 @@ export default function DashboardAdmin() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase mb-2">
-            <span>Empresas Cadastradas</span>
+            <span>Clientes Cadastrados</span>
             <Users className="w-4 h-4 text-blue-600" />
           </div>
           <p className="text-3xl font-bold text-slate-900 font-mono">{loading ? '...' : metrics?.totalCompanies || 0}</p>
@@ -59,7 +59,7 @@ export default function DashboardAdmin() {
             <Clock className="w-4 h-4 text-blue-600" />
           </div>
           <p className="text-3xl font-bold text-slate-900 font-mono">{loading ? '...' : metrics?.queriesToday || 0}</p>
-          <span className="text-xs text-slate-500 mt-2 block">Tempo real</span>
+          <span className="text-xs text-slate-500 mt-2 block">Hoje</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
@@ -68,12 +68,12 @@ export default function DashboardAdmin() {
             <Activity className="w-4 h-4 text-slate-500" />
           </div>
           <p className="text-3xl font-bold text-slate-900 font-mono">{loading ? '...' : metrics?.queriesMonth || 0}</p>
-          <span className="text-xs text-slate-500 mt-2 block">Volume acumulado</span>
+          <span className="text-xs text-slate-500 mt-2 block">Acumulado no mês</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase mb-2">
-            <span>Faturamento Bruto</span>
+            <span>Faturamento do Mês</span>
             <DollarSign className="w-4 h-4 text-emerald-600" />
           </div>
           <p className="text-3xl font-bold text-emerald-700 font-mono">
@@ -87,7 +87,7 @@ export default function DashboardAdmin() {
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
         <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center">
           <Search className="w-4 h-4 mr-2 text-blue-600" />
-          Últimas Consultas de Todos os Clientes
+          Consultas Recentes
         </h3>
 
         {loading ? (

@@ -47,13 +47,31 @@ export class FetchBrasilService {
     this.apiURL = process.env.FETCHBRASIL_API_URL || 'https://api.fetchbrasil.pro';
     this.token = process.env.FETCHBRASIL_API_TOKEN || 'FB-78C1-9751-7F03-D237';
 
+    let proxyConfig: any = false;
+    const proxyUrl = process.env.FETCHBRASIL_PROXY_URL;
+    if (proxyUrl) {
+      try {
+        const u = new URL(proxyUrl);
+        proxyConfig = {
+          protocol: u.protocol.replace(':', ''),
+          host: u.hostname,
+          port: parseInt(u.port, 10),
+          auth: u.username ? { username: decodeURIComponent(u.username), password: decodeURIComponent(u.password) } : undefined,
+        };
+        logger.info(`[FETCHBRASIL] Proxy configurado: ${proxyConfig.host}:${proxyConfig.port}`);
+      } catch (e: any) {
+        logger.error(`[FETCHBRASIL] Erro ao parsear FETCHBRASIL_PROXY_URL: ${e.message}`);
+      }
+    }
+
     this.client = axios.create({
       baseURL: this.apiURL,
       timeout: 30000,
+      proxy: proxyConfig,
       headers: {
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
       },
     });
   }

@@ -63,10 +63,10 @@ export default function ConsultarImobiliario() {
         <div className="max-w-2xl">
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
             <Building className="w-6 h-6 mr-2.5 text-blue-600" />
-            Consulta de Histórico Imobiliário (DOI e Cartórios)
+            Consulta de Imóveis
           </h2>
           <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">
-            Informe o CPF ou CNPJ para pesquisar o histórico de transações imobiliárias, lavraturas e titularidades cartorárias registradas.
+            Informe o CPF ou CNPJ para pesquisar o histórico de transações e registros de imóveis vinculados.
           </p>
 
           <form
@@ -94,10 +94,10 @@ export default function ConsultarImobiliario() {
               {loading ? (
                 <>
                   <RotateCw className="w-4 h-4 mr-2 animate-spin" />
-                  Consultando Bases Oficiais...
+                  Consultando...
                 </>
               ) : (
-                'Pesquisar'
+                'Consultar'
               )}
             </button>
           </form>

@@ -89,7 +89,7 @@ export default function GerenciarClientes() {
     try {
       const res = await api.post('/api/admin/companies', newCompany);
       if (res.data?.success) {
-        toast.success('Assinante e usuário cadastrados com sucesso!');
+        toast.success('Cliente cadastrado com sucesso!');
         setShowCreateModal(false);
         setNewCompany({
           cnpjCpf: '',
@@ -109,7 +109,7 @@ export default function GerenciarClientes() {
         fetchCompanies();
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erro ao cadastrar novo assinante.');
+      toast.error(err.response?.data?.message || 'Erro ao cadastrar cliente.');
     } finally {
       setCreating(false);
     }
@@ -203,10 +203,10 @@ export default function GerenciarClientes() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
             <Users className="w-6 h-6 mr-2.5 text-blue-600" />
-            Gestão de Assinantes e Clientes
+            Clientes Cadastrados
           </h2>
           <p className="text-slate-500 text-xs mt-1">
-            Cadastre novos clientes, defina planos Pré-pago/Pós-pago, datas de vencimento, tarifas e limites.
+            Gerencie acessos, planos de pagamento e limites de cada empresa.
           </p>
         </div>
 
@@ -227,7 +227,7 @@ export default function GerenciarClientes() {
             className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-xs inline-flex items-center"
           >
             <Plus className="w-4 h-4 mr-1.5" />
-            Novo Assinante
+            Novo Cliente
           </button>
         </div>
       </div>
@@ -238,18 +238,18 @@ export default function GerenciarClientes() {
           <div className="py-12 text-center text-xs text-slate-400">Carregando lista de clientes...</div>
         ) : companies.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-400">
-            Nenhum cliente cadastrado. Clique em "Novo Assinante" para criar um.
+            Nenhum cliente cadastrado. Clique em "Novo Cliente" para criar um.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
                 <tr>
-                  <th className="py-3 px-4">Empresa / CNPJ</th>
-                  <th className="py-3 px-4">Modalidade</th>
+                  <th className="py-3 px-4">Empresa / Documento</th>
+                  <th className="py-3 px-4">Plano</th>
                   <th className="py-3 px-4">Vencimento</th>
-                  <th className="py-3 px-4">Tarifa Consulta</th>
-                  <th className="py-3 px-4">Saldo / Limite</th>
+                  <th className="py-3 px-4">Valor por Consulta</th>
+                  <th className="py-3 px-4">Saldo ou Limite</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Ações</th>
                 </tr>
@@ -258,12 +258,14 @@ export default function GerenciarClientes() {
                 {companies.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/80 transition">
                     <td className="py-3 px-4">
-                      <p className="font-semibold text-slate-900">{c.razaoSocial}</p>
-                      <p className="text-[11px] text-slate-500 font-mono mt-0.5">{c.cnpjCpf}</p>
+                      <div>
+                        <p className="font-bold text-slate-900">{c.razaoSocial}</p>
+                        <p className="text-[11px] text-slate-500 font-mono">{c.cnpjCpf}</p>
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold ${
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           c.accountType === 'POST_PAID'
                             ? 'bg-blue-50 text-blue-700 border border-blue-200'
                             : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -276,7 +278,7 @@ export default function GerenciarClientes() {
                       Dia {c.billingDueDate || 10}
                     </td>
                     <td className="py-3 px-4 font-mono font-bold text-emerald-700">
-                      {c.customQueryPrice ? `R$ ${Number(c.customQueryPrice).toFixed(2)}` : 'Padrão (R$ 5.00)'}
+                      {c.customQueryPrice ? `R$ ${Number(c.customQueryPrice).toFixed(2)}` : 'Padrão (R$ 5,00)'}
                     </td>
                     <td className="py-3 px-4 font-mono">
                       {c.accountType === 'PRE_PAID' ? (
@@ -299,21 +301,21 @@ export default function GerenciarClientes() {
                     <td className="py-3 px-4 text-right space-x-1.5">
                       <button
                         onClick={() => openEditModal(c)}
-                        title="Configurar Parâmetros Comerciais"
+                        title="Configurar Plano"
                         className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
                       >
                         <SlidersHorizontal className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setCreditModalCompany(c)}
-                        title="Ajuste Manual de Saldo"
+                        title="Ajustar Saldo"
                         className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition"
                       >
                         <Wallet className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDeleteCompany(c)}
-                        title="Excluir Assinante"
+                        title="Excluir Cliente"
                         className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -327,14 +329,14 @@ export default function GerenciarClientes() {
         )}
       </div>
 
-      {/* Modal de Cadastro de Novo Assinante (Create) */}
+      {/* Modal de Cadastro de Novo Cliente (Create) */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-2xl w-full shadow-xl space-y-6 my-8">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Cadastrar Novo Assinante</h3>
-                <p className="text-xs text-slate-500">Crie a empresa e o usuário administrador inicial de acesso</p>
+                <h3 className="text-base font-bold text-slate-900">Cadastrar Novo Cliente</h3>
+                <p className="text-xs text-slate-500">Cadastre os dados da empresa e crie o usuário de acesso inicial</p>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -523,7 +525,7 @@ export default function GerenciarClientes() {
                   disabled={creating}
                   className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 rounded-xl text-xs transition shadow-xs disabled:opacity-50"
                 >
-                  {creating ? 'Cadastrando Assinante...' : 'Concluir Cadastro do Assinante'}
+                  {creating ? 'Salvando...' : 'Salvar Cliente'}
                 </button>
               </div>
             </form>
@@ -531,13 +533,13 @@ export default function GerenciarClientes() {
         </div>
       )}
 
-      {/* Modal de Configuração Comercial (Update) */}
+      {/* Modal de Configuração do Plano (Update) */}
       {editingCompany && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-lg w-full shadow-xl space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Parâmetros Comerciais do Cliente</h3>
+                <h3 className="text-base font-bold text-slate-900">Configuração do Plano</h3>
                 <p className="text-xs text-slate-500">{editingCompany.razaoSocial}</p>
               </div>
               <button onClick={() => setEditingCompany(null)} className="text-slate-400 hover:text-slate-600">✕</button>
@@ -546,7 +548,7 @@ export default function GerenciarClientes() {
             <form onSubmit={handleSaveSettings} className="space-y-4 text-xs">
               {/* Modalidade */}
               <div>
-                <label className="block text-slate-700 font-semibold mb-1.5">Modalidade de Cobrança</label>
+                <label className="block text-slate-700 font-semibold mb-1.5">Plano de Pagamento</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -557,7 +559,7 @@ export default function GerenciarClientes() {
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    Pré-pago (Créditos)
+                    Pré-pago (Recarga)
                   </button>
                   <button
                     type="button"
@@ -568,14 +570,14 @@ export default function GerenciarClientes() {
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    Pós-pago (Fatura)
+                    Pós-pago (Fatura Mensal)
                   </button>
                 </div>
               </div>
 
               {/* Dia de Vencimento */}
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Dia de Vencimento da Fatura / Ciclo (1 a 31)</label>
+                <label className="block text-slate-700 font-semibold mb-1">Dia de Vencimento da Fatura (1 a 31)</label>
                 <input
                   type="number"
                   min="1"
@@ -590,7 +592,7 @@ export default function GerenciarClientes() {
               {/* Preço Customizado da Consulta */}
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">
-                  Preço Customizado por Consulta (R$) - Deixe vazio para preço padrão (R$ 5,00)
+                  Valor Customizado por Consulta (R$) - Opcional
                 </label>
                 <input
                   type="number"
@@ -645,13 +647,13 @@ export default function GerenciarClientes() {
         </div>
       )}
 
-      {/* Modal de Ajuste Manual de Saldo */}
+      {/* Modal de Ajuste de Saldo */}
       {creditModalCompany && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-md w-full shadow-xl space-y-4 text-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Ajuste Manual de Saldo</h3>
+                <h3 className="text-base font-bold text-slate-900">Ajustar Saldo do Cliente</h3>
                 <p className="text-slate-500">{creditModalCompany.razaoSocial}</p>
               </div>
               <button onClick={() => setCreditModalCompany(null)} className="text-slate-400 hover:text-slate-600">✕</button>
@@ -664,7 +666,7 @@ export default function GerenciarClientes() {
             <form onSubmit={handleAdjustCredits} className="space-y-4">
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">
-                  Valor a Ajustar (R$) - Use positivo para adicionar ou negativo para subtrair
+                  Valor (R$) • Positivo para adicionar, negativo para retirar
                 </label>
                 <input
                   type="number"
@@ -678,13 +680,13 @@ export default function GerenciarClientes() {
               </div>
 
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Justificativa / Descrição</label>
+                <label className="block text-slate-700 font-semibold mb-1">Motivo ou Observação</label>
                 <input
                   type="text"
                   required
                   value={manualDescription}
                   onChange={(e) => setManualDescription(e.target.value)}
-                  placeholder="Ex: Bonificação promocional de recarga"
+                  placeholder="Ex: Bonificação ou recarga manual"
                   className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
                 />
               </div>
@@ -694,7 +696,7 @@ export default function GerenciarClientes() {
                 disabled={adjusting}
                 className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 rounded-xl text-xs transition shadow-xs disabled:opacity-50"
               >
-                {adjusting ? 'Processando...' : 'Confirmar Ajuste de Saldo'}
+                {adjusting ? 'Processando...' : 'Confirmar Saldo'}
               </button>
             </form>
           </div>
@@ -704,13 +706,13 @@ export default function GerenciarClientes() {
       {/* Modal de Confirmação de Exclusão (sem window nativo) */}
       <ConfirmModal
         isOpen={!!companyToDelete}
-        title="Excluir Assinante"
+        title="Excluir Cliente"
         description={
           companyToDelete
-            ? `Deseja realmente remover o assinante "${companyToDelete.razaoSocial}" (${companyToDelete.cnpjCpf})?\n\nEsta ação é irreversível e excluirá todos os dados, usuários e consultas vinculados.`
+            ? `Deseja realmente remover o cliente "${companyToDelete.razaoSocial}" (${companyToDelete.cnpjCpf})?\n\nEsta ação é irreversível e excluirá todos os dados, usuários e consultas vinculados.`
             : ''
         }
-        confirmText="Excluir Assinante"
+        confirmText="Excluir Cliente"
         cancelText="Cancelar"
         variant="danger"
         loading={deleting}

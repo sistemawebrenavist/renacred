@@ -50,15 +50,11 @@ export default function DashboardCliente() {
       {/* Banner Principal de Consulta */}
       <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-xs">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center space-x-2 text-xs font-semibold text-[#1D4ED8] bg-blue-50 border border-blue-200/60 px-3 py-1 rounded-lg mb-3">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#1D4ED8]" />
-            <span>Consultas Oficiais Cartorárias & Declarações DOI</span>
-          </div>
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-            Consulta de histórico imobiliário nacional
+            Consulta de Histórico Imobiliário
           </h2>
           <p className="text-slate-600 text-sm mt-2 leading-relaxed">
-            Pesquise titularidades, registros de alienações, compras e vendas lavradas em cartórios de imóveis vinculadas a qualquer CPF ou CNPJ.
+            Pesquise registros de imóveis, compras, vendas e titularidades vinculadas a qualquer CPF ou CNPJ.
           </p>
 
           <form onSubmit={handleQuickSearch} className="mt-6 flex flex-col sm:flex-row gap-3">
@@ -76,7 +72,7 @@ export default function DashboardCliente() {
               type="submit"
               className="bg-[#1D4ED8] hover:bg-[#1E40AF] active:bg-[#172554] text-white font-medium px-6 py-3 rounded-xl text-sm flex items-center justify-center transition shadow-xs"
             >
-              Consultar agora
+              Consultar
               <ArrowUpRight className="w-4 h-4 ml-1.5" />
             </button>
           </form>
@@ -88,7 +84,7 @@ export default function DashboardCliente() {
         {/* Card Saldo / Modalidade */}
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>Modalidade comercial</span>
+            <span>Plano de Pagamento</span>
             <Wallet className="w-4 h-4 text-emerald-600" />
           </div>
           {company?.accountType === 'PRE_PAID' ? (
@@ -97,9 +93,9 @@ export default function DashboardCliente() {
                 R$ {(company?.creditsBalance || 0).toFixed(2)}
               </p>
               <div className="mt-4 flex items-center justify-between text-xs">
-                <span className="text-emerald-700 font-medium">Conta pré-paga ativa</span>
+                <span className="text-emerald-700 font-medium">Plano pré-pago</span>
                 <Link to="/extrato" className="font-semibold text-[#1D4ED8] hover:underline">
-                  Recarga Pix &rarr;
+                  Recarregar &rarr;
                 </Link>
               </div>
             </div>
@@ -122,14 +118,14 @@ export default function DashboardCliente() {
         {/* Card Integração API */}
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>Integração de sistemas</span>
+            <span>Integração de Sistemas</span>
             <FileText className="w-4 h-4 text-[#1D4ED8]" />
           </div>
-          <p className="text-2xl font-bold text-slate-900">API REST v1</p>
+          <p className="text-2xl font-bold text-slate-900">API Direta</p>
           <div className="mt-4 flex items-center justify-between text-xs">
-            <span className="text-slate-500">Payload estruturado JSON</span>
+            <span className="text-slate-500">Consultas em tempo real</span>
             <Link to="/docs" className="font-semibold text-[#1D4ED8] hover:underline">
-              Documentação &rarr;
+              Guia de Integração &rarr;
             </Link>
           </div>
         </div>

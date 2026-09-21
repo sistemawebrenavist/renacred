@@ -89,10 +89,10 @@ export default function GerenciarApi() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
             <KeyRound className="w-6 h-6 mr-2.5 text-emerald-600" />
-            Chaves de Integração API
+            Chaves de Acesso
           </h2>
           <p className="text-slate-500 text-xs mt-1">
-            Gere tokens de autenticação para consumir a API REST de histórico imobiliário no seu próprio sistema ou ERP.
+            Gere chaves seguras para integrar as consultas de imóveis diretamente ao seu sistema ou ERP.
           </p>
         </div>
 
@@ -102,14 +102,14 @@ export default function GerenciarApi() {
             className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition shadow-xs"
           >
             <Terminal className="w-4 h-4 mr-1.5 text-emerald-600" />
-            Ver Documentação
+            Guia de Integração
           </Link>
           <button
             onClick={() => setShowModal(true)}
             className="inline-flex items-center px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white transition shadow-xs"
           >
             <Plus className="w-4 h-4 mr-1.5" />
-            Nova Chave de API
+            Nova Chave de Acesso
           </button>
         </div>
       </div>
@@ -117,10 +117,10 @@ export default function GerenciarApi() {
       {/* Lista de Chaves */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
         {loading ? (
-          <div className="py-12 text-center text-xs text-slate-400">Carregando chaves de API...</div>
+          <div className="py-12 text-center text-xs text-slate-400">Carregando chaves...</div>
         ) : keys.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-400">
-            Nenhuma chave de API ativa. Clique em "Nova Chave de API" acima para gerar uma.
+            Nenhuma chave de acesso cadastrada. Clique em "Nova Chave de Acesso" acima para criar uma.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -128,9 +128,9 @@ export default function GerenciarApi() {
               <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
                 <tr>
                   <th className="py-3 px-4">Identificação</th>
-                  <th className="py-3 px-4">Token / Chave</th>
-                  <th className="py-3 px-4">Rate Limit</th>
-                  <th className="py-3 px-4">Total Chamadas</th>
+                  <th className="py-3 px-4">Chave de Acesso</th>
+                  <th className="py-3 px-4">Limite por Minuto</th>
+                  <th className="py-3 px-4">Consultas Realizadas</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Ações</th>
                 </tr>
@@ -153,7 +153,7 @@ export default function GerenciarApi() {
                         </button>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-slate-600">{k.rateLimitMin} req/min</td>
+                    <td className="py-3 px-4 text-slate-600">{k.rateLimitMin} consultas/min</td>
                     <td className="py-3 px-4 font-bold text-slate-900 font-mono">{k.totalCalls}</td>
                     <td className="py-3 px-4">
                       <span
@@ -190,25 +190,25 @@ export default function GerenciarApi() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900">Criar Nova Chave de API</h3>
+              <h3 className="text-base font-bold text-slate-900">Nova Chave de Acesso</h3>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
             <form onSubmit={handleCreateKey} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Nome da Aplicação</label>
+                <label className="block text-slate-700 font-semibold mb-1">Nome da Integração</label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: ERP Imobiliário Produção"
+                  placeholder="Ex: Sistema Imobiliário, ERP, App"
                   className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">IPs Permitidos (Opcional - separador vírgula)</label>
+                <label className="block text-slate-700 font-semibold mb-1">IPs Permitidos (Opcional, separados por vírgula)</label>
                 <input
                   type="text"
                   value={allowedIps}
