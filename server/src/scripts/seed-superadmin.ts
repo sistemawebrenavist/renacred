@@ -15,7 +15,7 @@ async function seedSuperAdmin() {
       await prisma.pricingConfig.create({
         data: {
           defaultQueryPrice: 5.00,
-          minRechargeAmount: 20.00,
+          minCreditPurchase: 20.00,
         }
       });
       logger.info('Tabela PricingConfig inicializada com tarifa padrão R$ 5,00.');
