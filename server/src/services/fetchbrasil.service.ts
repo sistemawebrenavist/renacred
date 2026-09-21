@@ -68,7 +68,7 @@ export class FetchBrasilService {
     this.client = axios.create({
       baseURL: this.apiURL,
       timeout: 15000,
-      httpsAgent: new https.Agent({ keepAlive: true }),
+      httpsAgent: new https.Agent({ keepAlive: true, family: 4 }),
       proxy: proxyConfig,
       headers: {
         'Accept': 'application/json, text/plain, */*',
