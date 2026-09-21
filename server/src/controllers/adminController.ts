@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/database';
 import { fetchbrasilService } from '../services/fetchbrasil.service';
@@ -240,7 +241,19 @@ export const listCompanies = async (req: Request, res: Response) => {
       where,
       orderBy: { createdAt: 'desc' },
       include: {
-        _count: { select: { queries: true, apiKeys: true } }
+        _count: { select: { queries: true, apiKeys: true } },
+        apiKeys: {
+          select: {
+            id: true,
+            name: true,
+            key: true,
+            isActive: true,
+            totalCalls: true,
+            lastUsedAt: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' }
+        }
       }
     });
 
@@ -466,5 +479,58 @@ export const listApiLogs = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: 'Erro ao buscar logs da API.' });
+  }
+};
+
+/**
+ * Gerar nova chave de API para uma empresa (Admin)
+ */
+export const createApiKeyForCompany = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    const company = await prisma.company.findUnique({ where: { id } });
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Empresa não encontrada.' });
+    }
+
+    const randomSecret = crypto.randomBytes(24).toString('hex');
+    const fullKey = `rena_live_${randomSecret}`;
+
+    const newKey = await prisma.apiKey.create({
+      data: {
+        companyId: id,
+        name: name || `Chave ${company.razaoSocial}`,
+        key: fullKey,
+        rateLimitMin: 60,
+      }
+    });
+
+    return res.json({
+      success: true,
+      data: newKey,
+      message: 'Chave de API gerada com sucesso para o cliente.',
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Erro ao gerar chave de API.' });
+  }
+};
+
+/**
+ * Revogar chave de API de uma empresa (Admin)
+ */
+export const revokeApiKeyAdmin = async (req: Request, res: Response) => {
+  try {
+    const { keyId } = req.params;
+
+    await prisma.apiKey.update({
+      where: { id: keyId },
+      data: { isActive: false }
+    });
+
+    return res.json({ success: true, message: 'Chave de API desativada com sucesso.' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Erro ao desativar chave de API.' });
   }
 };

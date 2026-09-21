@@ -8,7 +8,9 @@ import {
   X, 
   Plus, 
   Trash2,
-  SlidersHorizontal 
+  SlidersHorizontal,
+  KeyRound,
+  Copy
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -18,6 +20,11 @@ export default function GerenciarClientes() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Modal de Gestão de Chaves de API do Cliente (Admin)
+  const [apiKeyModalCompany, setApiKeyModalCompany] = useState<any | null>(null);
+  const [generatingKey, setGeneratingKey] = useState(false);
+  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
 
   // Modal de Exclusão de Assinante (Delete)
   const [companyToDelete, setCompanyToDelete] = useState<any | null>(null);
@@ -197,6 +204,52 @@ export default function GerenciarClientes() {
     }
   };
 
+  const handleGenerateKeyForCompany = async () => {
+    if (!apiKeyModalCompany) return;
+    setGeneratingKey(true);
+    try {
+      const res = await api.post(`/api/admin/companies/${apiKeyModalCompany.id}/keys`, {
+        name: `Chave ${apiKeyModalCompany.razaoSocial}`,
+      });
+      if (res.data?.success) {
+        toast.success('Chave de API gerada com sucesso!');
+        const newKey = res.data.data;
+        setApiKeyModalCompany((prev: any) => ({
+          ...prev,
+          apiKeys: [newKey, ...(prev?.apiKeys || [])],
+        }));
+        fetchCompanies();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erro ao gerar chave.');
+    } finally {
+      setGeneratingKey(false);
+    }
+  };
+
+  const handleRevokeKeyForCompany = async (keyId: string) => {
+    try {
+      const res = await api.delete(`/api/admin/companies/keys/${keyId}`);
+      if (res.data?.success) {
+        toast.success('Chave de API desativada com sucesso.');
+        setApiKeyModalCompany((prev: any) => ({
+          ...prev,
+          apiKeys: prev?.apiKeys?.map((k: any) => (k.id === keyId ? { ...k, isActive: false } : k)),
+        }));
+        fetchCompanies();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erro ao desativar chave.');
+    }
+  };
+
+  const copyKeyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKeyId(id);
+    toast.success('Chave copiada para a área de transferência!');
+    setTimeout(() => setCopiedKeyId(null), 2000);
+  };
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs flex flex-wrap items-center justify-between gap-6">
@@ -250,6 +303,7 @@ export default function GerenciarClientes() {
                   <th className="py-3 px-4">Vencimento</th>
                   <th className="py-3 px-4">Valor por Consulta</th>
                   <th className="py-3 px-4">Saldo ou Limite</th>
+                  <th className="py-3 px-4">Acesso API</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Ações</th>
                 </tr>
@@ -288,6 +342,26 @@ export default function GerenciarClientes() {
                       )}
                     </td>
                     <td className="py-3 px-4">
+                      {c.apiKeys && c.apiKeys.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setApiKeyModalCompany(c)}
+                          className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center transition cursor-pointer"
+                        >
+                          <KeyRound className="w-3 h-3 mr-1" />
+                          {c.apiKeys.filter((k: any) => k.isActive).length} ativa(s)
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setApiKeyModalCompany(c)}
+                          className="text-[11px] text-slate-400 hover:text-purple-600 transition flex items-center cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3 mr-0.5" /> Gerar
+                        </button>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           c.isActive
@@ -299,6 +373,13 @@ export default function GerenciarClientes() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right space-x-1.5">
+                      <button
+                        onClick={() => setApiKeyModalCompany(c)}
+                        title="Chaves de API"
+                        className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => openEditModal(c)}
                         title="Configurar Plano"
@@ -699,6 +780,119 @@ export default function GerenciarClientes() {
                 {adjusting ? 'Processando...' : 'Confirmar Saldo'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Gestão de Chaves de API do Cliente */}
+      {apiKeyModalCompany && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs" onClick={() => setApiKeyModalCompany(null)} />
+          <div className="relative bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 z-10 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Chaves de API</h3>
+                  <p className="text-xs text-slate-500">{apiKeyModalCompany.razaoSocial}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApiKeyModalCompany(null)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="py-4 overflow-y-auto space-y-4 flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Chaves Cadastradas ({apiKeyModalCompany.apiKeys?.length || 0})
+                </span>
+                <button
+                  type="button"
+                  onClick={handleGenerateKeyForCompany}
+                  disabled={generatingKey}
+                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition shadow-xs flex items-center disabled:opacity-50 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  {generatingKey ? 'Gerando...' : 'Nova Chave'}
+                </button>
+              </div>
+
+              {!apiKeyModalCompany.apiKeys || apiKeyModalCompany.apiKeys.length === 0 ? (
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-500">
+                  Nenhuma chave de API gerada para este cliente ainda. Clique em "Nova Chave" acima para criar uma.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {apiKeyModalCompany.apiKeys.map((k: any) => (
+                    <div key={k.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900">{k.name}</span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            k.isActive
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          }`}
+                        >
+                          {k.isActive ? 'Ativa' : 'Revogada'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={k.key}
+                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 font-mono text-[11px] text-slate-800 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => copyKeyToClipboard(k.key, k.id)}
+                          className="p-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 transition cursor-pointer"
+                          title="Copiar Chave"
+                        >
+                          {copiedKeyId === k.id ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                        <span>Chamadas: <strong className="text-slate-900 font-mono">{k.totalCalls || 0}</strong></span>
+                        {k.isActive && (
+                          <button
+                            type="button"
+                            onClick={() => handleRevokeKeyForCompany(k.id)}
+                            className="text-rose-600 hover:text-rose-700 font-semibold cursor-pointer"
+                          >
+                            Desativar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setApiKeyModalCompany(null)}
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
