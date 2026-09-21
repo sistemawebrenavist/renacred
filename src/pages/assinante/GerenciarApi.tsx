@@ -3,6 +3,7 @@ import { KeyRound, Plus, Copy, Trash2, ShieldCheck, Check, Terminal, ExternalLin
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 export default function GerenciarApi() {
   const [keys, setKeys] = useState<any[]>([]);
@@ -12,6 +13,10 @@ export default function GerenciarApi() {
   const [allowedIps, setAllowedIps] = useState('');
   const [rateLimit, setRateLimit] = useState('60');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Modal de Confirmação de Revogação
+  const [keyToRevoke, setKeyToRevoke] = useState<any | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   const fetchKeys = async () => {
     try {
@@ -50,16 +55,24 @@ export default function GerenciarApi() {
     }
   };
 
-  const handleRevoke = async (id: string) => {
-    if (!confirm('Deseja realmente revogar esta chave de API? Todas as integrações com ela pararão de funcionar imediatamente.')) return;
+  const handleRevoke = (key: any) => {
+    setKeyToRevoke(key);
+  };
+
+  const executeRevokeKey = async () => {
+    if (!keyToRevoke) return;
+    setRevoking(true);
     try {
-      const res = await api.delete(`/api/keys/${id}`);
+      const res = await api.delete(`/api/keys/${keyToRevoke.id}`);
       if (res.data?.success) {
-        toast.success('Chave revogada.');
+        toast.success('Chave de API revogada com sucesso.');
+        setKeyToRevoke(null);
         fetchKeys();
       }
     } catch (err: any) {
-      toast.error('Erro ao revogar chave.');
+      toast.error(err.response?.data?.message || 'Erro ao revogar chave.');
+    } finally {
+      setRevoking(false);
     }
   };
 
@@ -156,7 +169,7 @@ export default function GerenciarApi() {
                     <td className="py-3 px-4 text-right">
                       {k.isActive && (
                         <button
-                          onClick={() => handleRevoke(k.id)}
+                          onClick={() => handleRevoke(k)}
                           className="text-rose-400 hover:text-rose-300 p-1 rounded hover:bg-rose-500/10 transition"
                           title="Revogar chave"
                         >
@@ -225,6 +238,23 @@ export default function GerenciarApi() {
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação de Revogação (sem window nativo) */}
+      <ConfirmModal
+        isOpen={!!keyToRevoke}
+        title="Revogar Chave de API"
+        description={
+          keyToRevoke
+            ? `Deseja realmente revogar a chave de API "${keyToRevoke.name}"?\n\nTodas as integrações externas e ERPs associados a esta chave pararão de funcionar imediatamente.`
+            : ''
+        }
+        confirmText="Revogar Chave"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={revoking}
+        onConfirm={executeRevokeKey}
+        onClose={() => setKeyToRevoke(null)}
+      />
     </div>
   );
 }

@@ -12,11 +12,16 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 export default function GerenciarClientes() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Modal de Exclusão de Assinante (Delete)
+  const [companyToDelete, setCompanyToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Modal de Criação de Novo Assinante (Create)
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -110,20 +115,25 @@ export default function GerenciarClientes() {
     }
   };
 
-  // Handler para excluir assinante
-  const handleDeleteCompany = async (c: any) => {
-    if (!confirm(`Deseja realmente excluir o assinante "${c.razaoSocial}" (${c.cnpjCpf})?\n\nEsta ação excluirá todos os dados, usuários e consultas vinculados.`)) {
-      return;
-    }
+  // Handler para solicitar exclusão do assinante
+  const handleDeleteCompany = (c: any) => {
+    setCompanyToDelete(c);
+  };
 
+  const executeDeleteCompany = async () => {
+    if (!companyToDelete) return;
+    setDeleting(true);
     try {
-      const res = await api.delete(`/api/admin/companies/${c.id}`);
+      const res = await api.delete(`/api/admin/companies/${companyToDelete.id}`);
       if (res.data?.success) {
         toast.success(res.data.message || 'Assinante removido com sucesso.');
+        setCompanyToDelete(null);
         fetchCompanies();
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Erro ao remover assinante.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -690,6 +700,23 @@ export default function GerenciarClientes() {
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação de Exclusão (sem window nativo) */}
+      <ConfirmModal
+        isOpen={!!companyToDelete}
+        title="Excluir Assinante"
+        description={
+          companyToDelete
+            ? `Deseja realmente remover o assinante "${companyToDelete.razaoSocial}" (${companyToDelete.cnpjCpf})?\n\nEsta ação é irreversível e excluirá todos os dados, usuários e consultas vinculados.`
+            : ''
+        }
+        confirmText="Excluir Assinante"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={deleting}
+        onConfirm={executeDeleteCompany}
+        onClose={() => setCompanyToDelete(null)}
+      />
     </div>
   );
 }
