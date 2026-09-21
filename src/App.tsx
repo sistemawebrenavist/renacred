@@ -5,6 +5,7 @@ import { AppLayout } from './components/layout/AppLayout';
 
 // Páginas
 import Login from './pages/Login';
+import Home from './pages/Home';
 import DashboardCliente from './pages/assinante/DashboardCliente';
 import ConsultarImobiliario from './pages/assinante/ConsultarImobiliario';
 import ExtratoFinanceiro from './pages/assinante/ExtratoFinanceiro';
@@ -41,7 +42,7 @@ const SuperAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   if (loading) return null;
   if (!user || !user.isSuperAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -51,7 +52,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rota Pública */}
+        {/* Rotas Públicas */}
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
 
         {/* Rotas Protegidas do Cliente */}
@@ -62,7 +64,8 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/" element={<DashboardCliente />} />
+          <Route path="/dashboard" element={<DashboardCliente />} />
+          <Route path="/painel" element={<Navigate to="/dashboard" replace />} />
           <Route path="/consultar" element={<ConsultarImobiliario />} />
           <Route path="/extrato" element={<ExtratoFinanceiro />} />
           <Route path="/api-keys" element={<GerenciarApi />} />

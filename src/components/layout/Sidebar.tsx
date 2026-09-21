@@ -18,7 +18,7 @@ export const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
 
   const clientLinks = [
-    { to: '/', label: 'Visão Geral', icon: LayoutDashboard },
+    { to: '/dashboard', label: 'Visão Geral', icon: LayoutDashboard },
     { to: '/consultar', label: 'Consultar Imóvel', icon: Search },
     { to: '/extrato', label: 'Extrato & Saldo', icon: Wallet },
     { to: '/api-keys', label: 'Chaves de API', icon: KeyRound },
