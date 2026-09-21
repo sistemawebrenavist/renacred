@@ -188,16 +188,41 @@ export const getDashboardMetrics = async (req: Request, res: Response) => {
     ] = await Promise.all([
       prisma.company.count(),
       prisma.company.count({ where: { isActive: true } }),
-      prisma.query.count({ where: { createdAt: { gte: today } } }),
-      prisma.query.count({ where: { createdAt: { gte: firstDayOfMonth } } }),
+      prisma.query.count({
+        where: {
+          createdAt: { gte: today },
+          source: 'API',
+          status: 'COMPLETED'
+        }
+      }),
+      prisma.query.count({
+        where: {
+          createdAt: { gte: firstDayOfMonth },
+          source: 'API',
+          status: 'COMPLETED'
+        }
+      }),
       prisma.query.aggregate({
-        where: { status: 'COMPLETED' },
+        where: { status: 'COMPLETED', source: 'API' },
         _sum: { cost: true }
       }),
       prisma.query.findMany({
-        take: 10,
+        where: {
+          source: 'API' // Apenas consultas efetuadas pelas APIs dos clientes
+        },
+        take: 25,
         orderBy: { createdAt: 'desc' },
-        include: { company: { select: { razaoSocial: true, accountType: true } } }
+        include: {
+          company: {
+            select: {
+              id: true,
+              razaoSocial: true,
+              nomeFantasia: true,
+              cnpjCpf: true,
+              accountType: true
+            }
+          }
+        }
       })
     ]);
 

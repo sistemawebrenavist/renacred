@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Wallet, PlusCircle, Calendar, ShieldAlert } from 'lucide-react';
+import { Wallet, PlusCircle, Calendar, ShieldCheck, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const Header: React.FC<{ title?: string }> = ({ title }) => {
@@ -50,12 +50,17 @@ export const Header: React.FC<{ title?: string }> = ({ title }) => {
           </div>
         )}
 
-        {/* Indicador de Administrador */}
+        {/* Indicador de Administrador com Nome Wellington */}
         {user?.isSuperAdmin && (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/80">
-            <ShieldAlert className="w-3.5 h-3.5 mr-1 text-amber-700" />
-            Administrador
-          </span>
+          <Link
+            to="/admin/configuracoes"
+            title="Acessar configurações da conta"
+            className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/80 hover:bg-amber-100/80 transition"
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-700" />
+            <span className="font-bold">{user?.name || 'Wellington'}</span>
+            <span className="text-[10px] text-amber-700 font-medium px-1.5 py-0.2 bg-amber-100/80 rounded">Admin</span>
+          </Link>
         )}
       </div>
     </header>

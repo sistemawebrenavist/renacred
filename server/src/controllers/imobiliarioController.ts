@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { fetchbrasilService } from '../services/fetchbrasil.service';
-import { billingService } from '../services/billing.service';
+import { billingService, BillingCheckResult } from '../services/billing.service';
 import { validateIdentifier } from '../utils/cpfCnpjValidator';
 import { logger } from '../utils/logger';
 import { QuerySource, QueryStatus } from '../types/database';
@@ -27,13 +27,19 @@ export const consultarWeb = async (req: any, res: Response) => {
   const cleanDoc = validation.cleaned;
 
   // 1. Validar elegibilidade de faturamento (Saldo pré-pago ou Limite pós-pago)
-  const eligibility = await billingService.checkEligibility(companyId);
-  if (!eligibility.allowed) {
-    return res.status(402).json({
-      success: false,
-      code: eligibility.code,
-      message: eligibility.message,
-    });
+  const isSuperAdmin = !!req.user?.isSuperAdmin;
+  let eligibility: BillingCheckResult = { allowed: true, price: 0 };
+
+  if (!isSuperAdmin) {
+    const check = await billingService.checkEligibility(companyId);
+    if (!check.allowed) {
+      return res.status(402).json({
+        success: false,
+        code: check.code,
+        message: check.message,
+      });
+    }
+    eligibility = check;
   }
 
   try {
@@ -49,15 +55,17 @@ export const consultarWeb = async (req: any, res: Response) => {
         identifier: cleanDoc,
         source: QuerySource.WEB,
         status: QueryStatus.COMPLETED,
-        cost: eligibility.price,
+        cost: isSuperAdmin ? 0 : eligibility.price,
         totalDeclaracoes: result.total_declaracoes || (result.declaracoes ? result.declaracoes.length : 0),
         processingTimeMs,
         resultData: result as any,
       }
     });
 
-    // 4. Executar a cobrança / débito financeiro
-    await billingService.chargeQuery(companyId, queryRecord.id, eligibility.price);
+    // 4. Executar a cobrança / débito financeiro apenas para clientes regulares
+    if (!isSuperAdmin && eligibility.price > 0) {
+      await billingService.chargeQuery(companyId, queryRecord.id, eligibility.price);
+    }
 
     return res.json({
       success: true,

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { AppLayout } from './components/layout/AppLayout';
 
-// Páginas
+// Páginas do Assinante / Geral
 import Login from './pages/Login';
 import Home from './pages/Home';
 import DashboardCliente from './pages/assinante/DashboardCliente';
@@ -12,11 +12,20 @@ import ExtratoFinanceiro from './pages/assinante/ExtratoFinanceiro';
 import GerenciarApi from './pages/assinante/GerenciarApi';
 import PortalDevDocs from './pages/assinante/PortalDevDocs';
 
-// Admin
+// Páginas Administrativas
 import DashboardAdmin from './pages/admin/DashboardAdmin';
 import GerenciarClientes from './pages/admin/GerenciarClientes';
-import ConsultaSuperAdmin from './pages/admin/ConsultaSuperAdmin';
 import LogsApi from './pages/admin/LogsApi';
+import ConfiguracoesAdmin from './pages/admin/ConfiguracoesAdmin';
+
+// Componente Dinâmico de Visão Geral (SuperAdmin -> DashboardAdmin / Cliente -> DashboardCliente)
+const UnifiedDashboard: React.FC = () => {
+  const { user } = useAuth();
+  if (user?.isSuperAdmin) {
+    return <DashboardAdmin />;
+  }
+  return <DashboardCliente />;
+};
 
 // Componentes de Proteção de Rota
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -56,7 +65,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
 
-        {/* Rotas Protegidas do Cliente */}
+        {/* Rotas Autenticadas */}
         <Route
           element={
             <ProtectedRoute>
@@ -64,23 +73,22 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/dashboard" element={<DashboardCliente />} />
+          {/* Visão Geral Única (Diferenciada pelo perfil do usuário) */}
+          <Route path="/dashboard" element={<UnifiedDashboard />} />
           <Route path="/painel" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
+
+          {/* Consulta de Imóvel Única */}
           <Route path="/consultar" element={<ConsultarImobiliario />} />
+          <Route path="/admin/consulta" element={<Navigate to="/consultar" replace />} />
+
+          {/* Financeiro e API do Assinante */}
           <Route path="/extrato" element={<ExtratoFinanceiro />} />
           <Route path="/api-keys" element={<GerenciarApi />} />
           <Route path="/docs" element={<PortalDevDocs />} />
           <Route path="/pagamento/sucesso" element={<Navigate to="/extrato" replace />} />
 
-          {/* Rotas Administrativas */}
-          <Route
-            path="/admin"
-            element={
-              <SuperAdminRoute>
-                <DashboardAdmin />
-              </SuperAdminRoute>
-            }
-          />
+          {/* Rotas Exclusivas do Super Admin */}
           <Route
             path="/admin/clientes"
             element={
@@ -90,18 +98,18 @@ export default function App() {
             }
           />
           <Route
-            path="/admin/consulta"
-            element={
-              <SuperAdminRoute>
-                <ConsultaSuperAdmin />
-              </SuperAdminRoute>
-            }
-          />
-          <Route
             path="/admin/logs"
             element={
               <SuperAdminRoute>
                 <LogsApi />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="/admin/configuracoes"
+            element={
+              <SuperAdminRoute>
+                <ConfiguracoesAdmin />
               </SuperAdminRoute>
             }
           />

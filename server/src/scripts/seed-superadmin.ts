@@ -63,7 +63,7 @@ async function seedSuperAdmin() {
       user = await prisma.user.create({
         data: {
           companyId: company.id,
-          name: 'Super Admin Renacred',
+          name: 'Wellington',
           email: superAdminEmail,
           password: hashedPassword,
           role: 'SUPER_ADMIN',

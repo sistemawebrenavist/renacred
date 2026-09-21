@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { 
   Search, 
   Wallet, 
@@ -9,6 +9,7 @@ import {
   Users, 
   Activity, 
   LayoutDashboard,
+  Settings,
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,20 +17,22 @@ import { RenacredLogo } from '../ui/RenacredLogo';
 
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
+  const isSuperAdmin = !!user?.isSuperAdmin;
 
-  const clientLinks = [
+  // Links do Menu Principal
+  const mainLinks = [
     { to: '/dashboard', label: 'Visão Geral', icon: LayoutDashboard },
     { to: '/consultar', label: 'Consultar Imóvel', icon: Search },
-    { to: '/extrato', label: 'Extrato & Saldo', icon: Wallet },
+    ...(!isSuperAdmin ? [{ to: '/extrato', label: 'Extrato & Saldo', icon: Wallet }] : []),
     { to: '/api-keys', label: 'Chaves de Acesso', icon: KeyRound },
     { to: '/docs', label: 'Guia de Integração', icon: FileCode2, highlight: true },
   ];
 
+  // Links Administrativos Exclusivos do SuperAdmin (Sem duplicidades!)
   const adminLinks = [
-    { to: '/admin', label: 'Painel Geral', icon: ShieldCheck },
     { to: '/admin/clientes', label: 'Clientes', icon: Users },
-    { to: '/admin/consulta', label: 'Consulta Avulsa', icon: Search },
-    { to: '/admin/logs', label: 'Histórico de Consultas', icon: Activity },
+    { to: '/admin/logs', label: 'Logs da API', icon: Activity },
+    { to: '/admin/configuracoes', label: 'Configurações', icon: Settings },
   ];
 
   return (
@@ -43,10 +46,10 @@ export const Sidebar: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
         <div>
           <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Menu
+            Menu Principal
           </p>
           <nav className="space-y-1">
-            {clientLinks.map((item) => {
+            {mainLinks.map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink
@@ -68,8 +71,8 @@ export const Sidebar: React.FC = () => {
           </nav>
         </div>
 
-        {/* Admin Navigation */}
-        {user?.isSuperAdmin && (
+        {/* Painel Administrativo */}
+        {isSuperAdmin && (
           <div className="pt-4 border-t border-slate-100">
             <p className="px-3 text-[11px] font-semibold text-amber-800 uppercase tracking-wider mb-2 flex items-center">
               <ShieldCheck className="w-3.5 h-3.5 mr-1 text-amber-700" />
@@ -103,17 +106,36 @@ export const Sidebar: React.FC = () => {
       {/* User / Logout Footer */}
       <div className="p-4 border-t border-slate-200 bg-slate-50">
         <div className="flex items-center justify-between">
-          <div className="overflow-hidden mr-2">
-            <p className="text-xs font-bold text-slate-900 truncate">{user?.name}</p>
-            <p className="text-[11px] text-slate-500 truncate">{user?.company?.razaoSocial}</p>
-          </div>
-          <button
-            onClick={logout}
-            title="Encerrar sessão"
-            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+          <Link
+            to={isSuperAdmin ? '/admin/configuracoes' : '/dashboard'}
+            title="Acessar perfil / configurações"
+            className="overflow-hidden mr-2 group flex-1"
           >
-            <LogOut className="w-4 h-4" />
-          </button>
+            <p className="text-xs font-bold text-slate-900 truncate group-hover:text-[#1D4ED8] transition">
+              {user?.name || 'Wellington'}
+            </p>
+            <p className="text-[11px] text-slate-500 truncate">
+              {user?.company?.razaoSocial || 'Renacred'}
+            </p>
+          </Link>
+          <div className="flex items-center space-x-1">
+            {isSuperAdmin && (
+              <Link
+                to="/admin/configuracoes"
+                title="Configurações da conta"
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </Link>
+            )}
+            <button
+              onClick={logout}
+              title="Encerrar sessão"
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </aside>
