@@ -23,7 +23,7 @@ export default function ConsultarImobiliario() {
   // Se vier parâmetro na URL (?doc=...), busca automaticamente
   useEffect(() => {
     const docParam = searchParams.get('doc');
-    if (docParam) {
+    if (docParam && docParam !== documento && !loading && !result) {
       setDocumento(docParam);
       handleSearch(docParam);
     }
@@ -105,16 +105,14 @@ export default function ConsultarImobiliario() {
       </div>
 
       {/* Exibição dos Resultados */}
-      {loading && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-4 shadow-xs">
+      {loading ? (
+        <div key="state-loading" className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-4 shadow-xs">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm font-semibold text-slate-900">Consultando bases cartorárias e DOI...</p>
-          <p className="text-xs text-slate-500">Varrendo serventias de registros de imóveis e declarações de operações imobiliárias em tempo real.</p>
+          <p className="text-sm font-semibold text-slate-900"><span>Consultando bases cartorárias e registros...</span></p>
+          <p className="text-xs text-slate-500"><span>Varrendo serventias de registros de imóveis e declarações imobiliárias em tempo real.</span></p>
         </div>
-      )}
-
-      {!loading && result && (
-        <div className="space-y-6">
+      ) : result ? (
+        <div key="state-result" className="space-y-6">
           {/* Barra de Ações & Resumo */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -165,7 +163,7 @@ export default function ConsultarImobiliario() {
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

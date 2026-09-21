@@ -93,7 +93,7 @@ export const consultarWeb = async (req: any, res: Response) => {
           ? (error.message || 'Erro ao processar consulta de histórico imobiliário.')
           : 'Erro ao processar consulta de histórico imobiliário. Tente novamente em alguns instantes.');
 
-    return res.status(isProviderBlocked ? 502 : 500).json({
+    return res.status(500).json({
       success: false,
       code: isProviderBlocked ? 'PROVIDER_BLOCKED_403' : 'QUERY_ERROR',
       message: userMessage,

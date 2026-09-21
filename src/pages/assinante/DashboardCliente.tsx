@@ -13,6 +13,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 
+import DetalhesConsultaModal from '../../components/imobiliario/DetalhesConsultaModal';
+
 export default function DashboardCliente() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -21,6 +23,7 @@ export default function DashboardCliente() {
   const [documentoRapido, setDocumentoRapido] = useState('');
   const [recentQueries, setRecentQueries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedQueryId, setSelectedQueryId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -194,12 +197,13 @@ export default function DashboardCliente() {
                       {new Date(q.createdAt).toLocaleString('pt-BR')}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <Link
-                        to={`/consultar?doc=${q.identifier}`}
-                        className="text-xs text-[#1D4ED8] hover:text-[#1E40AF] font-semibold"
+                      <button
+                        type="button"
+                        onClick={() => setSelectedQueryId(q.id)}
+                        className="text-xs text-[#1D4ED8] hover:text-[#1E40AF] font-semibold cursor-pointer"
                       >
                         Visualizar
-                      </Link>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -208,6 +212,13 @@ export default function DashboardCliente() {
           </div>
         )}
       </div>
+
+      {/* Modal de Detalhes da Consulta */}
+      <DetalhesConsultaModal
+        isOpen={!!selectedQueryId}
+        queryId={selectedQueryId}
+        onClose={() => setSelectedQueryId(null)}
+      />
     </div>
   );
 }
