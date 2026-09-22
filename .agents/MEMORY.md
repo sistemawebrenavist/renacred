@@ -206,3 +206,28 @@ Para entregar renderização e respostas quase instantâneas:
    * Substituição do spinner genérico por `DeclaracaoSkeleton` com efeito shimmer fiel ao card do imóvel.
    * Feedback dinâmico de etapas ("Conectando às bases cartorárias...", "Varrendo serventias de registros de imóveis...", "Compilando laudo pericial oficial...").
    * Memorização dos cards com `React.memo` em `DeclaracaoCard.tsx`, garantindo taxa de quadros estável a 60 FPS (INP < 16ms).
+
+---
+
+## 10. Arquitetura Modular de Catálogo de PRODUTOS (E1, E2...)
+
+Para comportar a entrada de novas APIs de forma escalável e profissional (padrão grandes bureaus como Serasa/Boa Vista):
+
+1. **Sidebar / Menu Lateral:**
+   * Criada a seção **PRODUTOS** tanto no Portal de Gestão (Admin) quanto no Portal do Assinante (Cliente).
+   * Subitem ativo atual: **`E1 - Busca de Imóvel por Documento`** (rota `/consultar`).
+   * Quando novas APIs forem integradas (ex: E2, E3), basta registrá-las no array `productLinks` do `Sidebar.tsx`.
+
+2. **Identidade Visual da Consulta (`ConsultarImobiliario.tsx`):**
+   * Cabeçalho identificado com a chancela oficial:
+     * Badge corporativo: `PRODUTO E1`
+     * Título: `E1 - Busca de Imóvel por Documento`
+     * Subtítulo: `Pesquisa nacional de histórico de transações, titularidade imobiliária (DOI) e registros cartorários vinculados a um CPF ou CNPJ.`
+
+3. **Portal de Desenvolvedores (`PortalDevDocs.tsx`):**
+   * Reorganizado como **"Catálogo de APIs & Produtos Oficiais"**.
+   * Identificação do endpoint oficial com o selo `PRODUTO E1`.
+   * Simulador/Playground interativo rotulado como `Simulador do Produto E1 (Histórico Imobiliário)`.
+
+4. **Rotas e Compatibilidade (`App.tsx`):**
+   * As rotas `/consultar`, `/produtos/e1` e `/produtos/e1-imovel` apontam para a mesma tela, garantindo 100% de retrocompatibilidade com links já salvos.
