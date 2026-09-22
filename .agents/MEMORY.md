@@ -1,6 +1,6 @@
 # MEMÓRIA OFICIAL DO PROJETO RENACRED
 
-**Última Atualização:** 21/09/2026  
+**Última Atualização:** 22/09/2026  
 **Status do Projeto:** Em Produção (VPS + Vercel + Cloudflare)  
 **Repositório Oficial:** `https://github.com/sistemawebrenavist/renacred.git` (Branch `main`)
 
@@ -12,10 +12,10 @@ O **RENACRED** (Rede Nacional de Proteção ao Crédito) é uma plataforma corpo
 
 * **Frontend:** React 18, TypeScript, Tailwind CSS, Vite, Lucide React, Sonner (Toasts). Hospedado na **Vercel** (`renacred.com.br`).
 * **Backend:** Node.js 20, Express, TypeScript, Prisma ORM, Winston Logger, JWT, Bcrypt. Containerizado com Docker na **VPS** (`api.renacred.com.br`).
-* **Banco de Dados:** PostgreSQL 16.14 isolado (`renacred_production`).
+* **Banco de Dados:** PostgreSQL 16.14 isolado (`renacred_production`) no host VPS.
 * **DNS & SSL:** Gerenciado pelo **Cloudflare** com delegação autoritativa no **Registro.br**.
 * **Provedor de Dados Oficiais:** **FetchBrasil** API em tempo real (`api=historico_imobiliario`).
-* **Gateway de Pagamento:** **InfinityPay** (cobranças via Pix dinâmico para recarga de créditos).
+* **Gateway de Pagamento:** **InfinityPay** (cobranças via Pix dinâmico para recarga de créditos e faturas pós-pagas).
 
 ---
 
@@ -26,8 +26,9 @@ O **RENACRED** (Rede Nacional de Proteção ao Crédito) é uma plataforma corpo
 | **IP do Servidor** | `209.50.245.165` (Ubuntu 24.04 LTS, 64 GB RAM, 66 GB SSD livre) |
 | **SSH Host Alias** | `renacred-vps` (porta 22, chave RSA configurada) |
 | **Diretório da Aplicação** | `/opt/renacred` |
+| **Script de Deploy** | `/opt/renacred/deploy.sh` (executável: `chmod +x deploy.sh && ./deploy.sh`) |
 | **Banco de Dados** | PostgreSQL 16.14 rodando no host (`127.0.0.1:5432`) |
-| **Nome da Database** | `renacred_production` (isolado do `infosinistros_production`) |
+| **Nome da Database** | `renacred_production` (isolado de `infosinistros_production`) |
 | **Usuário do Banco** | `infosinistros_user` / Senha: `Infosinistros2025Secure` |
 | **Container Docker** | `renacred-api` (Porta interna `3002`, `network_mode: host`, `restart: unless-stopped`) |
 | **Reverse Proxy** | OpenResty (Nginx) no container `ic-openresty-H2ty` (Portas 80 e 443) |
@@ -35,119 +36,129 @@ O **RENACRED** (Rede Nacional de Proteção ao Crédito) é uma plataforma corpo
 
 ---
 
-## 3. Credenciais do Usuário Super Administrador
+## 3. Contas & Credenciais em Produção
 
-Provisionado no banco de dados via script de seed com permissão master global:
+### A. Super Administrador (Wellington)
 * **E-mail:** `wmbrito2@gmail.com`
-* **Senha Inicial:** `kikobelinhawell0110BElinhakikowell0110` (armazenada com hash Bcrypt)
 * **ID do Usuário:** `ae672903-42b8-43f2-b008-8ac9f24a6a97`
 * **Empresa Vinculada:** `Renacred Tecnologia & Informações Cartorárias` (ID: `3c966115-32bb-488b-a2db-c95b7366d47c`)
-* **Permissões:** `isSuperAdmin: true`, `role: SUPER_ADMIN` (isenção de cobranças, acesso irrestrito a todos os clientes, logs de API e métricas financeiras).
+* **Chave Master:** `rena_live_testmaster001`
+* **Permissões:** `isSuperAdmin: true`, `role: SUPER_ADMIN` (gestão total, isenção de custos em consultas de teste, acesso irrestrito ao painel `/admin`).
+
+### B. Assinante de Demonstração (Alfa Imóveis)
+* **E-mail:** `cliente.teste@renacred.com.br` / Senha: `Senha123!`
+* **Empresa:** `Imobiliária Alfa & Associados Ltda` (CNPJ: `12.345.678/0001-90`)
+* **Plano:** Pré-pago (Recargas de saldo)
+* **Token de API:** `rena_live_alfa_9f8e7d6c5b4a3120`
+
+### C. Assinante Credlocaliza (Marlon)
+* **E-mail:** `marlon@credlocaliza.com.br` / Senha: `marlon1234`
+* **Empresa:** `Credlocaliza Serviços de Apoio Administrativo Ltda` (CNPJ: `21.461.641/0001-13`)
+* **Plano:** Pós-pago (Faturamento mensal, vencimento dia 10)
+* **Token de API:** `rena_live_91e35c10ee746bf9df69063944a2c82cb2f263a43edabf03`
 
 ---
 
-## 4. Domínios, DNS & Vercel
+## 4. Integração com o Provedor FetchBrasil
 
-### A. Registro.br & Cloudflare
-* **Nameservers no Registro.br:**
-  * `anahi.ns.cloudflare.com`
-  * `jeremy.ns.cloudflare.com`
-* **Registros DNS no Cloudflare:**
-  * `renacred.com.br` $\to$ `76.76.21.21` (Vercel)
-  * `www.renacred.com.br` $\to$ CNAME Vercel
-  * `api.renacred.com.br` $\to$ `209.50.245.165` (VPS)
+### A. Causa Raiz do Erro 403 e Solução Definitiva
+* **Problema:** Ao realizar consultas de imóveis para `api.fetchbrasil.pro`, o Node.js no Linux (Docker) selecionava preferencialmente IPv6 (`2604:9a00:1:116:1c00:50ff:fe00:e3e`). Como o suporte da FetchBrasil liberou apenas o IPv4 da VPS (`209.50.245.165`) na whitelist do Cloudflare WAF, qualquer chamada em IPv6 era bloqueada com HTTP 403.
+* **Solução Implementada:** No `server/src/services/fetchbrasil.service.ts`, configurou-se explicitamente `family: 4` no `https.Agent`:
+  ```typescript
+  this.client = axios.create({
+    baseURL: this.apiURL,
+    timeout: 15000,
+    httpsAgent: new https.Agent({ keepAlive: true, family: 4 }),
+    proxy: proxyConfig,
+    ...
+  });
+  ```
+* **Resultado:** Todas as consultas agora saem obrigatoriamente pelo IPv4 whitelisted `209.50.245.165`, alcançando **100% de sucesso (HTTP 200)** e retornando as declarações completas.
 
-### B. Variáveis de Ambiente na Vercel (Frontend)
-No projeto `renacred` da organização `infosinistros`:
-* **Variável:** `VITE_API_URL`
-* **Valor:** `https://api.renacred.com.br`
-* **Tipo na Vercel:** *Configuração* (obrigatório para variáveis públicas com prefixo `VITE_`)
-* **Ambientes:** Produção, Pré-visualização e Desenvolvimento
-
-*Nota de Segurança:* O token da FetchBrasil **nunca** deve ir para a Vercel. Fica guardado exclusivamente no backend na VPS (`/opt/renacred/server/.env`).
-
----
-
-## 5. Padrões de UI, Estilo & Diretrizes Anti-IA (Impeccable)
-
-A skill de design Impeccable foi aplicada para manter uma identidade visual séria de Autoridade Registral e Cartorária:
-1. **Página Inicial (`src/pages/Home.tsx`):**
-   * Fundo branco puro, tipografia refinada, sem badges artificiais de IA, cards com orbes fluorescentes ou gradientes vazados.
-   * Logotipo transparente em tamanho ampliado (`h-16 sm:h-20`).
-   * Botões de ação em Azul Real Notarial (`#1D4ED8`) com ícone funcional `ArrowRight`.
-2. **Página de Login (`src/pages/Login.tsx`):**
-   * Logotipo centralizado e transparente (`h-16 sm:h-20`).
-   * Fundo branco, formulário limpo, resolução de autofill do navegador (fundo branco com texto escuro).
-   * Ícones estritamente funcionais (`Eye` e `EyeOff` para revelação de senha).
-   * Link discreto de retorno à home posicionado abaixo do formulário.
-3. **Eliminação de Diálogos Nativos do Navegador:**
-   * Removidos 100% de `window.confirm`, `alert` e `prompt`.
-   * Criado o componente [`ConfirmModal.tsx`](file:///c:/Users/Henrique%20-%20PC/Desktop/Projetos%20Dev/Renacred/src/components/ui/ConfirmModal.tsx) com backdrop blur escuro, acessibilidade via tecla `Escape` e estado de processamento assíncrono.
+### B. Regra de Consulta Sem Dados = Custo Zero
+* Quando uma pesquisa retorna `total_declaracoes === 0` (nenhuma declaração cartorária encontrada para o documento):
+  * **Custo Debitado:** R$ 0,00 (`custo_debitado: 0`).
+  * **Saldo Pré-pago:** Não sofre débito.
+  * **Fatura Pós-paga:** Não acumula custo.
+  * **Payload:** Retorna HTTP 200 estruturado com `total_declaracoes: 0` e `declaracoes: []`.
 
 ---
 
-## 6. Funcionalidades & CRUDs Implementados
+## 5. API Pública Externa de Desenvolvedores (Padrão FetchBrasil)
 
-### A. Gestão de Assinantes (`GerenciarClientes.tsx`)
-* **Create:** Modal de cadastro completo de novo assinante:
-  - Dados da Empresa: CNPJ/CPF, Razão Social, Nome Fantasia, E-mail, Telefone.
-  - Parâmetros Comerciais: Pré-pago (com saldo inicial bonificado) ou Pós-pago (com limite de crédito), dia de vencimento (1 a 31) e tarifa personalizada.
-  - Administrador Inicial: Criação do usuário gestor da empresa com senha criptografada.
-* **Read:** Tabela dinâmica com busca em tempo real por razão social, CNPJ ou e-mail.
-* **Update:** Edição de parâmetros comerciais e ajuste manual de saldo com justificativa para auditoria.
-* **Delete:** Exclusão segura com `ConfirmModal` (protegendo a empresa Super Admin contra exclusão acidental).
+O cliente assinante pode realizar consultas via GET direto no navegador ou via backend, exatamente no mesmo padrão que utilizava na FetchBrasil:
 
-### B. Chaves de API para Integração (`GerenciarApi.tsx`)
-* **Create:** Geração de novas chaves de API com IP Whitelist opcional e rate limiting configurável (padrão: 60 req/min).
-* **Read:** Listagem de chaves ativas, contagem de chamadas e cópia rápida para clipboard.
-* **Delete / Revoke:** Revogação imediata via `ConfirmModal`.
-
-### C. Portal do Desenvolvedor & Documentação (`PortalDevDocs.tsx`)
-* Especificação da API REST v1: `POST /v1/imobiliario/historico` e `GET /v1/imobiliario/historico`.
-* Exemplos de código prontos para copiar em **cURL, Node.js, Python, PHP e C#**.
-* Playground interativo para testar chamadas no painel.
-
-### D. Módulo Financeiro (`ExtratoFinanceiro.tsx`)
-* Geração de Pix dinâmico via InfinityPay para recargas de saldo (valor mínimo R$ 20,00).
-* Extrato contábil detalhado das consultas debitadas e recargas efetuadas.
-* Visualização e fechamento de faturas mensais para assinantes na modalidade pós-paga.
-
-### E. API B2B Externa (`/v1/imobiliario/historico`)
-* Autenticação via cabeçalho HTTP `x-api-key`.
-* Parâmetros aceitos: `query` ou `documento` (CPF ou CNPJ).
-* Validador oficial de dígitos verificadores de CPF e CNPJ (`cpfCnpjValidator.ts`).
-* Validação de faturamento B2B em tempo real:
-  - Pré-pago: Valida se a empresa possui saldo $\ge$ tarifa da consulta e efetua o débito.
-  - Pós-pago: Valida se o consumo acumulado no ciclo não ultrapassou o `creditLimit` e acumula na fatura.
-* Conexão direta com a FetchBrasil sem cache (`https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237&api=historico_imobiliario&query=<doc>`).
-* Retorno de dados estruturado com `periodo`, `total_declaracoes`, `declaracoes` (com alienantes, adquirentes e dados do cartório) e metadados `api_central`.
-* **Zero resíduos** ou termos de veículos da InfoSinistros no código-fonte.
-
----
-
-## 7. Comandos de Manutenção na VPS
-
-Para futuras manutenções na VPS (`ssh renacred-vps`):
-
-```bash
-# Ver status do container da API
-docker ps -f name=renacred-api
-
-# Ver logs em tempo real
-docker logs -f renacred-api
-
-# Reiniciar o container
-docker restart renacred-api
-
-# Atualizar o código na VPS após novo git push
-cd /opt/renacred
-git pull origin main
-cd /opt/renacred/server
-docker compose up -d --build
-
-# Recarregar Nginx OpenResty
-docker exec ic-openresty-H2ty nginx -s reload
-
-# Conectar ao banco de dados PostgreSQL
-sudo -u postgres psql -d renacred_production
+```text
+GET https://api.renacred.com.br/v1/imobiliario/historico?token={TOKEN}&query={DOCUMENTO}
 ```
+
+### A. Parâmetros Flexíveis Aceitos
+* **Token:**
+  * Query param: `?token=...`, `?api_key=...`, `?key=...`
+  * Header HTTP: `Authorization: Bearer <token>` ou `x-api-key: <token>`
+* **Documento:**
+  * Query param: `?query=...`, `?documento=...`, `?cpf=...`, `?cnpj=...` (com ou sem formatação)
+
+### B. Rotas com Fallback Mapeadas
+* `/v1/imobiliario/historico`
+* `/v1/imobiliario`
+* `/v1`
+* `/api/v1/...`
+* `/?token=...&query=...` (requisições na raiz do domínio da API direcionam automaticamente para a consulta)
+
+---
+
+## 6. Regras de Cobrança, Elegibilidade & Inadimplência
+
+No `server/src/services/billing.service.ts`:
+1. **Empresa Bloqueada:** Rejeita com HTTP 403 caso `company.isActive === false`.
+2. **Inadimplência Pós-paga:** Bloqueia automaticamente com HTTP 402 (`INVOICE_OVERDUE`) caso o cliente possua qualquer fatura em aberto com status `OVERDUE` (vencida).
+3. **Limite Operacional:** Bloqueia caso o consumo acumulado do ciclo exceda o `creditLimit` da empresa.
+4. **Saldo Pré-pago:** Rejeita caso o saldo em conta seja inferior ao valor da consulta (`effectivePrice`).
+
+---
+
+## 7. Estrutura dos Portais (Separação Rígida)
+
+### A. Portal Administrativo (`/admin/*`)
+* `DashboardAdmin.tsx`: Visão analítica com contagem de consultas, faturamento acumulado e histórico de consultas apenas de clientes reais (excluindo a empresa controladora do SuperAdmin para não inflar as métricas).
+* `GerenciarClientes.tsx`: CRUD completo de clientes:
+  * **Alinhamento dos Ícones:** 4 botões de ação (Chaves de API, Configurar Plano, Ajustar Saldo, Excluir) dispostos em linha única horizontal sem quebra (`flex-nowrap`, `min-w-[165px]`, `whitespace-nowrap`).
+  * **Acesso API na Tabela:** Exibe o token ativo com badge e botão de cópia, e **logo abaixo renderiza a URL de produção completa** (`https://api.renacred.com.br/v1/imobiliario/historico?token=...&query=DOCUMENTO`) com botão de cópia rápida.
+  * **Modal Pós-Cadastro:** Ao salvar novo cliente, exibe modal de sucesso com as credenciais do admin, token gerado e botão para copiar todos os dados formatados para WhatsApp/E-mail.
+* `ConfiguracoesAdmin.tsx`: Parâmetros comerciais globais da plataforma.
+* `AuditoriaApi.tsx`: Logs detalhados de requisições de API com filtros de status e tempo de resposta.
+
+### B. Portal do Assinante (`/*`)
+* `DashboardCliente.tsx`: Painel com resumo de consumo e consulta rápida.
+* `ConsultaImovel.tsx`: Formulário completo de consulta cartorária e exportação em PDF.
+* `ExtratoFinanceiro.tsx`: Extrato contábil, recargas via Pix dinâmico (InfinityPay) e visualização de faturas.
+* `MinhaAssinatura.tsx`: Detalhes do plano ativo, tarifa unitária, limite, faturas e link de checkout.
+  * *Correção de Rota:* Suporte tanto a `/api/payment/subscription` quanto `/api/pagamentos/subscription` no `server/src/index.ts`.
+* `GerenciarApi.tsx`: Criação e revogação de tokens com IP whitelist e gerador interativo de URL com testador ao vivo.
+* `ConfiguracoesCliente.tsx`: Alteração de dados cadastrais, responsáveis e troca de senha.
+* `PortalDevDocs.tsx`: Documentação técnica e exemplos de integração em 5 linguagens.
+
+---
+
+## 8. Procedimento de Deploy e Manutenção
+
+Para realizar novas atualizações:
+
+1. **Compilação e Commit local:**
+   ```bash
+   npm run build && npm --prefix server run build
+   git add . && git commit -m "feat/fix: descricao"
+   git push origin main
+   ```
+
+2. **Deploy na VPS (Execução remota):**
+   ```bash
+   ssh -n -o StrictHostKeyChecking=no root@209.50.245.165 "chmod +x /opt/renacred/deploy.sh && /opt/renacred/deploy.sh"
+   ```
+
+3. **Verificação de Saúde (Healthcheck):**
+   ```bash
+   curl -s http://127.0.0.1:3002/health
+   # Resposta esperada: {"status":"online","app":"Renacred API",...}
+   ```
