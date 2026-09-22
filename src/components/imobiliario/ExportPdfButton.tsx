@@ -1,6 +1,5 @@
 import React from 'react';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { FileDown } from 'lucide-react';
 import { DeclaracaoProps } from './DeclaracaoCard';
 import { RENACRED_LOGO_BASE64 } from '../../assets/logoBase64';
@@ -59,249 +58,390 @@ export const ExportPdfButton: React.FC<ExportPdfProps> = ({
       second: '2-digit',
     });
 
-    // 1. CABEÇALHO INSTITUCIONAL EXECUTIVO (Fundo Branco, Logo Oficial Sem Fundo e Texto Preto)
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 210, 36, 'F');
-
-    // Logo oficial sem fundo
+    // 1. CABEÇALHO INSTITUCIONAL EXECUTIVO (Página 1)
+    // Logo à esquerda alinhada ao título e descrição
     try {
-      doc.addImage(RENACRED_LOGO_BASE64, 'PNG', 12, 6, 48, 13.6);
+      doc.addImage(RENACRED_LOGO_BASE64, 'PNG', 12, 7, 46, 13);
     } catch {
-      // Fallback elegante se a imagem não carregar
-      doc.setFontSize(14);
+      doc.setFontSize(13);
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
-      doc.text('RENACRED', 12, 16);
+      doc.text('RENACRED', 12, 15);
     }
 
-    // Título Oficial da Certidão em Texto Preto / Slate 900
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(9.5);
+    // Título e Descrição perfeitamente alinhados ao lado da logo
+    doc.setTextColor(15, 23, 42); // Slate 900
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text('Certidão Oficial de Histórico Imobiliário & Registros DOI', 12, 26);
+    doc.text('Certidão Oficial de Histórico Imobiliário & Registros DOI', 63, 12.5);
 
-    doc.setFontSize(6.5);
+    doc.setFontSize(7);
     doc.setTextColor(100, 116, 139); // Slate 500
     doc.setFont('helvetica', 'normal');
-    doc.text('Auditoria de Titularidade Imobiliária e Histórico de Transações Cartorárias', 12, 30);
+    doc.text('Auditoria Pericial de Titularidade Imobiliária e Histórico de Transações Cartorárias', 63, 17);
 
-    // Badge do Produto E1 no canto superior direito (Fundo Claro com Borda Suave)
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(203, 213, 225);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(148, 7, 50, 14, 2.5, 2.5, 'FD');
-
-    doc.setTextColor(29, 78, 216); // Royal Blue
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PRODUTO E1', 153, 12);
-
-    doc.setTextColor(15, 23, 42); // Texto Preto
-    doc.setFontSize(6.5);
-    doc.setFont('helvetica', 'bold');
-    doc.text('LAUDO PERICIAL OFICIAL', 153, 17);
-
-    // Linha divisória suave do cabeçalho
+    // Linha divisória elegante
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.4);
-    doc.line(12, 34, 198, 34);
+    doc.line(12, 24, 198, 24);
 
-    // 2. GRID DE METADADOS EM 3 CARDS EXECUTIVOS (Y: 38 a 59)
-    const cardY = 38;
-    const cardH = 21;
-    const cardW = 59;
-    const cardR = 2.5;
+    // 2. GRID DE METADADOS EM 3 CARDS EXECUTIVOS (Y: 27 a 46)
+    const metaCardY = 27;
+    const metaCardH = 19;
+    const metaCardW = 59;
+    const metaCardR = 2;
 
     // Card 1: Documento Auditado
     doc.setFillColor(248, 250, 252); // Slate 50
     doc.setDrawColor(226, 232, 240); // Slate 200
     doc.setLineWidth(0.3);
-    doc.roundedRect(12, cardY, cardW, cardH, cardR, cardR, 'FD');
+    doc.roundedRect(12, metaCardY, metaCardW, metaCardH, metaCardR, metaCardR, 'FD');
 
-    doc.setFontSize(6.5);
+    doc.setFontSize(6);
     doc.setTextColor(100, 116, 139); // Slate 500
     doc.setFont('helvetica', 'bold');
-    doc.text('DOCUMENTO AUDITADO', 16, cardY + 5.5);
+    doc.text('DOCUMENTO AUDITADO', 16, metaCardY + 5);
 
-    doc.setFontSize(9.5);
+    doc.setFontSize(9);
     doc.setTextColor(15, 23, 42); // Slate 900
     doc.setFont('helvetica', 'bold');
-    doc.text(docFormatado, 16, cardY + 11.5);
+    doc.text(docFormatado, 16, metaCardY + 10.5);
 
-    doc.setFontSize(6.5);
+    doc.setFontSize(6);
     doc.setTextColor(100, 116, 139);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Período de Cobertura: ${periodo || 'Histórico Integral'}`, 16, cardY + 16.5);
+    doc.text(`Período de Cobertura: ${periodo || 'Histórico Integral'}`, 16, metaCardY + 15);
 
     // Card 2: Resultado da Pesquisa
     doc.setFillColor(248, 250, 252);
     doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(75.5, cardY, cardW, cardH, cardR, cardR, 'FD');
+    doc.roundedRect(75.5, metaCardY, metaCardW, metaCardH, metaCardR, metaCardR, 'FD');
 
-    doc.setFontSize(6.5);
+    doc.setFontSize(6);
     doc.setTextColor(100, 116, 139);
     doc.setFont('helvetica', 'bold');
-    doc.text('RESULTADO DA PESQUISA', 79.5, cardY + 5.5);
+    doc.text('RESULTADO DA PESQUISA', 79.5, metaCardY + 5);
 
-    doc.setFontSize(9.5);
+    doc.setFontSize(9);
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
-    doc.text(`${totalDeclaracoes} ${totalDeclaracoes === 1 ? 'Registro Localizado' : 'Registros Localizados'}`, 79.5, cardY + 11.5);
+    doc.text(`${totalDeclaracoes} ${totalDeclaracoes === 1 ? 'Registro Localizado' : 'Registros Localizados'}`, 79.5, metaCardY + 10.5);
 
-    doc.setFontSize(6.5);
+    doc.setFontSize(6);
     if (totalDeclaracoes > 0) {
-      // Círculo indicador de status verde
       doc.setFillColor(4, 120, 87); // Emerald 700
-      doc.circle(80.5, cardY + 16, 1, 'F');
+      doc.circle(80.5, metaCardY + 14.5, 0.8, 'F');
       doc.setTextColor(4, 120, 87);
       doc.setFont('helvetica', 'bold');
-      doc.text('Com Apontamentos Cartorários', 83, cardY + 16.5);
+      doc.text('Com Apontamentos Cartorários', 83, metaCardY + 15);
     } else {
       doc.setFillColor(100, 116, 139);
-      doc.circle(80.5, cardY + 16, 1, 'F');
+      doc.circle(80.5, metaCardY + 14.5, 0.8, 'F');
       doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'normal');
-      doc.text('Nada Consta no Período', 83, cardY + 16.5);
+      doc.text('Nada Consta no Período', 83, metaCardY + 15);
     }
 
     // Card 3: Autenticação Digital & Emissão
     doc.setFillColor(248, 250, 252);
     doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(139, cardY, cardW, cardH, cardR, cardR, 'FD');
+    doc.roundedRect(139, metaCardY, metaCardW, metaCardH, metaCardR, metaCardR, 'FD');
 
-    doc.setFontSize(6.5);
+    doc.setFontSize(6);
     doc.setTextColor(100, 116, 139);
     doc.setFont('helvetica', 'bold');
-    doc.text('AUTENTICAÇÃO DIGITAL', 143, cardY + 5.5);
+    doc.text('AUTENTICAÇÃO DIGITAL', 143, metaCardY + 5);
 
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
-    doc.text(`${dataFormatada} às ${horaFormatada}`, 143, cardY + 11.5);
+    doc.text(`${dataFormatada} às ${horaFormatada}`, 143, metaCardY + 10.5);
 
-    doc.setFontSize(6.5);
+    doc.setFontSize(6);
     doc.setTextColor(29, 78, 216); // Royal Blue
     doc.setFont('helvetica', 'bold');
-    doc.text(`Hash: ${authCode}`, 143, cardY + 16.5);
+    doc.text(`Hash: ${authCode}`, 143, metaCardY + 15);
 
-    // 3. TABELA PERICIAL COM AUTOTABLE
-    const tableData = declaracoes.map((dec, idx) => {
-      const alienantesList = (dec.alienantes || [])
-        .map(a => `${a.nome}\nDoc: ${formatDocumento(a.cpfCnpj)}`)
-        .join('\n\n') || '-';
+    // Título da Seção de Declarações Registradas
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text(`DECLARAÇÕES REGISTRADAS (${totalDeclaracoes})`, 12, 51);
 
-      const adquirentesList = (dec.adquirentes || [])
-        .map(a => `${a.nome}\nDoc: ${formatDocumento(a.cpfCnpj)}`)
-        .join('\n\n') || '-';
+    // 3. RENDERIZAÇÃO EM FORMATO DE CARDS EXECUTIVOS (IDÊNTICO AO MODAL)
+    const cardW = 186;
+    const startX = 12;
+    const bottomLimit = 276; // Limite inferior seguro antes do rodapé
 
-      const cartorioInfo = [
-        dec.cartorio || 'Cartório de Registro de Imóveis',
-        dec.tipoCartorio ? `Tipo: ${dec.tipoCartorio}` : '',
-        dec.cnpjCartorio ? `CNPJ: ${formatDocumento(dec.cnpjCartorio)}` : '',
-      ].filter(Boolean).join('\n');
+    const drawHeaderSubsequentPages = () => {
+      try {
+        doc.addImage(RENACRED_LOGO_BASE64, 'PNG', 12, 6, 32, 9.5);
+      } catch {
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        doc.setFont('helvetica', 'bold');
+        doc.text('RENACRED', 12, 12);
+      }
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Certidão Oficial de Histórico Imobiliário & Registros DOI', 48, 10.5);
+      doc.setFontSize(6);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Documento Auditado: ${docFormatado}`, 48, 14);
 
-      const registroInfo = [
-        dec.matricula ? `Matrícula: ${dec.matricula}` : 'Matrícula: Geral',
-        dec.registro ? `Registro: ${dec.registro}` : '',
-        dec.livro ? `Livro: ${dec.livro}` : '',
-        dec.folha ? `Folha: ${dec.folha}` : '',
-      ].filter(Boolean).join('\n');
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(12, 17.5, 198, 17.5);
+    };
 
-      return [
-        String(idx + 1).padStart(2, '0'),
-        dec.dataLavratura || '-',
-        dec.tipoDeclaracao || 'Operação',
-        registroInfo,
-        cartorioInfo,
-        alienantesList,
-        adquirentesList,
-      ];
-    });
+    const calculateCardHeight = (dec: DeclaracaoProps) => {
+      const countAlienantes = Math.max(dec.alienantes?.length || 0, 1);
+      const countAdquirentes = Math.max(dec.adquirentes?.length || 0, 1);
+      const maxPartes = Math.max(countAlienantes, countAdquirentes);
+      const partesHeight = 6 + (maxPartes * 8.5);
+      return 8.5 + 13 + partesHeight + 3;
+    };
 
-    autoTable(doc, {
-      startY: 65,
-      margin: { left: 12, right: 12, top: 20, bottom: 20 },
-      head: [['#', 'Data Reg.', 'Tipo', 'Matrícula / Livro', 'Cartório Responsável', 'Alienante(s) / Vendedor', 'Adquirente(s) / Comprador']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [15, 23, 42], // Navy Slate
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        fontSize: 7,
-        halign: 'left',
-        cellPadding: { top: 3, bottom: 3, left: 2.5, right: 2.5 },
-      },
-      styles: {
-        fontSize: 6.5,
-        cellPadding: { top: 3, bottom: 3, left: 2.5, right: 2.5 },
-        lineColor: [226, 232, 240],
-        lineWidth: 0.2,
-        textColor: [30, 41, 59],
-        overflow: 'linebreak',
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252], // Slate 50
-      },
-      columnStyles: {
-        0: { cellWidth: 10, halign: 'center', fontStyle: 'bold', textColor: [29, 78, 216] },
-        1: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
-        2: { cellWidth: 18, halign: 'center', fontStyle: 'bold', textColor: [71, 85, 105] },
-        3: { cellWidth: 28, fontStyle: 'bold' },
-        4: { cellWidth: 36 },
-        5: { cellWidth: 37 },
-        6: { cellWidth: 37 },
-      },
-      didDrawPage: (data) => {
-        // RODAPÉ OFICIAL DE FÉ PÚBLICA EM TODAS AS PÁGINAS
-        const pageSize = doc.internal.pageSize;
-        const pageHeight = pageSize.height || pageSize.getHeight();
-        const pageWidth = pageSize.width || pageSize.getWidth();
-        const footerY = pageHeight - 12;
+    const drawCard = (dec: DeclaracaoProps, idx: number, y: number) => {
+      const countAlienantes = Math.max(dec.alienantes?.length || 0, 1);
+      const countAdquirentes = Math.max(dec.adquirentes?.length || 0, 1);
+      const maxPartes = Math.max(countAlienantes, countAdquirentes);
+      const partesHeight = 6 + (maxPartes * 8.5);
+      const totalH = 8.5 + 13 + partesHeight + 3;
 
-        // Linha divisória fina
+      // Container do Card com cantos suaves
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.35);
+      doc.roundedRect(startX, y, cardW, totalH, 2.5, 2.5, 'FD');
+
+      // Topo do Card: Badge # + Título + Tipo + Data de Registro
+      doc.setFillColor(239, 246, 255); // Blue 50
+      doc.setDrawColor(191, 219, 254); // Blue 200
+      doc.roundedRect(startX + 3, y + 2, 8, 5, 1.2, 1.2, 'FD');
+      doc.setTextColor(29, 78, 216); // Blue 700
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.text('#' + String(idx + 1).padStart(2, '0'), startX + 4.2, y + 5.5);
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      const titleText = dec.numDeclaracao ? `Declaração DOI Nº ${dec.numDeclaracao}` : 'Operação Imobiliária Registrada';
+      doc.text(titleText, startX + 13, y + 5.5);
+
+      const tw = doc.getTextWidth(titleText);
+      if (dec.tipoDeclaracao) {
+        doc.setFillColor(241, 245, 249);
         doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.3);
-        doc.line(12, footerY - 2, pageWidth - 12, footerY - 2);
+        doc.roundedRect(startX + 15 + tw, y + 2, 16, 5, 1, 1, 'FD');
+        doc.setTextColor(71, 85, 105);
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'bold');
+        doc.text(dec.tipoDeclaracao, startX + 17 + tw, y + 5.5);
+      }
 
-        // Texto Institucional de Fé Pública
+      if (dec.dataLavratura) {
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(startX + cardW - 48, y + 2, 45, 5, 1.2, 1.2, 'FD');
         doc.setFontSize(5.5);
         doc.setTextColor(100, 116, 139);
         doc.setFont('helvetica', 'normal');
-        doc.text(
-          'Documento eletrônico emitido pela plataforma Renacred via consolidação da base DOI (Receita Federal) e Serventias Registrais. Válido em todo o território nacional.',
-          12,
-          footerY + 1.5
-        );
-
+        doc.text('Data do Registro: ', startX + cardW - 46, y + 5.5);
+        doc.setTextColor(15, 23, 42);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(71, 85, 105);
-        doc.text(
-          `Código de Validação: ${authCode} • Portal de Verificação: api.renacred.com.br/validar`,
-          12,
-          footerY + 5.5
-        );
-      },
-    });
+        doc.text(dec.dataLavratura, startX + cardW - 27, y + 5.5);
+      }
 
-    // 4. PAGINAÇÃO DINÂMICA ("Página X de Y") EM TODAS AS PÁGINAS
-    const totalPages = doc.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      const pageSize = doc.internal.pageSize;
-      const pageHeight = pageSize.height || pageSize.getHeight();
-      const pageWidth = pageSize.width || pageSize.getWidth();
-      const footerY = pageHeight - 12;
+      // Linha separadora do topo
+      doc.setDrawColor(241, 245, 249);
+      doc.line(startX + 3, y + 8, startX + cardW - 3, y + 8);
 
-      doc.setFontSize(6.5);
+      // Bloco Intermediário: 3 Caixas (Matrícula, Livro/Folha, Cartório)
+      const boxY = y + 9.5;
+      const boxH = 11.5;
+
+      // Caixa 1: Matrícula
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(startX + 3, boxY, 36, boxH, 1.5, 1.5, 'FD');
+      doc.setFontSize(5);
+      doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'bold');
+      doc.text('MATRÍCULA', startX + 5, boxY + 3.5);
+      doc.setFontSize(7.5);
       doc.setTextColor(15, 23, 42);
-      doc.text(`Página ${i} de ${totalPages}`, pageWidth - 12, footerY + 5.5, { align: 'right' });
+      doc.setFont('helvetica', 'bold');
+      doc.text(dec.matricula || 'Geral', startX + 5, boxY + 8.5);
+
+      // Caixa 2: Registro / Livro / Folha
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(startX + 41, boxY, 46, boxH, 1.5, 1.5, 'FD');
+      doc.setFontSize(5);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'bold');
+      doc.text('REGISTRO / LIVRO / FOLHA', startX + 43, boxY + 3.5);
+      doc.setFontSize(7);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      const regLivroStr = [
+        dec.registro ? `Reg: ${dec.registro}` : '',
+        dec.livro ? `Livro: ${dec.livro}` : '',
+        dec.folha ? `Fl: ${dec.folha}` : '',
+      ].filter(Boolean).join(' • ') || 'Geral';
+      doc.text(regLivroStr, startX + 43, boxY + 8.5);
+
+      // Caixa 3: Cartório Responsável
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(startX + 89, boxY, 94, boxH, 1.5, 1.5, 'FD');
+      doc.setFontSize(5);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CARTÓRIO RESPONSÁVEL', startX + 91, boxY + 3.5);
+      doc.setFontSize(6.5);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      const cartorioNome = doc.splitTextToSize(dec.cartorio || 'Cartório de Registro de Imóveis', 90)[0];
+      doc.text(cartorioNome, startX + 91, boxY + 7.5);
+      doc.setFontSize(5);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'normal');
+      const subCartorio = [dec.tipoCartorio, dec.cnpjCartorio ? `CNPJ: ${formatDocumento(dec.cnpjCartorio)}` : ''].filter(Boolean).join(' • ');
+      doc.text(subCartorio, startX + 91, boxY + 10.5);
+
+      // Bloco Inferior: Partes (Alienantes vs Adquirentes)
+      const partesY = boxY + boxH + 2;
+      const colW = 88.5;
+
+      // Rótulo Alienantes
+      doc.setFontSize(5.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(180, 83, 9); // Amber 700
+      doc.text('ALIENANTE(S) / TRANSMITENTE(S)', startX + 3, partesY + 3);
+
+      // Rótulo Adquirentes
+      doc.setTextColor(4, 120, 87); // Emerald 700
+      doc.text('ADQUIRENTE(S) / COMPRADOR(ES)', startX + colW + 9, partesY + 3);
+
+      // Itens Alienantes
+      let itemY = partesY + 4.5;
+      if (dec.alienantes && dec.alienantes.length > 0) {
+        dec.alienantes.forEach((al) => {
+          doc.setFillColor(254, 252, 232); // Amber 50
+          doc.setDrawColor(253, 230, 138); // Amber 200
+          doc.roundedRect(startX + 3, itemY, colW, 7.5, 1, 1, 'FD');
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(15, 23, 42);
+          doc.text(al.nome || 'Não informado', startX + 5, itemY + 3.2);
+          doc.setFontSize(5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 116, 139);
+          doc.text(`Doc: ${formatDocumento(al.cpfCnpj)}`, startX + 5, itemY + 6.2);
+          itemY += 8.2;
+        });
+      } else {
+        doc.setFontSize(5.5);
+        doc.setTextColor(148, 163, 184);
+        doc.setFont('helvetica', 'italic');
+        doc.text('Nenhum alienante registrado nesta operação.', startX + 3, itemY + 3.5);
+      }
+
+      // Itens Adquirentes
+      itemY = partesY + 4.5;
+      if (dec.adquirentes && dec.adquirentes.length > 0) {
+        dec.adquirentes.forEach((ad) => {
+          doc.setFillColor(240, 253, 244); // Emerald 50
+          doc.setDrawColor(187, 247, 208); // Emerald 200
+          doc.roundedRect(startX + colW + 9, itemY, colW, 7.5, 1, 1, 'FD');
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(15, 23, 42);
+          doc.text(ad.nome || 'Não informado', startX + colW + 11, itemY + 3.2);
+          doc.setFontSize(5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 116, 139);
+          doc.text(`Doc: ${formatDocumento(ad.cpfCnpj)}`, startX + colW + 11, itemY + 6.2);
+          itemY += 8.2;
+        });
+      } else {
+        doc.setFontSize(5.5);
+        doc.setTextColor(148, 163, 184);
+        doc.setFont('helvetica', 'italic');
+        doc.text('Nenhum adquirente registrado nesta operação.', startX + colW + 9, itemY + 3.5);
+      }
+
+      return totalH;
+    };
+
+    let curY = 54;
+
+    if (declaracoes.length === 0) {
+      // Card quando não há registros
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(startX, curY, cardW, 28, 2.5, 2.5, 'FD');
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Nenhum registro de imóvel localizado', startX + 10, curY + 11);
+      doc.setFontSize(6.5);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        'Não foram identificadas transações imobiliárias ativas ou históricas (DOI) para o documento informado.',
+        startX + 10,
+        curY + 18
+      );
+    } else {
+      declaracoes.forEach((dec, idx) => {
+        const cardH = calculateCardHeight(dec);
+        if (curY + cardH > bottomLimit) {
+          doc.addPage();
+          drawHeaderSubsequentPages();
+          curY = 22;
+        }
+        drawCard(dec, idx, curY);
+        curY += cardH + 3.5;
+      });
+    }
+
+    // 4. RODAPÉ DE FÉ PÚBLICA & PAGINAÇÃO DINÂMICA EM TODAS AS PÁGINAS
+    const totalPages = doc.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      const footerY = 285;
+
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(12, footerY - 2, 198, footerY - 2);
+
+      doc.setFontSize(5.5);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        'Documento eletrônico emitido pela plataforma Renacred via consolidação da base DOI (Receita Federal) e Serventias Registrais. Válido em todo o território nacional.',
+        12,
+        footerY + 1.5
+      );
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text(
+        `Código de Validação: ${authCode} • Portal de Verificação: api.renacred.com.br/validar`,
+        12,
+        footerY + 5.5
+      );
+
+      doc.text(`Página ${p} de ${totalPages}`, 198, footerY + 5.5, { align: 'right' });
     }
 
     // Salvar arquivo PDF
     const cleanDoc = documento.replace(/\D/g, '');
-    doc.save(`Renacred_Laudo_Imobiliario_${cleanDoc}_${Date.now()}.pdf`);
+    doc.save(`Renacred_Certidao_Imobiliaria_${cleanDoc}_${Date.now()}.pdf`);
   };
 
   return (
