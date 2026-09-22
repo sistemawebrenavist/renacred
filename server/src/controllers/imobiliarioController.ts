@@ -361,3 +361,124 @@ export const obterDetalhesConsulta = async (req: any, res: Response) => {
     return res.status(500).json({ success: false, message: 'Erro ao buscar detalhes da consulta.' });
   }
 };
+
+/**
+ * Métricas analíticas exclusivas para o Dashboard do Assinante
+ */
+export const getSubscriberDashboardMetrics = async (req: any, res: Response) => {
+  try {
+    const companyId = req.user.companyId;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    const [
+      queriesToday,
+      queriesMonth,
+      queriesTotal,
+      declaracoesAggregate,
+      spentCycleAggregate,
+      queriesBySource,
+      company,
+      apiKeysCount,
+      recentQueries
+    ] = await Promise.all([
+      // Consultas hoje
+      prisma.query.count({
+        where: { companyId, createdAt: { gte: today }, status: 'COMPLETED' }
+      }),
+      // Consultas no mês atual
+      prisma.query.count({
+        where: { companyId, createdAt: { gte: firstDayOfMonth }, status: 'COMPLETED' }
+      }),
+      // Total histórico de consultas
+      prisma.query.count({
+        where: { companyId, status: 'COMPLETED' }
+      }),
+      // Total de declarações de bens encontradas
+      prisma.query.aggregate({
+        where: { companyId, status: 'COMPLETED' },
+        _sum: { totalDeclaracoes: true }
+      }),
+      // Gasto no mês atual
+      prisma.query.aggregate({
+        where: { companyId, createdAt: { gte: firstDayOfMonth }, status: 'COMPLETED' },
+        _sum: { cost: true }
+      }),
+      // Consultas por canal (API vs WEB)
+      prisma.query.groupBy({
+        by: ['source'],
+        where: { companyId, status: 'COMPLETED' },
+        _count: { id: true }
+      }),
+      // Dados da empresa (modalidade, saldo, limites)
+      prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          accountType: true,
+          creditsBalance: true,
+          creditLimit: true,
+          billingDueDate: true,
+          customQueryPrice: true,
+        }
+      }),
+      // Chaves de API ativas
+      prisma.apiKey.count({
+        where: { companyId, isActive: true }
+      }),
+      // Últimas consultas para monitoramento
+      prisma.query.findMany({
+        where: { companyId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          identifier: true,
+          source: true,
+          status: true,
+          cost: true,
+          totalDeclaracoes: true,
+          processingTimeMs: true,
+          createdAt: true,
+        }
+      })
+    ]);
+
+    // Calcular distribuição API vs Web
+    let totalApi = 0;
+    let totalWeb = 0;
+    queriesBySource.forEach(group => {
+      if (group.source === 'API') totalApi = group._count.id;
+      if (group.source === 'WEB') totalWeb = group._count.id;
+    });
+
+    const totalValid = totalApi + totalWeb;
+    const apiPercent = totalValid > 0 ? Math.round((totalApi / totalValid) * 100) : 0;
+    const webPercent = totalValid > 0 ? Math.round((totalWeb / totalValid) * 100) : 0;
+
+    return res.json({
+      success: true,
+      data: {
+        queriesToday,
+        queriesMonth,
+        queriesTotal,
+        totalDeclaracoes: declaracoesAggregate._sum.totalDeclaracoes || 0,
+        totalSpentMonth: Number(spentCycleAggregate._sum.cost || 0),
+        distribution: {
+          api: totalApi,
+          web: totalWeb,
+          apiPercent,
+          webPercent,
+        },
+        company,
+        apiKeysCount,
+        recentQueries,
+      }
+    });
+  } catch (error: any) {
+    logger.error(`[DASHBOARD CLIENTE] Erro ao obter métricas: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao carregar métricas do dashboard.' });
+  }
+};

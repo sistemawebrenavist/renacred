@@ -131,8 +131,15 @@ No `server/src/services/billing.service.ts`:
 
 ### B. Portal do Assinante (`/*`)
 * `Header.tsx`: Navbar responsivo exibindo o **badge de identificação do usuário logado** (ex: avatar/ícone `User`, nome `Marlon` e tag `Assinante`, com link direto para `/configuracoes`), exatamente como no painel administrativo do Wellington. Para contas pré-pagas exibe o saldo com atalho de recarga; para contas pós-pagas mantém o visual limpo e minimalista sem poluição visual.
-* `Sidebar.tsx`: Navegação enxuta com 6 itens unificados (Visão Geral, Consultar Imóvel, Minha Assinatura, Chaves de Acesso, Guia de Integração e Configurações).
-* `DashboardCliente.tsx`: Painel com resumo de consumo, links rápidos e consulta em tempo real.
+* `DashboardCliente.tsx`: **Dashboard Executivo e Analítico do Assinante**:
+  * **Zero Duplicidade:** O formulário redundante de pesquisa foi removido, concentrando as buscas exclusivamente na página dedicada [Consultar Imóvel](file:///c:/Users/Henrique%20-%20PC/Desktop/Projetos%20Dev/Renacred/src/pages/assinante/ConsultarImobiliario.tsx).
+  * **Card de Ação Rápida Objetivo:** Banner de destaque orientando o usuário para o módulo oficial de consulta com exportação em PDF e Excel.
+  * **4 KPIs Analíticos:** Consultas no Mês (com contagem de hoje), Bens & Registros Localizados, Consumo no Ciclo (R$ faturado ou saldo disponível) e Canal Principal de Uso.
+  * **Inteligência de Tráfego:** Gráfico de distribuição de requisições (API Direta vs Portal Web).
+  * **Status Operacional da API:** Indicador de status online, latência média e total de chaves ativas.
+  * **Monitoramento Recente:** Tabela de auditoria das últimas pesquisas com visualização direta do laudo.
+  * **Endpoint de Backend:** `GET /api/imobiliario/metrics` criado especificamente para alimentar estes dados analíticos da empresa autenticada.
+* **DIRETRIZ CRÍTICA:** NUNCA citar nomes de APIs ou provedores terceiros externos no frontend, na documentação do cliente ou nas respostas. Referenciar sempre como **Fontes Oficiais Cartorárias & DOI / Receita Federal**.
 * `ConsultarImobiliario.tsx`: Formulário completo de consulta cartorária com visualização e exportação de laudos.
 * `MinhaAssinatura.tsx` (Unificada): Fusão completa de Extrato Financeiro e Assinatura em uma única tela de alta usabilidade:
   * **Métricas Principais:** Modalidade (Pré/Pós-pago), Tarifa Unitária (R$ 5,00), Saldo/Limite de Crédito e Vencimento Mensal.

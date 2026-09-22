@@ -33,7 +33,7 @@ export default function PortalDevDocs() {
     url_get: `# 1. Chamada direta via GET (pode ser colada no navegador, webhook ou ERP):
 https://api.renacred.com.br/v1/imobiliario/historico?token=SUA_CHAVE_API&query=01036115925
 
-# 2. Compatibilidade com provedores de mercado (FetchBrasil, etc.):
+# 2. Chamada com parâmetro de serviço compatível:
 https://api.renacred.com.br/v1/imobiliario/historico?token=SUA_CHAVE_API&api=historico_imobiliario&query=01036115925`,
 
     curl: `curl -X GET "https://api.renacred.com.br/v1/imobiliario/historico?token=SUA_CHAVE_API&query=01036115925"`,
