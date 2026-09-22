@@ -112,17 +112,22 @@ export default function ConsultarImobiliario() {
       {/* Bloco de Busca */}
       <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs">
         <div className="max-w-2xl">
-          <div className="flex items-center space-x-2 text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">
-            <ShieldCheck className="w-4 h-4 text-blue-600" />
-            <span>Fontes Oficiais Cartorárias & DOI</span>
+          <div className="flex flex-wrap items-center gap-2 mb-2.5">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200">
+              PRODUTO E1
+            </span>
+            <div className="flex items-center space-x-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+              <span>Fontes Oficiais Cartorárias & DOI</span>
+            </div>
           </div>
 
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
             <Building className="w-6 h-6 mr-2.5 text-blue-600" />
-            Consulta de Imóveis
+            E1 - Busca de Imóvel por Documento
           </h2>
           <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">
-            Informe o CPF ou CNPJ para pesquisar o histórico de transações e registros de imóveis vinculados em âmbito nacional.
+            Pesquisa nacional de histórico de transações, titularidade imobiliária (DOI) e registros cartorários vinculados a um CPF ou CNPJ.
           </p>
 
           <form

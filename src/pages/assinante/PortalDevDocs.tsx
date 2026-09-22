@@ -125,18 +125,18 @@ class Program {
       <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs">
         <div className="flex items-center space-x-2 text-blue-700 text-xs font-bold uppercase tracking-wider mb-2">
           <ShieldCheck className="w-4 h-4 text-blue-600" />
-          <span>Guia de Integração</span>
+          <span>Catálogo de APIs & Produtos Oficiais</span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Integração Direta via API
+          Documentação Técnica da API
         </h2>
         <p className="text-slate-600 text-sm mt-2 leading-relaxed max-w-3xl">
-          Conecte seu sistema à Renacred para consultar histórico de imóveis e dados cartorários em tempo real.
+          Conecte os produtos e consultas automatizadas da Renacred diretamente ao seu ERP, CRM ou esteira de crédito via endpoints REST de alta performance.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-4 text-xs font-mono">
           <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-slate-700">
-            <span className="text-slate-500 font-sans">Endereço da API: </span>
+            <span className="text-slate-500 font-sans">Endereço Base: </span>
             <span className="text-blue-700 font-bold">https://api.renacred.com.br</span>
           </div>
           <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-slate-700">
@@ -146,21 +146,34 @@ class Program {
         </div>
       </div>
 
-      {/* Especificação do Endpoint */}
+      {/* Especificação do Produto E1 */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <div className="flex items-center space-x-2.5 mb-1.5">
+              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200">
+                PRODUTO E1
+              </span>
+              <h3 className="text-base font-bold text-slate-900">
+                E1 - Busca de Imóvel por Documento
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500">
+              Varredura de titularidade, declarações DOI (Receita Federal) e matrículas cartorárias ativas e históricas.
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2">
             <span className="px-2 py-0.5 rounded-lg text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
               GET
             </span>
             <span className="px-2 py-0.5 rounded-lg text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
               POST
             </span>
-            <span className="text-sm font-bold text-slate-900 font-mono">
+            <span className="text-xs font-bold text-slate-900 font-mono bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
               /v1/imobiliario/historico
             </span>
           </div>
-          <span className="text-xs text-slate-500 font-medium">Tarifado apenas se encontrar declarações</span>
         </div>
 
         {/* Parâmetros de Requisição e Retorno */}
@@ -281,10 +294,10 @@ class Program {
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
         <div className="flex items-center space-x-2">
           <Code2 className="w-5 h-5 text-blue-600" />
-          <h3 className="text-base font-bold text-slate-900">Testar Consulta em Tempo Real</h3>
+          <h3 className="text-base font-bold text-slate-900">Simulador do Produto E1 (Histórico Imobiliário)</h3>
         </div>
         <p className="text-xs text-slate-500">
-          Faça um teste rápido para visualizar o formato dos dados retornados pela plataforma.
+          Execute uma requisição ao vivo para testar a resposta e validar a estrutura de dados do laudo pericial oficial do Produto E1.
         </p>
 
         <div className="flex gap-3">

@@ -79,8 +79,10 @@ export default function App() {
           <Route path="/painel" element={<Navigate to="/dashboard" replace />} />
           <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
 
-          {/* Consulta de Imóvel Unificada */}
+          {/* Produto E1 - Busca de Imóvel por Documento */}
           <Route path="/consultar" element={<ConsultarImobiliario />} />
+          <Route path="/produtos/e1" element={<ConsultarImobiliario />} />
+          <Route path="/produtos/e1-imovel" element={<ConsultarImobiliario />} />
           <Route path="/admin/consulta" element={<Navigate to="/consultar" replace />} />
 
           {/* Módulos do Assinante */}
