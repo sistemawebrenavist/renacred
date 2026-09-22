@@ -45,6 +45,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/imobiliario', imobiliarioRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/pagamentos', paymentRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/keys', apiKeyRoutes);
 app.use('/api/admin', adminRoutes);

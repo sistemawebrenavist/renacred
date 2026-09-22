@@ -26,7 +26,7 @@ export default function MinhaAssinatura() {
   const fetchSubscription = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/api/pagamentos/subscription');
+      const res = await api.get('/api/payment/subscription');
       if (res.data?.success) {
         setData(res.data.data);
       }
@@ -48,7 +48,7 @@ export default function MinhaAssinatura() {
   const handlePayInvoice = async (invoiceId: string) => {
     setPayingInvoiceId(invoiceId);
     try {
-      const res = await api.post(`/api/pagamentos/invoices/${invoiceId}/pay`);
+      const res = await api.post(`/api/payment/invoices/${invoiceId}/pay`);
       if (res.data?.success && res.data.data?.checkoutUrl) {
         window.location.href = res.data.data.checkoutUrl;
       } else {
