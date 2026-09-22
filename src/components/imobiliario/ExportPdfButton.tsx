@@ -3,6 +3,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FileDown } from 'lucide-react';
 import { DeclaracaoProps } from './DeclaracaoCard';
+import { RENACRED_LOGO_BASE64 } from '../../assets/logoBase64';
 
 interface ExportPdfProps {
   documento: string;
@@ -58,63 +59,55 @@ export const ExportPdfButton: React.FC<ExportPdfProps> = ({
       second: '2-digit',
     });
 
-    // 1. CABEÇALHO INSTITUCIONAL EXECUTIVO
-    // Fundo Navy Profundo (#0B1325)
-    doc.setFillColor(11, 19, 37);
+    // 1. CABEÇALHO INSTITUCIONAL EXECUTIVO (Fundo Branco, Logo Oficial Sem Fundo e Texto Preto)
+    doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 210, 36, 'F');
 
-    // Faixa inferior em Azul Royal (#1D4ED8)
-    doc.setFillColor(29, 78, 216);
-    doc.rect(0, 35, 210, 1.2, 'F');
+    // Logo oficial sem fundo
+    try {
+      doc.addImage(RENACRED_LOGO_BASE64, 'PNG', 12, 6, 48, 13.6);
+    } catch {
+      // Fallback elegante se a imagem não carregar
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RENACRED', 12, 16);
+    }
 
-    // Brasão / Ícone Geométrico de Segurança Renacred (Vetor)
-    doc.setFillColor(29, 78, 216);
-    doc.roundedRect(12, 8, 18, 18, 3, 3, 'F');
-    doc.setDrawColor(59, 130, 246);
-    doc.setLineWidth(0.4);
-    doc.roundedRect(12, 8, 18, 18, 3, 3, 'S');
-
-    // Emblema Central (R estilizado em vetor branco)
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(13);
+    // Título Oficial da Certidão em Texto Preto / Slate 900
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(9.5);
     doc.setFont('helvetica', 'bold');
-    doc.text('R', 18.5, 20.5);
+    doc.text('Certidão Oficial de Histórico Imobiliário & Registros DOI', 12, 26);
 
-    // Título Principal
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RENACRED', 34, 15);
-
-    doc.setFontSize(7.5);
-    doc.setTextColor(148, 163, 184); // Slate 400
+    doc.setFontSize(6.5);
+    doc.setTextColor(100, 116, 139); // Slate 500
     doc.setFont('helvetica', 'normal');
-    doc.text('REDE NACIONAL DE PROTEÇÃO AO CRÉDITO & INFORMAÇÕES CARTORÁRIAS', 34, 20);
+    doc.text('Auditoria de Titularidade Imobiliária e Histórico de Transações Cartorárias', 12, 30);
 
-    doc.setFontSize(8.5);
-    doc.setTextColor(226, 232, 240); // Slate 200
-    doc.setFont('helvetica', 'bold');
-    doc.text('Certidão Oficial de Histórico Imobiliário & Registros DOI', 34, 27);
-
-    // Badge do Produto E1 no canto superior direito
-    doc.setFillColor(17, 24, 39);
-    doc.roundedRect(148, 10, 50, 14, 2.5, 2.5, 'F');
-    doc.setDrawColor(59, 130, 246);
+    // Badge do Produto E1 no canto superior direito (Fundo Claro com Borda Suave)
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.3);
-    doc.roundedRect(148, 10, 50, 14, 2.5, 2.5, 'S');
+    doc.roundedRect(148, 7, 50, 14, 2.5, 2.5, 'FD');
 
-    doc.setTextColor(96, 165, 250); // Blue 400
+    doc.setTextColor(29, 78, 216); // Royal Blue
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PRODUTO E1', 153, 12);
+
+    doc.setTextColor(15, 23, 42); // Texto Preto
     doc.setFontSize(6.5);
     doc.setFont('helvetica', 'bold');
-    doc.text('PRODUTO E1', 153, 15.5);
+    doc.text('LAUDO PERICIAL OFICIAL', 153, 17);
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(6.5);
-    doc.setFont('helvetica', 'normal');
-    doc.text('LAUDO PERICIAL OFICIAL', 153, 20.5);
+    // Linha divisória suave do cabeçalho
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.4);
+    doc.line(12, 34, 198, 34);
 
-    // 2. GRID DE METADADOS EM 3 CARDS EXECUTIVOS (Y: 42 a 63)
-    const cardY = 41;
+    // 2. GRID DE METADADOS EM 3 CARDS EXECUTIVOS (Y: 38 a 59)
+    const cardY = 38;
     const cardH = 21;
     const cardW = 59;
     const cardR = 2.5;
@@ -226,7 +219,7 @@ export const ExportPdfButton: React.FC<ExportPdfProps> = ({
     });
 
     autoTable(doc, {
-      startY: 68,
+      startY: 65,
       margin: { left: 12, right: 12, top: 20, bottom: 20 },
       head: [['#', 'Data Reg.', 'Tipo', 'Matrícula / Livro', 'Cartório Responsável', 'Alienante(s) / Vendedor', 'Adquirente(s) / Comprador']],
       body: tableData,
