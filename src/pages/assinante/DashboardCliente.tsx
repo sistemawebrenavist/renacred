@@ -145,7 +145,7 @@ export default function DashboardCliente() {
             <DollarSign className="w-4 h-4 text-blue-600" />
           </div>
           <p className="text-3xl font-extrabold text-slate-900 font-mono">
-            R$ {loading ? '...' : (isPostPaid ? (metrics?.totalSpentMonth || 0) : (company?.creditsBalance || 0)).toFixed(2)}
+            R$ {loading ? '...' : Number(isPostPaid ? (metrics?.totalSpentMonth || 0) : (company?.creditsBalance || 0)).toFixed(2)}
           </p>
           <div className="mt-2 text-xs">
             {isPostPaid ? (

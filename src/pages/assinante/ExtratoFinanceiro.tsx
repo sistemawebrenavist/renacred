@@ -83,7 +83,7 @@ export default function ExtratoFinanceiro() {
             {isPrePaid ? (
               <div>
                 <span className="text-3xl font-extrabold text-slate-900 font-mono">
-                  R$ {(company?.creditsBalance || 0).toFixed(2)}
+                  R$ {Number(company?.creditsBalance || 0).toFixed(2)}
                 </span>
                 <p className="text-xs text-emerald-700 font-medium mt-1 flex items-center">
                   <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />

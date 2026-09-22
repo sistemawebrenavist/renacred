@@ -212,8 +212,8 @@ export default function MinhaAssinatura() {
                   <Wallet className="w-4 h-4 text-blue-600" />
                 </div>
                 <p className="text-2xl font-bold text-slate-900 font-mono">
-                  {company?.creditLimit && company.creditLimit > 0 && company.creditLimit < 999999
-                    ? `R$ ${company.creditLimit.toFixed(2)}`
+                  {Number(company?.creditLimit || 0) > 0 && Number(company?.creditLimit || 0) < 999999
+                    ? `R$ ${Number(company?.creditLimit).toFixed(2)}`
                     : 'Ilimitado'}
                 </p>
                 <div className="mt-2 text-xs text-slate-500">

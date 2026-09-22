@@ -94,7 +94,7 @@ export default function DashboardAdmin() {
             <DollarSign className="w-4 h-4 text-emerald-600" />
           </div>
           <p className="text-3xl font-bold text-emerald-700 font-mono">
-            R$ {loading ? '...' : (metrics?.totalRevenue || 0).toFixed(2)}
+            R$ {loading ? '...' : Number(metrics?.totalRevenue || 0).toFixed(2)}
           </p>
           <span className="text-xs text-slate-500 mt-2 block">Receita de consultas</span>
         </div>
