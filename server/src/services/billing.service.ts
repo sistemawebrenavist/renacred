@@ -73,8 +73,8 @@ export class BillingService {
   /**
    * Valida se a empresa pode realizar a consulta (Pré-pago ou Pós-pago)
    */
-  async checkEligibility(companyId: string): Promise<BillingCheckResult> {
-    const company = await prisma.company.findUnique({
+  async checkEligibility(companyId: string, existingCompany?: any): Promise<BillingCheckResult> {
+    const company = existingCompany || await prisma.company.findUnique({
       where: { id: companyId },
       select: {
         id: true,

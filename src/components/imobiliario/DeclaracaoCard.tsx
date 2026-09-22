@@ -24,7 +24,7 @@ export interface DeclaracaoProps {
   adquirentes?: Parte[];
 }
 
-export const DeclaracaoCard: React.FC<{ declaracao: DeclaracaoProps; index: number }> = ({ declaracao, index }) => {
+const DeclaracaoCardComponent: React.FC<{ declaracao: DeclaracaoProps; index: number }> = ({ declaracao, index }) => {
   return (
     <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-6 shadow-xs transition-all">
       {/* Topo do Card */}
@@ -146,3 +146,5 @@ export const DeclaracaoCard: React.FC<{ declaracao: DeclaracaoProps; index: numb
     </div>
   );
 };
+
+export const DeclaracaoCard = React.memo(DeclaracaoCardComponent);

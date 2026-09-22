@@ -31,7 +31,7 @@ export const consultarWeb = async (req: any, res: Response) => {
   let eligibility: BillingCheckResult = { allowed: true, price: 0 };
 
   if (!isSuperAdmin) {
-    const check = await billingService.checkEligibility(companyId);
+    const check = await billingService.checkEligibility(companyId, req.user?.company);
     if (!check.allowed) {
       return res.status(402).json({
         success: false,
@@ -153,19 +153,21 @@ export const consultarApiV1 = async (req: any, res: Response) => {
 
   const cleanDoc = validation.cleaned;
 
-  // 1. Checar elegibilidade de faturamento
-  const eligibility = await billingService.checkEligibility(company.id);
+  // 1. Checar elegibilidade de faturamento reutilizando a empresa já autenticada
+  const eligibility = await billingService.checkEligibility(company.id, company);
   if (!eligibility.allowed) {
-    await prisma.apiLog.create({
-      data: {
-        apiKeyId: apiKey.id,
-        companyId: company.id,
-        endpoint: req.originalUrl || '/v1/imobiliario/historico',
-        method: req.method,
-        statusCode: 402,
-        responseTimeMs: Date.now() - startTime,
-        ipAddress: clientIp,
-      }
+    setImmediate(() => {
+      prisma.apiLog.create({
+        data: {
+          apiKeyId: apiKey.id,
+          companyId: company.id,
+          endpoint: req.originalUrl || '/v1/imobiliario/historico',
+          method: req.method,
+          statusCode: 402,
+          responseTimeMs: Date.now() - startTime,
+          ipAddress: clientIp,
+        }
+      }).catch(e => logger.error(`[API LOG] Erro ao gravar log 402: ${e.message}`));
     });
 
     return res.status(402).json({
@@ -176,7 +178,7 @@ export const consultarApiV1 = async (req: any, res: Response) => {
   }
 
   try {
-    // 2. Chamar FetchBrasil em tempo real
+    // 2. Chamar provedor nacional em tempo real (com pool keep-alive e deduplicação)
     const result = await fetchbrasilService.consultarHistoricoImobiliario(cleanDoc);
     const responseTimeMs = Date.now() - startTime;
     const totalDeclaracoes = result.total_declaracoes || (Array.isArray(result.declaracoes) ? result.declaracoes.length : 0);
@@ -184,29 +186,37 @@ export const consultarApiV1 = async (req: any, res: Response) => {
 
     // 3. Regra de Negócio: Se NÃO houver dados, CUSTO ZERO (Não debitar do cliente)
     if (!hasData) {
-      const queryRecord = await prisma.query.create({
-        data: {
-          companyId: company.id,
-          identifier: cleanDoc,
-          source: QuerySource.API,
-          status: QueryStatus.COMPLETED,
-          cost: 0, // Não tarifado
-          totalDeclaracoes: 0,
-          processingTimeMs: responseTimeMs,
-          resultData: result as any,
-        }
-      });
-
-      await prisma.apiLog.create({
-        data: {
-          apiKeyId: apiKey.id,
-          companyId: company.id,
-          endpoint: req.originalUrl || '/v1/imobiliario/historico',
-          method: req.method,
-          statusCode: 200,
-          responseTimeMs,
-          ipAddress: clientIp,
-          creditsUsed: 0,
+      // Grava histórico e log em segundo plano para resposta ultra veloz
+      setImmediate(async () => {
+        try {
+          await Promise.all([
+            prisma.query.create({
+              data: {
+                companyId: company.id,
+                identifier: cleanDoc,
+                source: QuerySource.API,
+                status: QueryStatus.COMPLETED,
+                cost: 0,
+                totalDeclaracoes: 0,
+                processingTimeMs: responseTimeMs,
+                resultData: result as any,
+              }
+            }),
+            prisma.apiLog.create({
+              data: {
+                apiKeyId: apiKey.id,
+                companyId: company.id,
+                endpoint: req.originalUrl || '/v1/imobiliario/historico',
+                method: req.method,
+                statusCode: 200,
+                responseTimeMs,
+                ipAddress: clientIp,
+                creditsUsed: 0,
+              }
+            })
+          ]);
+        } catch (e: any) {
+          logger.error(`[API V1] Erro na gravação em background de query sem dados: ${e.message}`);
         }
       });
 
@@ -242,19 +252,23 @@ export const consultarApiV1 = async (req: any, res: Response) => {
       }
     });
 
+    // Débito financeiro
     await billingService.chargeQuery(company.id, queryRecord.id, queryCost);
 
-    await prisma.apiLog.create({
-      data: {
-        apiKeyId: apiKey.id,
-        companyId: company.id,
-        endpoint: req.originalUrl || '/v1/imobiliario/historico',
-        method: req.method,
-        statusCode: 200,
-        responseTimeMs,
-        ipAddress: clientIp,
-        creditsUsed: queryCost,
-      }
+    // Gravação de apiLog assíncrona (não bloqueia resposta ao cliente)
+    setImmediate(() => {
+      prisma.apiLog.create({
+        data: {
+          apiKeyId: apiKey.id,
+          companyId: company.id,
+          endpoint: req.originalUrl || '/v1/imobiliario/historico',
+          method: req.method,
+          statusCode: 200,
+          responseTimeMs,
+          ipAddress: clientIp,
+          creditsUsed: queryCost,
+        }
+      }).catch(e => logger.error(`[API LOG] Erro ao gravar log: ${e.message}`));
     });
 
     return res.status(200).json({

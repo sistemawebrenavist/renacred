@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import { logger } from './utils/logger';
 
@@ -16,6 +17,9 @@ import v1Routes from './routes/v1Routes';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
+
+// Compressão Gzip para respostas com mais de 1KB
+app.use(compression({ threshold: 1024 }));
 
 // Middlewares
 app.use(cors({

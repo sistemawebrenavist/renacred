@@ -39,10 +39,22 @@ export interface FetchBrasilImobiliarioResponse {
   mensagem?: string;
 }
 
+interface CacheEntry {
+  data: FetchBrasilImobiliarioResponse;
+  timestamp: number;
+}
+
 export class FetchBrasilService {
   private apiURL: string;
   private token: string;
   private client: AxiosInstance;
+  
+  // Cache de curto prazo em memória (10 minutos)
+  private cache = new Map<string, CacheEntry>();
+  private readonly CACHE_TTL_MS = 10 * 60 * 1000;
+
+  // Deduplicação de requisições simultâneas em voo (Singleflight)
+  private inFlight = new Map<string, Promise<FetchBrasilImobiliarioResponse>>();
 
   constructor() {
     this.apiURL = process.env.FETCHBRASIL_API_URL || 'https://api.fetchbrasil.pro';
@@ -68,7 +80,13 @@ export class FetchBrasilService {
     this.client = axios.create({
       baseURL: this.apiURL,
       timeout: 15000,
-      httpsAgent: new https.Agent({ keepAlive: true, family: 4 }),
+      httpsAgent: new https.Agent({
+        keepAlive: true,
+        maxSockets: 100,
+        maxFreeSockets: 30,
+        timeout: 60000,
+        family: 4
+      }),
       proxy: proxyConfig,
       headers: {
         'Accept': 'application/json, text/plain, */*',
@@ -79,54 +97,94 @@ export class FetchBrasilService {
   }
 
   /**
-   * Consulta Histórico Imobiliário por CPF ou CNPJ (sem cache)
+   * Limpeza de entradas expiradas do cache em memória
+   */
+  private cleanExpiredCache() {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > this.CACHE_TTL_MS) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Consulta Histórico Imobiliário por CPF ou CNPJ com alta performance
    */
   async consultarHistoricoImobiliario(query: string): Promise<FetchBrasilImobiliarioResponse> {
-    const startTime = Date.now();
-    try {
-      logger.info(`[FETCHBRASIL] Consultando histórico imobiliário para documento: ${query}`);
+    const cleanDoc = query.replace(/\D/g, '');
 
-      const response = await this.client.get('/', {
-        params: {
-          token: this.token,
-          api: 'historico_imobiliario',
-          query: query,
-        },
-      });
-
-      const processingTime = Date.now() - startTime;
-      logger.info(`[FETCHBRASIL] Sucesso na consulta (${processingTime}ms) para ${query}`);
-
-      const data = response.data;
-
-      // Normalização do formato
-      if (data && Array.isArray(data.declaracoes)) {
-        return {
-          periodo: data.periodo || '',
-          total_declaracoes: data.total_declaracoes || data.declaracoes.length,
-          declaracoes: data.declaracoes,
-          api_central: data.api_central || {
-            api_utilizada: 'historico_imobiliario',
-            parametro_utilizado: 'query',
-            query_fornecida: query,
-            timestamp: new Date().toISOString(),
-          }
-        };
-      }
-
-      // Caso não tenha retornado declarações
-      return {
-        periodo: data?.periodo || '',
-        total_declaracoes: 0,
-        declaracoes: [],
-        api_central: data?.api_central
-      };
-    } catch (error: any) {
-      const processingTime = Date.now() - startTime;
-      const errorMsg = error.response?.data?.mensagem || error.response?.data?.erro || error.message;
-      logger.error(`[FETCHBRASIL] Erro na consulta após ${processingTime}ms para ${query}: ${errorMsg}`);
-      throw new Error(`Falha ao consultar histórico imobiliário no provedor: ${errorMsg}`);
+    // 1. Verificar Cache de Curto Prazo (HIT instantâneo em 0ms)
+    const cached = this.cache.get(cleanDoc);
+    if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL_MS)) {
+      logger.info(`[FETCHBRASIL] Cache HIT instantâneo para documento: ${cleanDoc} (0ms)`);
+      return cached.data;
     }
+
+    // 2. Verificar se já existe uma requisição em voo para o mesmo documento (Deduplicação / Singleflight)
+    if (this.inFlight.has(cleanDoc)) {
+      logger.info(`[FETCHBRASIL] Deduplicando chamada em voo para documento: ${cleanDoc}`);
+      return await this.inFlight.get(cleanDoc)!;
+    }
+
+    // 3. Executar chamada e registrar na lista de voo
+    const fetchPromise = (async () => {
+      const startTime = Date.now();
+      try {
+        logger.info(`[FETCHBRASIL] Consultando histórico imobiliário para documento: ${cleanDoc}`);
+
+        const response = await this.client.get('/', {
+          params: {
+            token: this.token,
+            api: 'historico_imobiliario',
+            query: cleanDoc,
+          },
+        });
+
+        const processingTime = Date.now() - startTime;
+        logger.info(`[FETCHBRASIL] Sucesso na consulta (${processingTime}ms) para ${cleanDoc}`);
+
+        const data = response.data;
+        let result: FetchBrasilImobiliarioResponse;
+
+        if (data && Array.isArray(data.declaracoes)) {
+          result = {
+            periodo: data.periodo || '',
+            total_declaracoes: data.total_declaracoes || data.declaracoes.length,
+            declaracoes: data.declaracoes,
+            api_central: data.api_central || {
+              api_utilizada: 'historico_imobiliario',
+              parametro_utilizado: 'query',
+              query_fornecida: cleanDoc,
+              timestamp: new Date().toISOString(),
+            }
+          };
+        } else {
+          result = {
+            periodo: data?.periodo || '',
+            total_declaracoes: 0,
+            declaracoes: [],
+            api_central: data?.api_central
+          };
+        }
+
+        // Armazena no cache se teve sucesso
+        this.cache.set(cleanDoc, { data: result, timestamp: Date.now() });
+        this.cleanExpiredCache();
+
+        return result;
+      } catch (error: any) {
+        const processingTime = Date.now() - startTime;
+        const errorMsg = error.response?.data?.mensagem || error.response?.data?.erro || error.message;
+        logger.error(`[FETCHBRASIL] Erro na consulta após ${processingTime}ms para ${cleanDoc}: ${errorMsg}`);
+        throw new Error(`Falha ao consultar histórico imobiliário no provedor: ${errorMsg}`);
+      } finally {
+        this.inFlight.delete(cleanDoc);
+      }
+    })();
+
+    this.inFlight.set(cleanDoc, fetchPromise);
+    return await fetchPromise;
   }
 }
 
