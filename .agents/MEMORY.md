@@ -231,3 +231,38 @@ Para comportar a entrada de novas APIs de forma escalável e profissional (padr�
 
 4. **Rotas e Compatibilidade (`App.tsx`):**
    * As rotas `/consultar`, `/produtos/e1` e `/produtos/e1-imovel` apontam para a mesma tela, garantindo 100% de retrocompatibilidade com links já salvos.
+
+---
+
+## 11. Centralização do Histórico de Consultas na Tela de Consulta (E1)
+
+Para otimizar o fluxo de trabalho do usuário e a clareza executiva da plataforma:
+
+1. **Dashboard do Assinante (`DashboardCliente.tsx`):**
+   * A tabela de consultas recentes foi removida.
+   * O painel agora é 100% focado em inteligência e acompanhamento executivo:
+     * 4 KPI Cards analíticos (Consultas no Mês / Hoje, Bens & Registros Localizados, Consumo/Saldo Disponível, Distribuição API vs Web).
+     * Distribuição por Canal (Gráfico de barras API x Web).
+     * Status da Integração API e contagem de chaves.
+     * Condições Contratuais (modalidade pré/pós-pago, tarifa por consulta com dados, custo zero sem dados).
+
+2. **Página de Consulta de Imóveis (`ConsultarImobiliario.tsx`):**
+   * A seção **"Últimas Consultas Realizadas"** foi integrada diretamente abaixo do formulário de busca e laudo.
+   * Exibe as 10 requisições mais recentes com documento formatado, canal (WEB/API), total de bens localizados e data/hora.
+   * Ações diretas por consulta:
+     * **"Ver Laudo"**: Abre o modal executivo `DetalhesConsultaModal` para visualização e reexportação direta para PDF e Excel sem necessidade de nova cobrança.
+     * **"Reconsultar"**: Carrega o documento no campo de busca com rolagem suave e dispara a pesquisa instantaneamente.
+   * Atualização automática: ao concluir uma nova pesquisa com sucesso, a lista de últimas consultas é automaticamente recarregada.
+
+---
+
+## 12. Novo Design Pericial do Laudo em PDF (`ExportPdfButton.tsx`)
+
+* **Skill Dedicada:** `.agents/skills/pdf-report-designer/SKILL.md` criada com os padrões visuais e tipográficos periciais.
+* **Identidade Visual:**
+  * Cabeçalho Navy Executivo (`#0B1325`) com friso Azul Royal (`#1D4ED8`) e brasão vetorial corporativo estilizado com monograma `R`.
+  * Selo superior `PRODUTO E1 • LAUDO PERICIAL OFICIAL`.
+  * Grid de 3 Cards Executivos de Metadados: Documento Auditado (com máscara), Resultado Pericial (círculo nativo com contagem de bens) e Autenticação Digital (com hash pericial `RNC-E1-...` e carimbo temporal).
+  * Tabela AutoTable calculada com precisão milimétrica (`186mm` de largura útil), cabeçalho Navy Slate, zebra striping suave (`#F8FAFC`) e quebra de linhas automática.
+  * Rodapé pericial em todas as páginas com advertência de fé pública dos dados, código de validação e numeração dinâmica (`Página X de Y`).
+

@@ -3,30 +3,22 @@ import { Link } from 'react-router-dom';
 import {
   Search,
   Building2,
-  Clock,
   ArrowRight,
   RotateCw,
   Activity,
   FileCode2,
   DollarSign,
   ShieldCheck,
-  Calendar,
   Layers,
-  CheckCircle2,
-  ExternalLink,
-  Eye,
-  KeyRound,
-  FileText
+  KeyRound
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
-import DetalhesConsultaModal from '../../components/imobiliario/DetalhesConsultaModal';
 
 export default function DashboardCliente() {
   const { user } = useAuth();
   const [metrics, setMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedQueryId, setSelectedQueryId] = useState<string | null>(null);
 
   const fetchMetrics = async () => {
     setLoading(true);
@@ -48,19 +40,6 @@ export default function DashboardCliente() {
 
   const company = metrics?.company || user?.company;
   const isPostPaid = company?.accountType === 'POST_PAID';
-  const recentQueries = metrics?.recentQueries || [];
-
-  const formatDoc = (val: string) => {
-    if (!val) return '-';
-    const c = val.replace(/\D/g, '');
-    if (c.length === 11) {
-      return c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    }
-    if (c.length === 14) {
-      return c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-    }
-    return val;
-  };
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -314,101 +293,6 @@ export default function DashboardCliente() {
           </div>
         </div>
       </div>
-
-      {/* Monitoramento de Consultas Recentes */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center">
-              <Clock className="w-4 h-4 mr-2 text-[#1D4ED8]" />
-              Monitoramento de Atividade Recente
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Últimas requisições processadas pela plataforma para a sua empresa.
-            </p>
-          </div>
-          <Link to="/consultar" className="text-xs font-semibold text-[#1D4ED8] hover:underline flex items-center">
-            Pesquisar novo imóvel &rarr;
-          </Link>
-        </div>
-
-        {loading ? (
-          <div className="py-12 text-center text-xs text-slate-400">Carregando atividade recente...</div>
-        ) : recentQueries.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-400">
-            Nenhuma consulta realizada até o momento. Acesse a página <strong>Consultar Imóvel</strong> para efetuar sua primeira busca.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4 font-semibold">Documento Consultado</th>
-                  <th className="py-3 px-4 font-semibold text-center">Canal</th>
-                  <th className="py-3 px-4 font-semibold text-center">Declarações Localizadas</th>
-                  <th className="py-3 px-4 font-semibold">Tarifa</th>
-                  <th className="py-3 px-4 font-semibold">Data & Hora</th>
-                  <th className="py-3 px-4 font-semibold text-right">Laudo</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {recentQueries.map((q: any) => (
-                  <tr key={q.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-3 px-4 font-bold font-mono text-slate-900">
-                      {formatDoc(q.identifier)}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                        q.source === 'API' 
-                          ? 'bg-purple-50 text-purple-700 border border-purple-200' 
-                          : 'bg-blue-50 text-blue-700 border border-blue-200'
-                      }`}>
-                        {q.source === 'API' ? 'API DIRETA' : 'PORTAL WEB'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                        q.totalDeclaracoes > 0 
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-slate-100 text-slate-600 border border-slate-200'
-                      }`}>
-                        {q.totalDeclaracoes} {q.totalDeclaracoes === 1 ? 'imóvel' : 'imóveis'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-bold font-mono">
-                      {Number(q.cost) > 0 ? (
-                        <span className="text-emerald-700">R$ {Number(q.cost).toFixed(2)}</span>
-                      ) : (
-                        <span className="text-slate-400">R$ 0,00</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-slate-500 font-mono">
-                      {new Date(q.createdAt).toLocaleString('pt-BR')}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedQueryId(q.id)}
-                        className="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-[#1D4ED8] hover:text-white hover:bg-[#1D4ED8] border border-blue-200 rounded-lg transition"
-                      >
-                        <Eye className="w-3 h-3 mr-1" />
-                        Ver Laudo
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Modal de Detalhes do Laudo */}
-      <DetalhesConsultaModal
-        isOpen={!!selectedQueryId}
-        queryId={selectedQueryId}
-        onClose={() => setSelectedQueryId(null)}
-      />
     </div>
   );
 }
