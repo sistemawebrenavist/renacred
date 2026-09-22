@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   RotateCw,
   Layers,
-  ShieldCheck,
   Zap,
   Clock,
   Eye,
@@ -246,22 +245,12 @@ export default function ConsultarImobiliario() {
       {/* Bloco de Busca Centralizado */}
       <div className="bg-white border border-slate-200/80 rounded-3xl p-8 sm:p-12 shadow-xs flex flex-col items-center justify-center text-center">
         <div className="max-w-2xl mx-auto w-full flex flex-col items-center text-center">
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200">
-              PRODUTO E1
-            </span>
-            <div className="flex items-center space-x-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-              <span>Fontes Oficiais Cartorárias & DOI</span>
-            </div>
-          </div>
-
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center justify-center">
             <Building className="w-7 h-7 mr-2.5 text-blue-600" />
-            E1 - Busca de Imóvel por Documento
+            Consulta
           </h2>
           <p className="text-slate-500 text-xs sm:text-sm mt-2 max-w-lg mx-auto leading-relaxed">
-            Pesquisa nacional de histórico de transações, titularidade imobiliária (DOI) e registros cartorários vinculados a um CPF ou CNPJ.
+            Informe o CPF ou CNPJ para pesquisar o histórico de titularidade e registros imobiliários.
           </p>
 
           <form

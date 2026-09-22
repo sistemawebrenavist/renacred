@@ -79,19 +79,16 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
               <Building className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2 mb-0.5">
+              <div className="flex items-center gap-2 mb-1">
                 <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200">
                   PRODUTO E1
                 </span>
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Laudo Pericial Oficial
-                </span>
               </div>
               <h3 className="text-lg font-bold text-slate-900">
-                Resultado da Consulta Imobiliária
+                E1 - Busca de Imóvel por Documento
               </h3>
               <p className="text-xs text-slate-500 font-mono">
-                {formatDoc(queryData?.identifier || '')}
+                Documento Auditado: <span className="font-bold text-slate-800">{formatDoc(queryData?.identifier || '')}</span>
               </p>
             </div>
           </div>
@@ -129,7 +126,7 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-100 text-blue-800 border border-blue-200">
-                      E1
+                      PRODUTO E1
                     </span>
                     <span className="text-xs text-slate-500 font-medium">Documento:</span>
                     <span className="text-sm font-bold font-mono text-slate-900">{formatDoc(queryData.identifier)}</span>
