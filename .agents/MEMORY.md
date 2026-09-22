@@ -82,6 +82,15 @@ O **RENACRED** (Rede Nacional de Proteção ao Crédito) é uma plataforma corpo
   * **Fatura Pós-paga:** Não acumula custo.
   * **Payload:** Retorna HTTP 200 estruturado com `total_declaracoes: 0` e `declaracoes: []`.
 
+### C. Solução de Sockets Ociosos (Cloudflare) e Timeout de 45s
+* **Causa do Timeout Intermitente:** O Cloudflare encerra conexões ociosas em poucos segundos. O `https.Agent({ keepAlive: true })` no Node.js retinha sockets zumbis no pool durante períodos de inatividade. Quando uma consulta era disparada após minutos/horas ocioso, o Node tentava reaproveitar o socket morto, gerando espera até estourar o timeout curto de 15s (`timeout of 15000ms exceeded`).
+* **Causa do Falso "NÃO LOCALIZADO":** Quando a requisição falhava por timeout, o backend gravava a consulta com `status: ERROR` e `totalDeclaracoes: 0`. No frontend, a tabela checava apenas `totalDeclaracoes > 0`, renderizando erroneamente "Nenhum imóvel localizado" para consultas que na verdade tinham falhado com erro.
+* **Solução:**
+  1. `keepAlive: false` no `https.Agent` para garantir conexão TCP/TLS limpa a cada consulta para o provedor, sem risco de sockets zumbis.
+  2. Aumento do timeout para 45s (`timeout: 45000`) para comportar a varredura nacional completa de serventias cartorárias.
+  3. Adição de retry automático (até 2 tentativas com backoff) para tolerância a falhas transitórias.
+  4. Frontend corrigido para checar explicitamente `q.status === 'ERROR'`, exibindo badge claro de "Falha na consulta" em vez de mascarar como "Nenhum imóvel localizado".
+
 ---
 
 ## 5. API Pública Externa de Desenvolvedores (Padrão FetchBrasil)

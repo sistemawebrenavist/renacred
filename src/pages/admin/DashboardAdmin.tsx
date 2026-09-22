@@ -152,7 +152,13 @@ export default function DashboardAdmin() {
                       {formatDoc(q.identifier)}
                     </td>
                     <td className="py-3 px-4 text-center font-bold text-slate-700">
-                      {q.totalDeclaracoes || 0}
+                      {q.status === 'ERROR' ? (
+                        <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                          Falha
+                        </span>
+                      ) : (
+                        q.totalDeclaracoes || 0
+                      )}
                     </td>
                     <td className="py-3 px-4 font-bold text-emerald-700 font-mono">
                       R$ {Number(q.cost || 0).toFixed(2)}

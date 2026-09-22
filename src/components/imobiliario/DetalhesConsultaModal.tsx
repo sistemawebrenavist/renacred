@@ -130,9 +130,15 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
                     </span>
                     <span className="text-xs text-slate-500 font-medium">Documento:</span>
                     <span className="text-sm font-bold font-mono text-slate-900">{formatDoc(queryData.identifier)}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      {totalDeclaracoes} declarações
-                    </span>
+                    {queryData.status === 'ERROR' ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                        Falha no processamento
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {totalDeclaracoes} declarações
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center space-x-4 text-xs text-slate-500">
                     {periodo && <span>Período: {periodo}</span>}
@@ -141,19 +147,32 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <ExportExcelButton documento={formatDoc(queryData.identifier)} declaracoes={declaracoes} />
-                  <ExportPdfButton
-                    documento={formatDoc(queryData.identifier)}
-                    totalDeclaracoes={totalDeclaracoes}
-                    periodo={periodo}
-                    declaracoes={declaracoes}
-                  />
-                </div>
+                {queryData.status !== 'ERROR' && declaracoes.length > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <ExportExcelButton documento={formatDoc(queryData.identifier)} declaracoes={declaracoes} />
+                    <ExportPdfButton
+                      documento={formatDoc(queryData.identifier)}
+                      totalDeclaracoes={totalDeclaracoes}
+                      periodo={periodo}
+                      declaracoes={declaracoes}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Lista de Declarações */}
-              {declaracoes.length === 0 ? (
+              {queryData.status === 'ERROR' ? (
+                <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-8 text-center text-slate-700 shadow-xs">
+                  <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-900">Falha no Processamento desta Consulta</p>
+                  <p className="text-xs text-rose-700 mt-1 max-w-md mx-auto">
+                    {queryData.errorData?.message || 'Ocorreu uma instabilidade ou timeout na comunicação com a base cartorária no momento desta pesquisa.'}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Nenhum valor foi debitado do seu saldo. Você pode fechar este laudo e realizar uma nova pesquisa.
+                  </p>
+                </div>
+              ) : declaracoes.length === 0 ? (
                 <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-slate-500 shadow-xs">
                   <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
                   <p className="text-sm font-semibold text-slate-800">Nenhum registro de imóvel localizado</p>

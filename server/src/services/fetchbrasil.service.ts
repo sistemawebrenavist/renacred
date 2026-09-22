@@ -79,13 +79,10 @@ export class FetchBrasilService {
 
     this.client = axios.create({
       baseURL: this.apiURL,
-      timeout: 15000,
+      timeout: 45000,
       httpsAgent: new https.Agent({
-        keepAlive: true,
-        maxSockets: 100,
-        maxFreeSockets: 30,
-        timeout: 60000,
-        family: 4
+        keepAlive: false, // Desativado para evitar sockets ociosos mantidos pelo Node que o Cloudflare fecha silenciosamente
+        family: 4 // Força IPv4 indispensável para liberação no WAF da FetchBrasil
       }),
       proxy: proxyConfig,
       headers: {
@@ -127,64 +124,86 @@ export class FetchBrasilService {
       return await this.inFlight.get(cleanDoc)!;
     }
 
-    // 3. Executar chamada e registrar na lista de voo
+    // 3. Executar chamada com resiliência e registrar na lista de voo
     const fetchPromise = (async () => {
       const startTime = Date.now();
-      try {
-        logger.info(`[FETCHBRASIL] Consultando histórico imobiliário para documento: ${cleanDoc}`);
+      const maxAttempts = 2;
+      let lastError: any = null;
 
-        const response = await this.client.get('/', {
-          params: {
-            token: this.token,
-            api: 'historico_imobiliario',
-            query: cleanDoc,
-          },
-        });
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          if (attempt > 1) {
+            logger.info(`[FETCHBRASIL] Tentativa de retry ${attempt}/${maxAttempts} para documento: ${cleanDoc}...`);
+            await new Promise((r) => setTimeout(r, 1200));
+          } else {
+            logger.info(`[FETCHBRASIL] Consultando histórico imobiliário para documento: ${cleanDoc}`);
+          }
 
-        const processingTime = Date.now() - startTime;
-        logger.info(`[FETCHBRASIL] Sucesso na consulta (${processingTime}ms) para ${cleanDoc}`);
+          const response = await this.client.get('/', {
+            params: {
+              token: this.token,
+              api: 'historico_imobiliario',
+              query: cleanDoc,
+            },
+          });
 
-        const data = response.data;
-        let result: FetchBrasilImobiliarioResponse;
+          const processingTime = Date.now() - startTime;
+          logger.info(`[FETCHBRASIL] Sucesso na consulta (${processingTime}ms) para ${cleanDoc}`);
 
-        if (data && Array.isArray(data.declaracoes)) {
-          result = {
-            periodo: data.periodo || '',
-            total_declaracoes: data.total_declaracoes || data.declaracoes.length,
-            declaracoes: data.declaracoes,
-            api_central: data.api_central || {
-              api_utilizada: 'historico_imobiliario',
-              parametro_utilizado: 'query',
-              query_fornecida: cleanDoc,
-              timestamp: new Date().toISOString(),
-            }
-          };
-        } else {
-          result = {
-            periodo: data?.periodo || '',
-            total_declaracoes: 0,
-            declaracoes: [],
-            api_central: data?.api_central
-          };
+          const data = response.data;
+          let result: FetchBrasilImobiliarioResponse;
+
+          if (data && Array.isArray(data.declaracoes)) {
+            result = {
+              periodo: data.periodo || '',
+              total_declaracoes: data.total_declaracoes !== undefined ? data.total_declaracoes : data.declaracoes.length,
+              declaracoes: data.declaracoes,
+              api_central: data.api_central || {
+                api_utilizada: 'historico_imobiliario',
+                parametro_utilizado: 'query',
+                query_fornecida: cleanDoc,
+                timestamp: new Date().toISOString(),
+              }
+            };
+          } else {
+            result = {
+              periodo: data?.periodo || '',
+              total_declaracoes: 0,
+              declaracoes: [],
+              api_central: data?.api_central
+            };
+          }
+
+          // Armazena no cache se teve sucesso
+          this.cache.set(cleanDoc, { data: result, timestamp: Date.now() });
+          this.cleanExpiredCache();
+
+          return result;
+        } catch (error: any) {
+          lastError = error;
+          const attemptTime = Date.now() - startTime;
+          const errorMsg = error.response?.data?.mensagem || error.response?.data?.erro || error.message;
+          logger.warn(`[FETCHBRASIL] Falha na tentativa ${attempt}/${maxAttempts} após ${attemptTime}ms para ${cleanDoc}: ${errorMsg}`);
+
+          // Não tentar novamente se for erro de autorização/cliente (400, 401, 403, 404)
+          if (error.response?.status && [400, 401, 403, 404].includes(error.response.status)) {
+            break;
+          }
         }
-
-        // Armazena no cache se teve sucesso
-        this.cache.set(cleanDoc, { data: result, timestamp: Date.now() });
-        this.cleanExpiredCache();
-
-        return result;
-      } catch (error: any) {
-        const processingTime = Date.now() - startTime;
-        const errorMsg = error.response?.data?.mensagem || error.response?.data?.erro || error.message;
-        logger.error(`[FETCHBRASIL] Erro na consulta após ${processingTime}ms para ${cleanDoc}: ${errorMsg}`);
-        throw new Error(`Falha ao consultar histórico imobiliário no provedor: ${errorMsg}`);
-      } finally {
-        this.inFlight.delete(cleanDoc);
       }
+
+      const totalProcessingTime = Date.now() - startTime;
+      const finalMsg = lastError?.response?.data?.mensagem || lastError?.response?.data?.erro || lastError?.message;
+      logger.error(`[FETCHBRASIL] Erro na consulta após ${totalProcessingTime}ms para ${cleanDoc}: ${finalMsg}`);
+      throw new Error(`Falha ao consultar histórico imobiliário no provedor: ${finalMsg}`);
     })();
 
     this.inFlight.set(cleanDoc, fetchPromise);
-    return await fetchPromise;
+    try {
+      return await fetchPromise;
+    } finally {
+      this.inFlight.delete(cleanDoc);
+    }
   }
 }
 

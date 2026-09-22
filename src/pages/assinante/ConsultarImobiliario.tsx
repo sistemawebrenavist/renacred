@@ -476,7 +476,12 @@ export default function ConsultarImobiliario() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
-                      {q.totalDeclaracoes > 0 ? (
+                      {q.status === 'ERROR' ? (
+                        <span className="inline-flex items-center text-xs font-semibold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-md border border-rose-200" title="Falha temporária ou timeout na consulta cartorária">
+                          <AlertCircle className="w-3.5 h-3.5 mr-1 text-rose-600" />
+                          Falha na consulta
+                        </span>
+                      ) : q.totalDeclaracoes > 0 ? (
                         <span className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
                           <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
                           {q.totalDeclaracoes} {q.totalDeclaracoes === 1 ? 'imóvel localizado' : 'imóveis localizados'}
@@ -492,14 +497,16 @@ export default function ConsultarImobiliario() {
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <div className="inline-flex items-center gap-2 justify-end">
-                        <button
-                          onClick={() => setSelectedQueryId(q.id)}
-                          className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition shadow-2xs cursor-pointer"
-                          title="Visualizar laudo completo desta consulta"
-                        >
-                          <Eye className="w-3.5 h-3.5 mr-1" />
-                          Ver Laudo
-                        </button>
+                        {q.status !== 'ERROR' && (
+                          <button
+                            onClick={() => setSelectedQueryId(q.id)}
+                            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition shadow-2xs cursor-pointer"
+                            title="Visualizar laudo completo desta consulta"
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            Ver Laudo
+                          </button>
+                        )}
                         <button
                           onClick={() => handleSelectQuery(q.identifier)}
                           className="inline-flex items-center px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
