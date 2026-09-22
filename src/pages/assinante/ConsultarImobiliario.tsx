@@ -11,7 +11,8 @@ import {
   Zap,
   Clock,
   Eye,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -21,6 +22,7 @@ import { DeclaracaoSkeleton } from '../../components/imobiliario/DeclaracaoSkele
 import { ExportPdfButton } from '../../components/imobiliario/ExportPdfButton';
 import { ExportExcelButton } from '../../components/imobiliario/ExportExcelButton';
 import DetalhesConsultaModal from '../../components/imobiliario/DetalhesConsultaModal';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 // Cache em memória de sessão para resposta instantânea (0ms)
 const sessionQueryCache = new Map<string, {
@@ -54,6 +56,12 @@ export default function ConsultarImobiliario() {
   const [loadingQueries, setLoadingQueries] = useState(false);
   const [selectedQueryId, setSelectedQueryId] = useState<string | null>(null);
 
+  // Modais de Exclusão Irreversível
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [queryToDelete, setQueryToDelete] = useState<{ id: string; identifier: string } | null>(null);
+  const [clearAllModalOpen, setClearAllModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const stepTimerRef = useRef<any>(null);
 
   // Carregar histórico de últimas consultas do assinante
@@ -74,6 +82,42 @@ export default function ConsultarImobiliario() {
   useEffect(() => {
     fetchRecentQueries();
   }, []);
+
+  const handleConfirmDelete = async () => {
+    if (!queryToDelete) return;
+    setDeleting(true);
+    try {
+      const response = await api.delete(`/api/imobiliario/historico/${queryToDelete.id}`);
+      if (response.data?.success) {
+        toast.success('Consulta excluída com sucesso.');
+        setDeleteModalOpen(false);
+        setQueryToDelete(null);
+        fetchRecentQueries();
+        refreshProfile();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erro ao excluir consulta.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleConfirmClearAll = async () => {
+    setDeleting(true);
+    try {
+      const response = await api.delete('/api/imobiliario/historico/limpar-tudo');
+      if (response.data?.success) {
+        toast.success(response.data.message || 'Histórico limpo com sucesso.');
+        setClearAllModalOpen(false);
+        fetchRecentQueries();
+        refreshProfile();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erro ao limpar histórico.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const formatDoc = (val: string) => {
     if (!val) return '-';
@@ -379,6 +423,16 @@ export default function ConsultarImobiliario() {
           </div>
 
           <div className="flex items-center space-x-2">
+            {recentQueries.length > 0 && (
+              <button
+                onClick={() => setClearAllModalOpen(true)}
+                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200/80 transition cursor-pointer shadow-2xs"
+                title="Limpar todo o histórico de consultas"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1.5 text-rose-500" />
+                Limpar Histórico
+              </button>
+            )}
             <button
               onClick={fetchRecentQueries}
               disabled={loadingQueries}
@@ -465,6 +519,16 @@ export default function ConsultarImobiliario() {
                           <Search className="w-3.5 h-3.5 mr-1" />
                           Reconsultar
                         </button>
+                        <button
+                          onClick={() => {
+                            setQueryToDelete({ id: q.id, identifier: q.identifier });
+                            setDeleteModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          title="Excluir consulta do histórico"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -480,6 +544,65 @@ export default function ConsultarImobiliario() {
         isOpen={!!selectedQueryId}
         queryId={selectedQueryId}
         onClose={() => setSelectedQueryId(null)}
+      />
+
+      {/* Modal de Confirmação de Exclusão Individual (Ação Irreversível) */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Excluir Consulta do Histórico"
+        description={
+          <div className="space-y-3">
+            <p className="text-slate-600">
+              Tem certeza de que deseja excluir o registro de consulta do documento <strong className="font-mono text-slate-900 font-bold">{formatDoc(queryToDelete?.identifier || '')}</strong>?
+            </p>
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-rose-800 text-xs flex items-start space-x-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-bold">Atenção: Ação Irreversível</strong>
+                <span>Esta consulta e o respectivo laudo pericial serão apagados permanentemente do seu histórico.</span>
+              </div>
+            </div>
+          </div>
+        }
+        confirmText="Sim, Excluir"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleConfirmDelete}
+        onClose={() => {
+          if (!deleting) {
+            setDeleteModalOpen(false);
+            setQueryToDelete(null);
+          }
+        }}
+      />
+
+      {/* Modal de Confirmação para Limpar Todo o Histórico (Ação Irreversível) */}
+      <ConfirmModal
+        isOpen={clearAllModalOpen}
+        title="Limpar Todo o Histórico de Consultas"
+        description={
+          <div className="space-y-3">
+            <p className="text-slate-600">
+              Tem certeza de que deseja apagar <strong>todas as {recentQueries.length} consultas</strong> do seu histórico?
+            </p>
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-rose-800 text-xs flex items-start space-x-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-bold">Atenção: Ação Totalmente Irreversível</strong>
+                <span>Todos os laudos periciais salvos serão permanentemente excluídos da sua conta. Não será possível recuperá-los.</span>
+              </div>
+            </div>
+          </div>
+        }
+        confirmText="Sim, Limpar Tudo"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleConfirmClearAll}
+        onClose={() => {
+          if (!deleting) setClearAllModalOpen(false);
+        }}
       />
     </div>
   );

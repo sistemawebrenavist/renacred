@@ -496,3 +496,52 @@ export const getSubscriberDashboardMetrics = async (req: any, res: Response) => 
     return res.status(500).json({ success: false, message: 'Erro ao carregar métricas do dashboard.' });
   }
 };
+
+/**
+ * Excluir uma consulta individual do histórico do assinante
+ */
+export const excluirConsulta = async (req: any, res: Response) => {
+  try {
+    const companyId = req.user.companyId;
+    const { id } = req.params;
+
+    const query = await prisma.query.findFirst({
+      where: { id, companyId }
+    });
+
+    if (!query) {
+      return res.status(404).json({ success: false, message: 'Consulta não localizada ou já excluída.' });
+    }
+
+    await prisma.query.delete({
+      where: { id }
+    });
+
+    return res.json({ success: true, message: 'Consulta excluída do histórico com sucesso.' });
+  } catch (error: any) {
+    logger.error(`[IMOBILIARIO] Erro ao excluir consulta: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao excluir consulta do histórico.' });
+  }
+};
+
+/**
+ * Limpar todo o histórico de consultas da empresa (ação irreversível)
+ */
+export const limparHistoricoConsultas = async (req: any, res: Response) => {
+  try {
+    const companyId = req.user.companyId;
+
+    const result = await prisma.query.deleteMany({
+      where: { companyId }
+    });
+
+    return res.json({ 
+      success: true, 
+      message: `${result.count} consulta(s) excluída(s) permanentemente do histórico.` 
+    });
+  } catch (error: any) {
+    logger.error(`[IMOBILIARIO] Erro ao limpar histórico: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao limpar histórico de consultas.' });
+  }
+};
+

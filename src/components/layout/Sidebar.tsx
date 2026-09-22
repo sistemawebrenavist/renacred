@@ -21,40 +21,25 @@ export const Sidebar: React.FC = () => {
   const isSuperAdmin = !!user?.isSuperAdmin;
 
   // Menu do Portal de Gestão (Wellington / Admin)
-  const adminMainLinks = [
+  const adminLinks = [
     { to: '/dashboard', label: 'Visão Geral', icon: LayoutDashboard },
+    { to: '/consultar', label: 'Consultar Imóveis', icon: Search },
     { to: '/admin/clientes', label: 'Clientes', icon: Users },
-  ];
-
-  const adminBottomLinks = [
     { to: '/admin/logs', label: 'Logs da API', icon: Activity },
     { to: '/admin/configuracoes', label: 'Configurações', icon: Settings },
   ];
 
   // Menu do Portal do Assinante (Empresas Clientes)
-  const clientMainLinks = [
+  const clientLinks = [
     { to: '/dashboard', label: 'Visão Geral', icon: LayoutDashboard },
-  ];
-
-  const clientBottomLinks = [
+    { to: '/consultar', label: 'Consultar Imóveis', icon: Search },
     { to: '/minha-assinatura', label: 'Minha Assinatura', icon: CreditCard },
     { to: '/api-keys', label: 'Chaves de Acesso', icon: KeyRound },
     { to: '/docs', label: 'Guia de Integração', icon: FileCode2 },
     { to: '/configuracoes', label: 'Configurações', icon: Settings },
   ];
 
-  // Catálogo Oficial de Produtos (Iniciando com E1 e expansível para E2, E3...)
-  const productLinks = [
-    {
-      to: '/consultar',
-      code: 'E1',
-      label: 'Consultar Imóveis',
-      icon: Search,
-    },
-  ];
-
-  const mainLinks = isSuperAdmin ? adminMainLinks : clientMainLinks;
-  const bottomLinks = isSuperAdmin ? adminBottomLinks : clientBottomLinks;
+  const navLinks = isSuperAdmin ? adminLinks : clientLinks;
   const sectionTitle = isSuperAdmin ? 'Portal de Gestão' : 'Portal do Assinante';
 
   return (
@@ -65,94 +50,34 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Navigation Links */}
-      <div className="flex-1 overflow-y-auto px-3 py-5 space-y-5">
-        <div>
-          <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center">
-            {isSuperAdmin && <ShieldCheck className="w-3.5 h-3.5 mr-1 text-amber-700" />}
-            {sectionTitle}
-          </p>
-          <nav className="space-y-1">
-            {mainLinks.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `flex items-center px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
-                      isActive
-                        ? isSuperAdmin
-                          ? 'bg-amber-50 text-amber-900 font-semibold border border-amber-200/60 shadow-xs'
-                          : 'bg-blue-50 text-[#1D4ED8] font-semibold border border-blue-200/60 shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                    }`
-                  }
-                >
-                  <Icon className="w-4 h-4 mr-3 shrink-0" />
-                  <span>{item.label}</span>
-                </NavLink>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Seção Modular PRODUTOS */}
-        <div className="pt-1">
-          <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mr-1.5" />
-            Produtos
-          </p>
-          <nav className="space-y-1">
-            {productLinks.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `group flex items-center px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
-                      isActive
-                        ? isSuperAdmin
-                          ? 'bg-amber-50 text-amber-900 font-semibold border border-amber-200/60 shadow-xs'
-                          : 'bg-blue-50 text-[#1D4ED8] font-semibold border border-blue-200/60 shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                    }`
-                  }
-                >
-                  <Icon className="w-4 h-4 mr-2.5 shrink-0 text-slate-400 group-hover:text-slate-600" />
-                  <span className="truncate font-medium">{item.label}</span>
-                </NavLink>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Links Secundários / Administrativos */}
-        <div className="pt-1">
-          <nav className="space-y-1">
-            {bottomLinks.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `flex items-center px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
-                      isActive
-                        ? isSuperAdmin
-                          ? 'bg-amber-50 text-amber-900 font-semibold border border-amber-200/60 shadow-xs'
-                          : 'bg-blue-50 text-[#1D4ED8] font-semibold border border-blue-200/60 shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                    }`
-                  }
-                >
-                  <Icon className="w-4 h-4 mr-3 shrink-0" />
-                  <span>{item.label}</span>
-                </NavLink>
-              );
-            })}
-          </nav>
-        </div>
+      <div className="flex-1 overflow-y-auto px-3 py-5">
+        <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center">
+          {isSuperAdmin && <ShieldCheck className="w-3.5 h-3.5 mr-1 text-amber-700" />}
+          {sectionTitle}
+        </p>
+        <nav className="space-y-1">
+          {navLinks.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `flex items-center px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
+                    isActive
+                      ? isSuperAdmin
+                        ? 'bg-amber-50 text-amber-900 font-semibold border border-amber-200/60 shadow-xs'
+                        : 'bg-blue-50 text-[#1D4ED8] font-semibold border border-blue-200/60 shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                  }`
+                }
+              >
+                <Icon className="w-4 h-4 mr-3 shrink-0" />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
       </div>
 
       {/* User / Logout Footer */}
