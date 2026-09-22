@@ -33,7 +33,6 @@ export const Sidebar: React.FC = () => {
   const clientLinks = [
     { to: '/dashboard', label: 'Visão Geral', icon: LayoutDashboard },
     { to: '/consultar', label: 'Consultar Imóvel', icon: Search },
-    { to: '/extrato', label: 'Extrato & Saldo', icon: Wallet },
     { to: '/minha-assinatura', label: 'Minha Assinatura', icon: CreditCard },
     { to: '/api-keys', label: 'Chaves de Acesso', icon: KeyRound },
     { to: '/docs', label: 'Guia de Integração', icon: FileCode2 },

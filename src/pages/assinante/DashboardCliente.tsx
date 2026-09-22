@@ -97,7 +97,7 @@ export default function DashboardCliente() {
               </p>
               <div className="mt-4 flex items-center justify-between text-xs">
                 <span className="text-emerald-700 font-medium">Plano pré-pago</span>
-                <Link to="/extrato" className="font-semibold text-[#1D4ED8] hover:underline">
+                <Link to="/minha-assinatura?tab=extrato" className="font-semibold text-[#1D4ED8] hover:underline">
                   Recarregar &rarr;
                 </Link>
               </div>
@@ -110,7 +110,7 @@ export default function DashboardCliente() {
                   <Calendar className="w-3.5 h-3.5 mr-1 text-[#1D4ED8]" />
                   Vencimento dia {company?.billingDueDate || 10}
                 </span>
-                <Link to="/extrato" className="font-semibold text-[#1D4ED8] hover:underline">
+                <Link to="/minha-assinatura?tab=faturas" className="font-semibold text-[#1D4ED8] hover:underline">
                   Ver faturas
                 </Link>
               </div>

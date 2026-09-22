@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Wallet, PlusCircle, Calendar, ShieldCheck, Settings } from 'lucide-react';
+import { Wallet, PlusCircle, Calendar, ShieldCheck, Settings, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const Header: React.FC<{ title?: string }> = ({ title }) => {
@@ -33,7 +33,7 @@ export const Header: React.FC<{ title?: string }> = ({ title }) => {
                   </span>
                 </div>
                 <Link
-                  to="/extrato"
+                  to="/minha-assinatura"
                   className="inline-flex items-center text-xs font-medium text-white bg-[#1D4ED8] hover:bg-[#1E40AF] px-2.5 py-1 rounded-lg transition shadow-xs"
                 >
                   <PlusCircle className="w-3.5 h-3.5 mr-1" />
@@ -68,6 +68,21 @@ export const Header: React.FC<{ title?: string }> = ({ title }) => {
             <span className="font-bold">{user?.name || 'Wellington'}</span>
             <span className="text-[10px] text-amber-700 font-medium px-1.5 py-0.5 bg-amber-100/80 rounded">
               Administrador
+            </span>
+          </Link>
+        )}
+
+        {/* Identificador do Assinante (ex: Marlon) */}
+        {!isSuperAdmin && (
+          <Link
+            to="/configuracoes"
+            title="Acessar configurações da conta"
+            className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-50 text-blue-900 border border-blue-200/80 hover:bg-blue-100/80 transition shadow-xs"
+          >
+            <User className="w-4 h-4 text-[#1D4ED8]" />
+            <span className="font-bold text-slate-900">{user?.name || 'Assinante'}</span>
+            <span className="text-[10px] text-[#1D4ED8] font-medium px-1.5 py-0.5 bg-blue-100/80 rounded">
+              Assinante
             </span>
           </Link>
         )}

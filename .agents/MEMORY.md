@@ -130,14 +130,21 @@ No `server/src/services/billing.service.ts`:
 * `AuditoriaApi.tsx`: Logs detalhados de requisições de API com filtros de status e tempo de resposta.
 
 ### B. Portal do Assinante (`/*`)
-* `DashboardCliente.tsx`: Painel com resumo de consumo e consulta rápida.
-* `ConsultaImovel.tsx`: Formulário completo de consulta cartorária e exportação em PDF.
-* `ExtratoFinanceiro.tsx`: Extrato contábil, recargas via Pix dinâmico (InfinityPay) e visualização de faturas.
-* `MinhaAssinatura.tsx`: Detalhes do plano ativo, tarifa unitária, limite, faturas e link de checkout.
-  * *Correção de Rota:* Suporte tanto a `/api/payment/subscription` quanto `/api/pagamentos/subscription` no `server/src/index.ts`.
-* `GerenciarApi.tsx`: Criação e revogação de tokens com IP whitelist e gerador interativo de URL com testador ao vivo.
-* `ConfiguracoesCliente.tsx`: Alteração de dados cadastrais, responsáveis e troca de senha.
-* `PortalDevDocs.tsx`: Documentação técnica e exemplos de integração em 5 linguagens.
+* `Header.tsx`: Navbar responsivo exibindo o badge financeiro (Saldo disponível se Pré-pago com botão de recarga; ou Vencimento e Limite se Pós-pago) e o **badge de identificação do assinante logado** (avatar com inicial, nome do usuário ex: `Marlon` e badge `Assinante`, com link direto para `/configuracoes`), espelhando o padrão existente do Wellington no Admin.
+* `Sidebar.tsx`: Navegação enxuta com 6 itens unificados (Visão Geral, Consultar Imóvel, Minha Assinatura, Chaves de Acesso, Guia de Integração e Configurações).
+* `DashboardCliente.tsx`: Painel com resumo de consumo, links rápidos e consulta em tempo real.
+* `ConsultarImobiliario.tsx`: Formulário completo de consulta cartorária com visualização e exportação de laudos.
+* `MinhaAssinatura.tsx` (Unificada): Fusão completa de Extrato Financeiro e Assinatura em uma única tela de alta usabilidade:
+  * **Métricas Principais:** Modalidade (Pré/Pós-pago), Tarifa Unitária (R$ 5,00), Saldo/Limite de Crédito e Vencimento Mensal.
+  * **Painel de Consumo em Tempo Real:** Barra de progresso de uso do limite contratado e previsão de fatura para contas pós-pagas.
+  * **Aba 1 (Extrato de Consumo & Saldo):** Tabela detalhada de transações (débito de consultas com data/hora e saldo após, e créditos/recargas Pix confirmadas).
+  * **Aba 2 (Faturas Mensais):** Tabela de faturas por competência, status (Paga, Em Aberto, Vencida) e botão de pagamento Pix direto via InfinityPay.
+  * **Aba 3 (Regras & Dados do Plano):** Resumo cadastral, regras de faturamento e botão de WhatsApp para negociação de volume/upgrade de limite.
+  * **Modal de Recarga Pix Integrado:** Modal instantâneo para compra de pacotes de crédito (R$ 50, R$ 100, R$ 250 ou valor livre a partir de R$ 20).
+  * *Compatibilidade:* Rotas `/extrato` e `/pagamento/sucesso` redirecionam suavemente para `/minha-assinatura`.
+* `GerenciarApi.tsx`: Chaves de API, IP whitelist e testador interativo ao vivo.
+* `ConfiguracoesCliente.tsx`: Dados da empresa, responsáveis e alteração de senha.
+* `PortalDevDocs.tsx`: Documentação técnica completa e SDK em 5 linguagens.
 
 ---
 

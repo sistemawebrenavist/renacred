@@ -8,7 +8,6 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import DashboardCliente from './pages/assinante/DashboardCliente';
 import ConsultarImobiliario from './pages/assinante/ConsultarImobiliario';
-import ExtratoFinanceiro from './pages/assinante/ExtratoFinanceiro';
 import MinhaAssinatura from './pages/assinante/MinhaAssinatura';
 import GerenciarApi from './pages/assinante/GerenciarApi';
 import PortalDevDocs from './pages/assinante/PortalDevDocs';
@@ -85,12 +84,12 @@ export default function App() {
           <Route path="/admin/consulta" element={<Navigate to="/consultar" replace />} />
 
           {/* Módulos do Assinante */}
-          <Route path="/extrato" element={<ExtratoFinanceiro />} />
           <Route path="/minha-assinatura" element={<MinhaAssinatura />} />
+          <Route path="/extrato" element={<Navigate to="/minha-assinatura" replace />} />
           <Route path="/api-keys" element={<GerenciarApi />} />
           <Route path="/docs" element={<PortalDevDocs />} />
           <Route path="/configuracoes" element={<ConfiguracoesCliente />} />
-          <Route path="/pagamento/sucesso" element={<Navigate to="/extrato" replace />} />
+          <Route path="/pagamento/sucesso" element={<Navigate to="/minha-assinatura?paid=true" replace />} />
 
           {/* Módulos Exclusivos do Super Admin (Wellington) */}
           <Route
