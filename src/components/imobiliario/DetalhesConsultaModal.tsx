@@ -50,6 +50,18 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
   const totalDeclaracoes = queryData?.totalDeclaracoes || declaracoes.length;
   const periodo = resultData?.periodo || '';
 
+  const formatDoc = (val: string) => {
+    if (!val) return '-';
+    const c = val.replace(/\D/g, '');
+    if (c.length === 11) {
+      return c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+    if (c.length === 14) {
+      return c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    }
+    return val;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
@@ -67,18 +79,26 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
               <Building className="w-5 h-5" />
             </div>
             <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200">
+                  PRODUTO E1
+                </span>
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  Laudo Pericial Oficial
+                </span>
+              </div>
               <h3 className="text-lg font-bold text-slate-900">
-                Resultado da Consulta
+                Resultado da Consulta Imobiliária
               </h3>
               <p className="text-xs text-slate-500 font-mono">
-                {queryData?.identifier || 'Carregando...'}
+                {formatDoc(queryData?.identifier || '')}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition"
+            className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -108,8 +128,11 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
               <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-100 text-blue-800 border border-blue-200">
+                      E1
+                    </span>
                     <span className="text-xs text-slate-500 font-medium">Documento:</span>
-                    <span className="text-sm font-bold font-mono text-slate-900">{queryData.identifier}</span>
+                    <span className="text-sm font-bold font-mono text-slate-900">{formatDoc(queryData.identifier)}</span>
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                       {totalDeclaracoes} declarações
                     </span>
@@ -122,9 +145,9 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <ExportExcelButton documento={queryData.identifier} declaracoes={declaracoes} />
+                  <ExportExcelButton documento={formatDoc(queryData.identifier)} declaracoes={declaracoes} />
                   <ExportPdfButton
-                    documento={queryData.identifier}
+                    documento={formatDoc(queryData.identifier)}
                     totalDeclaracoes={totalDeclaracoes}
                     periodo={periodo}
                     declaracoes={declaracoes}

@@ -103,18 +103,35 @@ export default function ConsultarImobiliario() {
     }
   };
 
+  const maskCpfCnpj = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 14);
+    if (digits.length <= 11) {
+      return digits
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    }
+    return digits
+      .replace(/(\d{2})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1/$2')
+      .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+  };
+
   const handleSelectQuery = (doc: string) => {
-    setDocumento(doc);
+    const masked = maskCpfCnpj(doc);
+    setDocumento(masked);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    handleSearch(doc);
+    handleSearch(masked);
   };
 
   // Se vier parâmetro na URL (?doc=...), busca automaticamente
   useEffect(() => {
     const docParam = searchParams.get('doc');
     if (docParam && docParam !== documento && !loading && !result) {
-      setDocumento(docParam);
-      handleSearch(docParam);
+      const masked = maskCpfCnpj(docParam);
+      setDocumento(masked);
+      handleSearch(masked);
     }
   }, [searchParams]);
 
@@ -182,11 +199,11 @@ export default function ConsultarImobiliario() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Bloco de Busca */}
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs">
-        <div className="max-w-2xl">
-          <div className="flex flex-wrap items-center gap-2 mb-2.5">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200">
+      {/* Bloco de Busca Centralizado */}
+      <div className="bg-white border border-slate-200/80 rounded-3xl p-8 sm:p-12 shadow-xs flex flex-col items-center justify-center text-center">
+        <div className="max-w-2xl mx-auto w-full flex flex-col items-center text-center">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200">
               PRODUTO E1
             </span>
             <div className="flex items-center space-x-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -195,11 +212,11 @@ export default function ConsultarImobiliario() {
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
-            <Building className="w-6 h-6 mr-2.5 text-blue-600" />
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center justify-center">
+            <Building className="w-7 h-7 mr-2.5 text-blue-600" />
             E1 - Busca de Imóvel por Documento
           </h2>
-          <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">
+          <p className="text-slate-500 text-xs sm:text-sm mt-2 max-w-lg mx-auto leading-relaxed">
             Pesquisa nacional de histórico de transações, titularidade imobiliária (DOI) e registros cartorários vinculados a um CPF ou CNPJ.
           </p>
 
@@ -208,22 +225,23 @@ export default function ConsultarImobiliario() {
               e.preventDefault();
               handleSearch();
             }}
-            className="mt-6 flex flex-col sm:flex-row gap-3"
+            className="mt-8 w-full max-w-xl mx-auto flex flex-col sm:flex-row gap-3 items-center justify-center"
           >
-            <div className="relative flex-1">
+            <div className="relative w-full flex-1">
               <Search className="w-5 h-5 text-slate-400 absolute left-4 top-3.5" />
               <input
                 type="text"
                 value={documento}
-                onChange={(e) => setDocumento(e.target.value)}
+                onChange={(e) => setDocumento(maskCpfCnpj(e.target.value))}
+                maxLength={18}
                 placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                className="w-full bg-white border border-slate-300 rounded-2xl pl-12 pr-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 transition font-mono"
+                className="w-full bg-white border border-slate-300 rounded-2xl pl-12 pr-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition font-mono shadow-2xs"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-8 py-3.5 rounded-2xl text-sm flex items-center justify-center transition shadow-xs disabled:opacity-50 cursor-pointer"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-8 py-3.5 rounded-2xl text-sm flex items-center justify-center transition shadow-xs disabled:opacity-50 cursor-pointer shrink-0"
             >
               {loading ? (
                 <>

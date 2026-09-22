@@ -48,7 +48,7 @@ export const Sidebar: React.FC = () => {
     {
       to: '/consultar',
       code: 'E1',
-      label: 'E1 - Busca de Imóvel por Documento',
+      label: 'Consultar Imóveis',
       icon: Search,
     },
   ];
