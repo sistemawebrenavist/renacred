@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Wallet, PlusCircle, Calendar, ShieldCheck, Settings, User } from 'lucide-react';
+import { Wallet, PlusCircle, ShieldCheck, Settings, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const Header: React.FC<{ title?: string }> = ({ title }) => {
@@ -20,41 +20,24 @@ export const Header: React.FC<{ title?: string }> = ({ title }) => {
       </div>
 
       <div className="flex items-center space-x-3">
-        {/* Badge Financeiro Exclusivo do Assinante */}
-        {!isSuperAdmin && (
-          <>
-            {isPrePaid ? (
-              <div className="flex items-center space-x-3 bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-xs">
-                <div className="flex items-center text-xs font-medium text-slate-600">
-                  <Wallet className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
-                  <span className="text-slate-500">Saldo:</span>
-                  <span className="ml-1.5 text-sm font-bold text-emerald-700 font-mono">
-                    R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <Link
-                  to="/minha-assinatura"
-                  className="inline-flex items-center text-xs font-medium text-white bg-[#1D4ED8] hover:bg-[#1E40AF] px-2.5 py-1 rounded-lg transition shadow-xs"
-                >
-                  <PlusCircle className="w-3.5 h-3.5 mr-1" />
-                  Recarregar
-                </Link>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-3 bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-xs">
-                <div className="flex items-center text-xs font-medium text-slate-700">
-                  <Calendar className="w-3.5 h-3.5 mr-1.5 text-[#1D4ED8]" />
-                  <span className="text-slate-500">Pós-pago:</span>
-                  <span className="ml-1 text-slate-900 font-semibold">Vencimento dia {company?.billingDueDate || 10}</span>
-                </div>
-                {company?.creditLimit && company.creditLimit > 0 && (
-                  <span className="text-xs text-slate-600 border-l border-slate-200 pl-2">
-                    Limite: {company.creditLimit >= 999999 ? 'Ilimitado' : `R$ ${company.creditLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                  </span>
-                )}
-              </div>
-            )}
-          </>
+        {/* Badge Financeiro Exclusivo do Assinante Pré-pago */}
+        {!isSuperAdmin && isPrePaid && (
+          <div className="flex items-center space-x-3 bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-xs">
+            <div className="flex items-center text-xs font-medium text-slate-600">
+              <Wallet className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+              <span className="text-slate-500">Saldo:</span>
+              <span className="ml-1.5 text-sm font-bold text-emerald-700 font-mono">
+                R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <Link
+              to="/minha-assinatura"
+              className="inline-flex items-center text-xs font-medium text-white bg-[#1D4ED8] hover:bg-[#1E40AF] px-2.5 py-1 rounded-lg transition shadow-xs"
+            >
+              <PlusCircle className="w-3.5 h-3.5 mr-1" />
+              Recarregar
+            </Link>
+          </div>
         )}
 
         {/* Identificador do Administrador Wellington */}

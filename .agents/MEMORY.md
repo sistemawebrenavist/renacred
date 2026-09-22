@@ -130,7 +130,7 @@ No `server/src/services/billing.service.ts`:
 * `AuditoriaApi.tsx`: Logs detalhados de requisições de API com filtros de status e tempo de resposta.
 
 ### B. Portal do Assinante (`/*`)
-* `Header.tsx`: Navbar responsivo exibindo o badge financeiro (Saldo disponível se Pré-pago com botão de recarga; ou Vencimento e Limite se Pós-pago) e o **badge de identificação do assinante logado** (avatar com inicial, nome do usuário ex: `Marlon` e badge `Assinante`, com link direto para `/configuracoes`), espelhando o padrão existente do Wellington no Admin.
+* `Header.tsx`: Navbar responsivo exibindo o **badge de identificação do usuário logado** (ex: avatar/ícone `User`, nome `Marlon` e tag `Assinante`, com link direto para `/configuracoes`), exatamente como no painel administrativo do Wellington. Para contas pré-pagas exibe o saldo com atalho de recarga; para contas pós-pagas mantém o visual limpo e minimalista sem poluição visual.
 * `Sidebar.tsx`: Navegação enxuta com 6 itens unificados (Visão Geral, Consultar Imóvel, Minha Assinatura, Chaves de Acesso, Guia de Integração e Configurações).
 * `DashboardCliente.tsx`: Painel com resumo de consumo, links rápidos e consulta em tempo real.
 * `ConsultarImobiliario.tsx`: Formulário completo de consulta cartorária com visualização e exportação de laudos.
