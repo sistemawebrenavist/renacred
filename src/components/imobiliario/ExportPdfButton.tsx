@@ -171,6 +171,7 @@ export const ExportPdfButton: React.FC<ExportPdfProps> = ({
     // 3. RENDERIZAÇÃO EM FORMATO DE CARDS EXECUTIVOS (IDÊNTICO AO MODAL)
     const cardW = 186;
     const startX = 12;
+    const colW = 88;
     const bottomLimit = 276; // Limite inferior seguro antes do rodapé
 
     const drawHeaderSubsequentPages = () => {
@@ -197,19 +198,61 @@ export const ExportPdfButton: React.FC<ExportPdfProps> = ({
     };
 
     const calculateCardHeight = (dec: DeclaracaoProps) => {
-      const countAlienantes = Math.max(dec.alienantes?.length || 0, 1);
-      const countAdquirentes = Math.max(dec.adquirentes?.length || 0, 1);
-      const maxPartes = Math.max(countAlienantes, countAdquirentes);
-      const partesHeight = 6 + (maxPartes * 8.5);
-      return 8.5 + 13 + partesHeight + 3;
+      let hAlienantes = 0;
+      if (dec.alienantes && dec.alienantes.length > 0) {
+        dec.alienantes.forEach((al) => {
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          const lines = doc.splitTextToSize(al.nome || 'Não informado', colW - 6);
+          hAlienantes += 3.5 + (lines.length * 3.2) + 3.5 + 1.5;
+        });
+      } else {
+        hAlienantes = 8;
+      }
+
+      let hAdquirentes = 0;
+      if (dec.adquirentes && dec.adquirentes.length > 0) {
+        dec.adquirentes.forEach((ad) => {
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          const lines = doc.splitTextToSize(ad.nome || 'Não informado', colW - 6);
+          hAdquirentes += 3.5 + (lines.length * 3.2) + 3.5 + 1.5;
+        });
+      } else {
+        hAdquirentes = 8;
+      }
+
+      const partesHeight = Math.max(hAlienantes, hAdquirentes);
+      return 8.5 + 13.5 + partesHeight + 3;
     };
 
     const drawCard = (dec: DeclaracaoProps, idx: number, y: number) => {
-      const countAlienantes = Math.max(dec.alienantes?.length || 0, 1);
-      const countAdquirentes = Math.max(dec.adquirentes?.length || 0, 1);
-      const maxPartes = Math.max(countAlienantes, countAdquirentes);
-      const partesHeight = 6 + (maxPartes * 8.5);
-      const totalH = 8.5 + 13 + partesHeight + 3;
+      let hAlienantes = 0;
+      if (dec.alienantes && dec.alienantes.length > 0) {
+        dec.alienantes.forEach((al) => {
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          const lines = doc.splitTextToSize(al.nome || 'Não informado', colW - 6);
+          hAlienantes += 3.5 + (lines.length * 3.2) + 3.5 + 1.5;
+        });
+      } else {
+        hAlienantes = 8;
+      }
+
+      let hAdquirentes = 0;
+      if (dec.adquirentes && dec.adquirentes.length > 0) {
+        dec.adquirentes.forEach((ad) => {
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          const lines = doc.splitTextToSize(ad.nome || 'Não informado', colW - 6);
+          hAdquirentes += 3.5 + (lines.length * 3.2) + 3.5 + 1.5;
+        });
+      } else {
+        hAdquirentes = 8;
+      }
+
+      const partesHeight = Math.max(hAlienantes, hAdquirentes);
+      const totalH = 8.5 + 13.5 + partesHeight + 3;
 
       // Container do Card com cantos suaves
       doc.setFillColor(255, 255, 255);
@@ -260,61 +303,74 @@ export const ExportPdfButton: React.FC<ExportPdfProps> = ({
       doc.setDrawColor(241, 245, 249);
       doc.line(startX + 3, y + 8, startX + cardW - 3, y + 8);
 
-      // Bloco Intermediário: 3 Caixas (Matrícula, Livro/Folha, Cartório)
+      // Bloco Intermediário: 3 Caixas com Quebra de Linha
       const boxY = y + 9.5;
-      const boxH = 11.5;
+      const boxH = 12.5;
 
-      // Caixa 1: Matrícula
+      // Caixa 1: Matrícula (largura 34)
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(startX + 3, boxY, 36, boxH, 1.5, 1.5, 'FD');
+      doc.roundedRect(startX + 3, boxY, 34, boxH, 1.5, 1.5, 'FD');
       doc.setFontSize(5);
       doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'bold');
       doc.text('MATRÍCULA', startX + 5, boxY + 3.5);
-      doc.setFontSize(7.5);
-      doc.setTextColor(15, 23, 42);
-      doc.setFont('helvetica', 'bold');
-      doc.text(dec.matricula || 'Geral', startX + 5, boxY + 8.5);
 
-      // Caixa 2: Registro / Livro / Folha
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(startX + 41, boxY, 46, boxH, 1.5, 1.5, 'FD');
-      doc.setFontSize(5);
-      doc.setTextColor(100, 116, 139);
-      doc.setFont('helvetica', 'bold');
-      doc.text('REGISTRO / LIVRO / FOLHA', startX + 43, boxY + 3.5);
       doc.setFontSize(7);
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
+      const matText = dec.matricula || 'Geral';
+      const matLines = doc.splitTextToSize(matText, 30);
+      doc.text(matLines[0], startX + 5, boxY + 8.5);
+
+      // Caixa 2: Registro / Livro / Folha (largura 52 - com quebra de linha sem sobrepor)
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(startX + 39, boxY, 52, boxH, 1.5, 1.5, 'FD');
+      doc.setFontSize(5);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'bold');
+      doc.text('REGISTRO / LIVRO / FOLHA', startX + 41, boxY + 3.5);
+
       const regLivroStr = [
         dec.registro ? `Reg: ${dec.registro}` : '',
         dec.livro ? `Livro: ${dec.livro}` : '',
         dec.folha ? `Fl: ${dec.folha}` : '',
       ].filter(Boolean).join(' • ') || 'Geral';
-      doc.text(regLivroStr, startX + 43, boxY + 8.5);
 
-      // Caixa 3: Cartório Responsável
+      doc.setFontSize(6);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      const regLines = doc.splitTextToSize(regLivroStr, 48);
+      if (regLines.length === 1) {
+        doc.text(regLines[0], startX + 41, boxY + 8.5);
+      } else {
+        doc.text(regLines[0], startX + 41, boxY + 7);
+        doc.text(regLines[1], startX + 41, boxY + 10.5);
+      }
+
+      // Caixa 3: Cartório Responsável (largura 90)
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(startX + 89, boxY, 94, boxH, 1.5, 1.5, 'FD');
+      doc.roundedRect(startX + 93, boxY, 90, boxH, 1.5, 1.5, 'FD');
       doc.setFontSize(5);
       doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'bold');
-      doc.text('CARTÓRIO RESPONSÁVEL', startX + 91, boxY + 3.5);
-      doc.setFontSize(6.5);
+      doc.text('CARTÓRIO RESPONSÁVEL', startX + 95, boxY + 3.5);
+
+      doc.setFontSize(6);
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
-      const cartorioNome = doc.splitTextToSize(dec.cartorio || 'Cartório de Registro de Imóveis', 90)[0];
-      doc.text(cartorioNome, startX + 91, boxY + 7.5);
+      const cartLines = doc.splitTextToSize(dec.cartorio || 'Cartório de Registro de Imóveis', 86);
+      doc.text(cartLines[0], startX + 95, boxY + 7);
+
       doc.setFontSize(5);
       doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'normal');
       const subCartorio = [dec.tipoCartorio, dec.cnpjCartorio ? `CNPJ: ${formatDocumento(dec.cnpjCartorio)}` : ''].filter(Boolean).join(' • ');
-      doc.text(subCartorio, startX + 91, boxY + 10.5);
+      const subLines = doc.splitTextToSize(subCartorio, 86);
+      doc.text(subLines[0], startX + 95, boxY + 10.5);
 
       // Bloco Inferior: Partes (Alienantes vs Adquirentes)
       const partesY = boxY + boxH + 2;
-      const colW = 88.5;
 
       // Rótulo Alienantes
       doc.setFontSize(5.5);
@@ -324,24 +380,34 @@ export const ExportPdfButton: React.FC<ExportPdfProps> = ({
 
       // Rótulo Adquirentes
       doc.setTextColor(4, 120, 87); // Emerald 700
-      doc.text('ADQUIRENTE(S) / COMPRADOR(ES)', startX + colW + 9, partesY + 3);
+      doc.text('ADQUIRENTE(S) / COMPRADOR(ES)', startX + colW + 7, partesY + 3);
 
-      // Itens Alienantes
+      // Itens Alienantes com Quebra Automática de Linha
       let itemY = partesY + 4.5;
       if (dec.alienantes && dec.alienantes.length > 0) {
         dec.alienantes.forEach((al) => {
-          doc.setFillColor(254, 252, 232); // Amber 50
-          doc.setDrawColor(253, 230, 138); // Amber 200
-          doc.roundedRect(startX + 3, itemY, colW, 7.5, 1, 1, 'FD');
           doc.setFontSize(6);
           doc.setFont('helvetica', 'bold');
+          const lines = doc.splitTextToSize(al.nome || 'Não informado', colW - 6);
+          const itemH = 3.5 + (lines.length * 3.2) + 3.5;
+
+          doc.setFillColor(254, 252, 232); // Amber 50
+          doc.setDrawColor(253, 230, 138); // Amber 200
+          doc.roundedRect(startX + 3, itemY, colW, itemH, 1, 1, 'FD');
+
           doc.setTextColor(15, 23, 42);
-          doc.text(al.nome || 'Não informado', startX + 5, itemY + 3.2);
+          let textLineY = itemY + 3.2;
+          lines.forEach((line: string) => {
+            doc.text(line, startX + 5, textLineY);
+            textLineY += 3.2;
+          });
+
           doc.setFontSize(5);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(100, 116, 139);
-          doc.text(`Doc: ${formatDocumento(al.cpfCnpj)}`, startX + 5, itemY + 6.2);
-          itemY += 8.2;
+          doc.text(`Doc: ${formatDocumento(al.cpfCnpj)}`, startX + 5, textLineY + 0.3);
+
+          itemY += itemH + 1.5;
         });
       } else {
         doc.setFontSize(5.5);
@@ -350,28 +416,38 @@ export const ExportPdfButton: React.FC<ExportPdfProps> = ({
         doc.text('Nenhum alienante registrado nesta operação.', startX + 3, itemY + 3.5);
       }
 
-      // Itens Adquirentes
+      // Itens Adquirentes com Quebra Automática de Linha
       itemY = partesY + 4.5;
       if (dec.adquirentes && dec.adquirentes.length > 0) {
         dec.adquirentes.forEach((ad) => {
-          doc.setFillColor(240, 253, 244); // Emerald 50
-          doc.setDrawColor(187, 247, 208); // Emerald 200
-          doc.roundedRect(startX + colW + 9, itemY, colW, 7.5, 1, 1, 'FD');
           doc.setFontSize(6);
           doc.setFont('helvetica', 'bold');
+          const lines = doc.splitTextToSize(ad.nome || 'Não informado', colW - 6);
+          const itemH = 3.5 + (lines.length * 3.2) + 3.5;
+
+          doc.setFillColor(240, 253, 244); // Emerald 50
+          doc.setDrawColor(187, 247, 208); // Emerald 200
+          doc.roundedRect(startX + colW + 7, itemY, colW, itemH, 1, 1, 'FD');
+
           doc.setTextColor(15, 23, 42);
-          doc.text(ad.nome || 'Não informado', startX + colW + 11, itemY + 3.2);
+          let textLineY = itemY + 3.2;
+          lines.forEach((line: string) => {
+            doc.text(line, startX + colW + 9, textLineY);
+            textLineY += 3.2;
+          });
+
           doc.setFontSize(5);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(100, 116, 139);
-          doc.text(`Doc: ${formatDocumento(ad.cpfCnpj)}`, startX + colW + 11, itemY + 6.2);
-          itemY += 8.2;
+          doc.text(`Doc: ${formatDocumento(ad.cpfCnpj)}`, startX + colW + 9, textLineY + 0.3);
+
+          itemY += itemH + 1.5;
         });
       } else {
         doc.setFontSize(5.5);
         doc.setTextColor(148, 163, 184);
         doc.setFont('helvetica', 'italic');
-        doc.text('Nenhum adquirente registrado nesta operação.', startX + colW + 9, itemY + 3.5);
+        doc.text('Nenhum adquirente registrado nesta operação.', startX + colW + 7, itemY + 3.5);
       }
 
       return totalH;
