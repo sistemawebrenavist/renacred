@@ -275,3 +275,27 @@ Para otimizar o fluxo de trabalho do usuário e a clareza executiva da plataform
   * Tabela AutoTable calculada com precisão milimétrica (`186mm` de largura útil), cabeçalho Navy Slate, zebra striping suave (`#F8FAFC`) e quebra de linhas automática.
   * Rodapé pericial em todas as páginas com advertência de fé pública dos dados, código de validação e numeração dinâmica (`Página X de Y`).
 
+---
+
+## 13. Produto E2: Histórico de Proprietários Veiculares por Placa
+
+Integrado com sucesso como o segundo produto oficial do bureau Renacred:
+
+1. **Endpoint Oficial & Provedor:**
+   * Provedor: `api=historico_proprietario&query={PLACA}` (chamadas restritas a IPv4 `family: 4` e sem sockets ociosos `keepAlive: false`).
+   * API de Desenvolvedores v1: `GET /v1/veicular/proprietarios?token={TOKEN}&query={PLACA}` (com suporte a fallback `/v1/proprietarios` e `?placa=...`).
+   * API Web Autenticada: `POST /api/veicular/proprietarios`.
+
+2. **Ordenação Cronológica Invertida (Atenção às Datas):**
+   * O provedor externo retorna a lista em ordem decrescente (mais recente primeiro: 2024 -> 2011).
+   * **Implementação Oficial:** A lista é reordenada de forma **cronológica ascendente** (começando pelo 1º proprietário mais antigo registrado até o titular vigente atual).
+   * Numeração visual ordinal atribuída: `#1 • Primeiro Registro Histórico`, `#2`, ..., `#N • Proprietário Atual (Vigente)`.
+
+3. **Interface do Usuário & Modal Polimórfico:**
+   * **Página Dedicada:** `src/pages/assinante/ConsultarProprietarios.tsx` (rotas `/produtos/e2`, `/veicular`, `/proprietarios`).
+   * **Sidebar Atualizada:** Seção **PRODUTOS** exibindo `E1 - Busca de Imóveis` e `E2 - Proprietários Veiculares`.
+   * **Modal Inteligente (`DetalhesConsultaModal.tsx`):** Detecta se a consulta é E1 ou E2. Para E2, renderiza o laudo pericial com card de destaque do Proprietário Atual, linha do tempo dos proprietários com badges e eventos, além de exportação em PDF e Excel.
+   * **Exportações:** `ExportPdfVeicularButton.tsx` (com padrão pericial de laudo oficial, hash `RNC-E2-...` e rodapé de fé pública) e `ExportExcelVeicularButton.tsx`.
+   * **Documentação & Playground:** `PortalDevDocs.tsx` atualizado com aba interativa do Produto E2.
+
+

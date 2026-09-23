@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import DashboardCliente from './pages/assinante/DashboardCliente';
 import ConsultarImobiliario from './pages/assinante/ConsultarImobiliario';
+import ConsultarProprietarios from './pages/assinante/ConsultarProprietarios';
 import MinhaAssinatura from './pages/assinante/MinhaAssinatura';
 import GerenciarApi from './pages/assinante/GerenciarApi';
 import PortalDevDocs from './pages/assinante/PortalDevDocs';
@@ -84,6 +85,11 @@ export default function App() {
           <Route path="/produtos/e1" element={<ConsultarImobiliario />} />
           <Route path="/produtos/e1-imovel" element={<ConsultarImobiliario />} />
           <Route path="/admin/consulta" element={<Navigate to="/consultar" replace />} />
+
+          {/* Produto E2 - Histórico de Proprietários Veiculares */}
+          <Route path="/produtos/e2" element={<ConsultarProprietarios />} />
+          <Route path="/veicular" element={<ConsultarProprietarios />} />
+          <Route path="/proprietarios" element={<ConsultarProprietarios />} />
 
           {/* Módulos do Assinante */}
           <Route path="/minha-assinatura" element={<MinhaAssinatura />} />

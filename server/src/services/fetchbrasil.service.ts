@@ -39,8 +39,52 @@ export interface FetchBrasilImobiliarioResponse {
   mensagem?: string;
 }
 
+export interface ProprietarioAtual {
+  nome: string;
+  documento: string;
+  tipo: string;
+  evento: string | null;
+  uf: string;
+  municipio: string;
+}
+
+export interface HistoricoProprietarioItem {
+  ordem: number;
+  documento: string;
+  tipo: string;
+  nome: string;
+  data: string; // DD/MM/AAAA
+  hora: string; // HH:mm:ss
+  uf: string;
+  municipio: string;
+  evento: string | null;
+  atual: boolean;
+}
+
+export interface FetchBrasilProprietarioResponse {
+  success: boolean;
+  placa: string;
+  renavam: string;
+  consulta_em: string;
+  total: number;
+  proprietario_atual?: ProprietarioAtual;
+  historico: HistoricoProprietarioItem[];
+  message?: string | null;
+  api_central?: {
+    api_utilizada?: string;
+    parametro_utilizado?: string;
+    query_fornecida?: string;
+    timestamp?: string;
+  };
+}
+
 interface CacheEntry {
   data: FetchBrasilImobiliarioResponse;
+  timestamp: number;
+}
+
+interface VeicularCacheEntry {
+  data: FetchBrasilProprietarioResponse;
   timestamp: number;
 }
 
@@ -51,10 +95,12 @@ export class FetchBrasilService {
   
   // Cache de curto prazo em memória (10 minutos)
   private cache = new Map<string, CacheEntry>();
+  private veicularCache = new Map<string, VeicularCacheEntry>();
   private readonly CACHE_TTL_MS = 10 * 60 * 1000;
 
   // Deduplicação de requisições simultâneas em voo (Singleflight)
   private inFlight = new Map<string, Promise<FetchBrasilImobiliarioResponse>>();
+  private veicularInFlight = new Map<string, Promise<FetchBrasilProprietarioResponse>>();
 
   constructor() {
     this.apiURL = process.env.FETCHBRASIL_API_URL || 'https://api.fetchbrasil.pro';
@@ -101,6 +147,11 @@ export class FetchBrasilService {
     for (const [key, entry] of this.cache.entries()) {
       if (now - entry.timestamp > this.CACHE_TTL_MS) {
         this.cache.delete(key);
+      }
+    }
+    for (const [key, entry] of this.veicularCache.entries()) {
+      if (now - entry.timestamp > this.CACHE_TTL_MS) {
+        this.veicularCache.delete(key);
       }
     }
   }
@@ -203,6 +254,151 @@ export class FetchBrasilService {
       return await fetchPromise;
     } finally {
       this.inFlight.delete(cleanDoc);
+    }
+  }
+
+  /**
+   * Helper para converter data DD/MM/AAAA e hora HH:mm:ss em timestamp milissegundos
+   */
+  private parseDataHora(dataStr?: string, horaStr?: string): number {
+    if (!dataStr) return 0;
+    try {
+      const parts = dataStr.trim().split('/');
+      if (parts.length !== 3) return 0;
+      const dia = parseInt(parts[0], 10);
+      const mes = parseInt(parts[1], 10) - 1;
+      const ano = parseInt(parts[2], 10);
+
+      let horas = 0;
+      let minutos = 0;
+      let segundos = 0;
+
+      if (horaStr) {
+        const timeParts = horaStr.trim().split(':');
+        horas = parseInt(timeParts[0], 10) || 0;
+        minutos = parseInt(timeParts[1], 10) || 0;
+        segundos = parseInt(timeParts[2], 10) || 0;
+      }
+
+      return new Date(ano, mes, dia, horas, minutos, segundos).getTime();
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Consulta Histórico de Proprietários Veiculares por Placa (PRODUTO E2)
+   * A API externa devolve decrescente (mais recente primeiro).
+   * Esta função reordena a lista cronologicamente da DATA MAIS ANTIGA para a MAIS RECENTE.
+   */
+  async consultarHistoricoProprietario(placa: string): Promise<FetchBrasilProprietarioResponse> {
+    const cleanPlaca = placa.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+
+    // 1. Verificar Cache de Curto Prazo (HIT instantâneo em 0ms)
+    const cached = this.veicularCache.get(cleanPlaca);
+    if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL_MS)) {
+      logger.info(`[FETCHBRASIL] Cache HIT instantâneo para placa: ${cleanPlaca} (0ms)`);
+      return cached.data;
+    }
+
+    // 2. Verificar se já existe chamada em voo (Deduplicação / Singleflight)
+    if (this.veicularInFlight.has(cleanPlaca)) {
+      logger.info(`[FETCHBRASIL] Deduplicando chamada em voo para placa: ${cleanPlaca}`);
+      return await this.veicularInFlight.get(cleanPlaca)!;
+    }
+
+    // 3. Executar chamada com resiliência
+    const fetchPromise = (async () => {
+      const startTime = Date.now();
+      const maxAttempts = 2;
+      let lastError: any = null;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          if (attempt > 1) {
+            logger.info(`[FETCHBRASIL] Tentativa de retry ${attempt}/${maxAttempts} para placa: ${cleanPlaca}...`);
+            await new Promise((r) => setTimeout(r, 1200));
+          } else {
+            logger.info(`[FETCHBRASIL] Consultando histórico de proprietários para placa: ${cleanPlaca}`);
+          }
+
+          const response = await this.client.get('/', {
+            params: {
+              token: this.token,
+              api: 'historico_proprietario',
+              query: cleanPlaca,
+            },
+          });
+
+          const processingTime = Date.now() - startTime;
+          logger.info(`[FETCHBRASIL] Sucesso na consulta de proprietários (${processingTime}ms) para ${cleanPlaca}`);
+
+          const rawData = response.data;
+          let historicoOrdenado: HistoricoProprietarioItem[] = [];
+
+          if (rawData && Array.isArray(rawData.historico)) {
+            // Clonar array para não mutar objeto bruto
+            historicoOrdenado = [...rawData.historico];
+
+            // ORDENAÇÃO CRONOLÓGICA ASCENDENTE: DA MAIS ANTIGA PARA A MAIS RECENTE
+            historicoOrdenado.sort((a, b) => {
+              const timeA = this.parseDataHora(a.data, a.hora);
+              const timeB = this.parseDataHora(b.data, b.hora);
+              return timeA - timeB; // Menor timestamp primeiro (mais antiga)
+            });
+
+            // Reatribuir a numeração de ordem cronológica (1 = 1º proprietário histórico)
+            historicoOrdenado = historicoOrdenado.map((item, idx) => ({
+              ...item,
+              ordem: idx + 1,
+            }));
+          }
+
+          const result: FetchBrasilProprietarioResponse = {
+            success: rawData?.success !== false,
+            placa: rawData?.placa || cleanPlaca,
+            renavam: rawData?.renavam || '',
+            consulta_em: rawData?.consulta_em || new Date().toISOString(),
+            total: rawData?.total !== undefined ? rawData.total : historicoOrdenado.length,
+            proprietario_atual: rawData?.proprietario_atual || undefined,
+            historico: historicoOrdenado,
+            message: rawData?.message || null,
+            api_central: rawData?.api_central || {
+              api_utilizada: 'historico_proprietario',
+              parametro_utilizado: 'placa',
+              query_fornecida: cleanPlaca,
+              timestamp: new Date().toISOString(),
+            }
+          };
+
+          // Armazenar no cache em memória
+          this.veicularCache.set(cleanPlaca, { data: result, timestamp: Date.now() });
+          this.cleanExpiredCache();
+
+          return result;
+        } catch (error: any) {
+          lastError = error;
+          const attemptTime = Date.now() - startTime;
+          const errorMsg = error.response?.data?.mensagem || error.response?.data?.erro || error.message;
+          logger.warn(`[FETCHBRASIL] Falha na tentativa ${attempt}/${maxAttempts} após ${attemptTime}ms para placa ${cleanPlaca}: ${errorMsg}`);
+
+          if (error.response?.status && [400, 401, 403, 404].includes(error.response.status)) {
+            break;
+          }
+        }
+      }
+
+      const totalProcessingTime = Date.now() - startTime;
+      const finalMsg = lastError?.response?.data?.mensagem || lastError?.response?.data?.erro || lastError?.message;
+      logger.error(`[FETCHBRASIL] Erro na consulta após ${totalProcessingTime}ms para placa ${cleanPlaca}: ${finalMsg}`);
+      throw new Error(`Falha ao consultar histórico de proprietários no provedor: ${finalMsg}`);
+    })();
+
+    this.veicularInFlight.set(cleanPlaca, fetchPromise);
+    try {
+      return await fetchPromise;
+    } finally {
+      this.veicularInFlight.delete(cleanPlaca);
     }
   }
 }
