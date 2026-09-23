@@ -298,4 +298,10 @@ Integrado com sucesso como o segundo produto oficial do bureau Renacred:
    * **Exportações:** `ExportPdfVeicularButton.tsx` (com padrão pericial de laudo oficial, hash `RNC-E2-...` e rodapé de fé pública) e `ExportExcelVeicularButton.tsx`.
    * **Documentação & Playground:** `PortalDevDocs.tsx` atualizado com aba interativa do Produto E2.
 
+4. **Deploy em Produção (VPS Ubuntu 24.04):**
+   * **Host:** `209.50.245.165` (root).
+   * **Script Executado:** `/opt/renacred/deploy.sh` (Git pull `3e865fb`, OpenResty reload, Docker Compose build & up).
+   * **Status de Produção:** Validado com sucesso via `https://api.renacred.com.br/health` e chamada real em `/v1/veicular/proprietarios?token=rena_live_testmaster001&query=ATT0849`.
+
+
 
