@@ -1,6 +1,9 @@
 import https from 'https';
 import axios, { AxiosInstance } from 'axios';
 import { logger } from '../utils/logger';
+import { findServerProduct, ServerProductConfig } from '../config/productsCatalog';
+import { normalizeProductResult, NormalizedResult } from './productNormalizers';
+
 
 export interface ParteDeclaracao {
   nome: string;
@@ -96,11 +99,13 @@ export class FetchBrasilService {
   // Cache de curto prazo em memória (10 minutos)
   private cache = new Map<string, CacheEntry>();
   private veicularCache = new Map<string, VeicularCacheEntry>();
+  private genericCache = new Map<string, { data: NormalizedResult; timestamp: number; providerUsed: string }>();
   private readonly CACHE_TTL_MS = 10 * 60 * 1000;
 
   // Deduplicação de requisições simultâneas em voo (Singleflight)
   private inFlight = new Map<string, Promise<FetchBrasilImobiliarioResponse>>();
   private veicularInFlight = new Map<string, Promise<FetchBrasilProprietarioResponse>>();
+  private genericInFlight = new Map<string, Promise<{ normalized: NormalizedResult; raw: any; providerUsed: string; processingTimeMs: number }>>();
 
   constructor() {
     this.apiURL = process.env.FETCHBRASIL_API_URL || 'https://api.fetchbrasil.pro';
@@ -152,6 +157,11 @@ export class FetchBrasilService {
     for (const [key, entry] of this.veicularCache.entries()) {
       if (now - entry.timestamp > this.CACHE_TTL_MS) {
         this.veicularCache.delete(key);
+      }
+    }
+    for (const [key, entry] of this.genericCache.entries()) {
+      if (now - entry.timestamp > this.CACHE_TTL_MS) {
+        this.genericCache.delete(key);
       }
     }
   }
@@ -401,6 +411,133 @@ export class FetchBrasilService {
       this.veicularInFlight.delete(cleanPlaca);
     }
   }
+
+  /**
+   * Consulta genérica com tolerância a falhas e cascata de contingências transparentes
+   * Suporta qualquer um dos 16 produtos (E1 a E16) ou seus slugs.
+   */
+  async consultarProdutoComContingencia(
+    productCodeOrSlug: string,
+    query: string
+  ): Promise<{
+    product: ServerProductConfig;
+    normalized: NormalizedResult;
+    raw: any;
+    providerUsed: string;
+    processingTimeMs: number;
+  }> {
+    const product = findServerProduct(productCodeOrSlug);
+    if (!product) {
+      throw new Error(`Produto não encontrado ou não cadastrado no catálogo: ${productCodeOrSlug}`);
+    }
+
+    const cleanQuery = query.trim();
+    const cacheKey = `${product.code}:${cleanQuery}`;
+
+    // 1. Checar cache em memória (0ms)
+    const cached = this.genericCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
+      logger.info(`[FETCHBRASIL] Cache HIT para produto ${product.code} (${cleanQuery}) [0ms]`);
+      return {
+        product,
+        normalized: cached.data,
+        raw: null,
+        providerUsed: cached.providerUsed,
+        processingTimeMs: 0
+      };
+    }
+
+    // 2. Deduplicação em voo (Singleflight)
+    if (this.genericInFlight.has(cacheKey)) {
+      logger.info(`[FETCHBRASIL] Deduplicando chamada em voo para ${product.code}:${cleanQuery}`);
+      const inFlightRes = await this.genericInFlight.get(cacheKey)!;
+      return {
+        product,
+        ...inFlightRes
+      };
+    }
+
+    // 3. Execução em cascata (Primário -> Contingências)
+    const fetchPromise = (async () => {
+      const startTime = Date.now();
+      const endpointsToTry = [product.apiPrimary, ...product.apiContingencies];
+      let lastError: any = null;
+      let rawData: any = null;
+      let successfulEndpoint = '';
+
+      for (let i = 0; i < endpointsToTry.length; i++) {
+        const endpoint = endpointsToTry[i];
+        const isContingency = i > 0;
+        logger.info(`[FETCHBRASIL] ${isContingency ? 'CONTINGÊNCIA' : 'PRIMÁRIO'}: Tentando endpoint '${endpoint}' para produto ${product.code}...`);
+
+        try {
+          const response = await this.client.get('/', {
+            params: {
+              token: this.token,
+              api: endpoint,
+              query: cleanQuery
+            }
+          });
+
+          // Verificar se resposta é válida (não é erro de negócio)
+          const data = response.data;
+          if (data && !data.erro) {
+            rawData = data;
+            successfulEndpoint = endpoint;
+            logger.info(`[FETCHBRASIL] Sucesso no endpoint '${endpoint}' para ${product.code} em ${Date.now() - startTime}ms`);
+            break;
+          } else {
+            logger.warn(`[FETCHBRASIL] Endpoint '${endpoint}' retornou aviso/erro: ${data?.mensagem || data?.erro || 'Sem dados'}`);
+          }
+        } catch (err: any) {
+          lastError = err;
+          const status = err.response?.status;
+          const msg = err.response?.data?.mensagem || err.message;
+          logger.warn(`[FETCHBRASIL] Falha no endpoint '${endpoint}' (${status || 'timeout'}): ${msg}`);
+
+          // Se for erro de cliente (400, 401, 403), não adianta tentar contingências
+          if (status && [400, 401, 403].includes(status)) {
+            break;
+          }
+        }
+      }
+
+      if (!rawData && lastError) {
+        throw new Error(`Falha em todas as fontes oficiais consultadas para o produto ${product.code}: ${lastError.response?.data?.mensagem || lastError.message}`);
+      }
+
+      // Normalização pericial e higienização de dados
+      const normalized = normalizeProductResult(product.code, rawData || {});
+      const processingTimeMs = Date.now() - startTime;
+
+      // Gravar no cache de curto prazo
+      this.genericCache.set(cacheKey, {
+        data: normalized,
+        timestamp: Date.now(),
+        providerUsed: successfulEndpoint || product.apiPrimary
+      });
+      this.cleanExpiredCache();
+
+      return {
+        normalized,
+        raw: rawData,
+        providerUsed: successfulEndpoint || product.apiPrimary,
+        processingTimeMs
+      };
+    })();
+
+    this.genericInFlight.set(cacheKey, fetchPromise);
+    try {
+      const res = await fetchPromise;
+      return {
+        product,
+        ...res
+      };
+    } finally {
+      this.genericInFlight.delete(cacheKey);
+    }
+  }
 }
 
 export const fetchbrasilService = new FetchBrasilService();
+
