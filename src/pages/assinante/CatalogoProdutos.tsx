@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { PRODUCTS_CATALOG, CATEGORIES_CONFIG, ProductCategory } from '../../config/productsCatalog';
 
@@ -98,10 +99,23 @@ export default function CatalogoProdutos() {
       {/* Grid de Cards dos Produtos (Padrão Impeccable) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredProducts.map((p) => {
+          const allowedProducts: string[] = user?.company?.allowedProducts || ['ALL'];
+          const isContracted = !!user?.isSuperAdmin || allowedProducts.includes('ALL') || allowedProducts.includes(p.code);
+          const customPrices = (user?.company?.customPrices as Record<string, number>) || {};
+          const effectivePrice = user?.isSuperAdmin
+            ? 0
+            : (typeof customPrices[p.code] === 'number'
+                ? customPrices[p.code]
+                : (user?.company?.customQueryPrice ? Number(user.company.customQueryPrice) : p.defaultPrice));
+
           return (
             <div
               key={p.code}
-              className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between hover:border-slate-300 hover:shadow-xs transition"
+              className={`bg-white border rounded-xl p-5 flex flex-col justify-between transition ${
+                isContracted
+                  ? 'border-slate-200 hover:border-slate-300 hover:shadow-xs'
+                  : 'border-slate-200/80 bg-slate-50/50 opacity-80'
+              }`}
             >
               <div>
                 {/* Cabeçalho do Card */}
@@ -114,11 +128,17 @@ export default function CatalogoProdutos() {
                       {p.categoryLabel}
                     </span>
                   </div>
-                  {p.hasContingency && (
-                    <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200" title="Possui rota secundária de contingência com chaveamento automático">
-                      Contingência Ativa
-                    </span>
-                  )}
+                  <div className="flex items-center space-x-1.5">
+                    {isContracted ? (
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        Liberado
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                        Não Contratado
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Título & Descrição */}
@@ -150,17 +170,28 @@ export default function CatalogoProdutos() {
                 <div>
                   <div className="text-[10px] text-slate-400 font-medium">Entrada: {p.inputLabel}</div>
                   <div className="text-sm font-bold font-mono text-slate-900 mt-0.5">
-                    R$ {p.defaultPrice.toFixed(2).replace('.', ',')}
+                    R$ {effectivePrice.toFixed(2).replace('.', ',')}
                     <span className="text-[10px] font-normal text-slate-500 ml-1">/ consulta</span>
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleConsultar(p.code)}
-                  className="px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition shadow-2xs"
-                >
-                  Consultar →
-                </button>
+                {isContracted ? (
+                  <button
+                    onClick={() => handleConsultar(p.code)}
+                    className="px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition shadow-2xs cursor-pointer"
+                  >
+                    Consultar →
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      toast.info(`O produto ${p.code} (${p.name}) não está ativo no seu plano. Entre em contato com seu gestor comercial.`);
+                    }}
+                    className="px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition cursor-pointer"
+                  >
+                    Solicitar Liberação
+                  </button>
+                )}
               </div>
             </div>
           );

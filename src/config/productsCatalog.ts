@@ -1,5 +1,5 @@
 export type ProductCategory = 'imobiliario' | 'veicular' | 'cadastral' | 'juridico';
-export type ProductInputType = 'cpf_cnpj' | 'cpf' | 'placa' | 'rg';
+export type ProductInputType = 'cpf_cnpj' | 'cpf' | 'placa' | 'rg' | 'chassi' | 'renavam';
 
 export interface ProductDefinition {
   code: string;

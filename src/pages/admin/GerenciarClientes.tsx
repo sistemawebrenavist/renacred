@@ -10,11 +10,13 @@ import {
   Trash2,
   SlidersHorizontal,
   KeyRound,
-  Copy
+  Copy,
+  Layers
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import { PRODUCTS_CATALOG } from '../../config/productsCatalog';
 
 export default function GerenciarClientes() {
   const [companies, setCompanies] = useState<any[]>([]);
@@ -58,6 +60,12 @@ export default function GerenciarClientes() {
   const [creditLimit, setCreditLimit] = useState<string>('');
   const [isActive, setIsActive] = useState<boolean>(true);
   const [saving, setSaving] = useState(false);
+
+  // Gestão Comercial de Produtos & Preços Unitários por Assinante (16 Produtos)
+  const [modalTab, setModalTab] = useState<'products' | 'billing'>('products');
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [productPrices, setProductPrices] = useState<Record<string, string>>({});
+  const [productSearch, setProductSearch] = useState('');
 
   // Modal de Ajuste de Saldo Manual
   const [creditModalCompany, setCreditModalCompany] = useState<any | null>(null);
@@ -157,6 +165,41 @@ export default function GerenciarClientes() {
     setCustomQueryPrice(c.customQueryPrice !== null ? String(c.customQueryPrice) : '');
     setCreditLimit(c.creditLimit !== null ? String(c.creditLimit) : '');
     setIsActive(c.isActive);
+    setModalTab('products');
+    setProductSearch('');
+
+    // Resolver produtos autorizados
+    const allowed = Array.isArray(c.allowedProducts) && c.allowedProducts.length > 0
+      ? (c.allowedProducts.includes('ALL') ? PRODUCTS_CATALOG.map((p) => p.code) : c.allowedProducts)
+      : PRODUCTS_CATALOG.map((p) => p.code);
+    setSelectedProducts(allowed);
+
+    // Resolver preços customizados por produto
+    const initialPrices: Record<string, string> = {};
+    if (c.customPrices && typeof c.customPrices === 'object') {
+      for (const [k, v] of Object.entries(c.customPrices)) {
+        initialPrices[k] = String(v);
+      }
+    }
+    setProductPrices(initialPrices);
+  };
+
+  const handleToggleProduct = (code: string) => {
+    setSelectedProducts((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
+
+  const handleSelectAllProducts = () => {
+    setSelectedProducts(PRODUCTS_CATALOG.map((p) => p.code));
+  };
+
+  const handleDeselectAllProducts = () => {
+    setSelectedProducts([]);
+  };
+
+  const handleProductPriceChange = (code: string, value: string) => {
+    setProductPrices((prev) => ({ ...prev, [code]: value }));
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -165,16 +208,27 @@ export default function GerenciarClientes() {
 
     setSaving(true);
     try {
+      const customPricesObj: Record<string, number> = {};
+      for (const [k, v] of Object.entries(productPrices)) {
+        if (v !== '' && !isNaN(Number(v))) {
+          customPricesObj[k] = Number(v);
+        }
+      }
+
+      const isAllSelected = selectedProducts.length === PRODUCTS_CATALOG.length;
+
       const res = await api.put(`/api/admin/companies/${editingCompany.id}`, {
         accountType,
         billingDueDate,
         customQueryPrice: customQueryPrice ? parseFloat(customQueryPrice) : null,
         creditLimit: creditLimit ? parseFloat(creditLimit) : 0,
         isActive,
+        allowedProducts: isAllSelected ? ['ALL'] : selectedProducts,
+        customPrices: Object.keys(customPricesObj).length > 0 ? customPricesObj : null
       });
 
       if (res.data?.success) {
-        toast.success('Parâmetros comerciais atualizados com sucesso!');
+        toast.success('Parâmetros comerciais e produtos atualizados com sucesso!');
         setEditingCompany(null);
         fetchCompanies();
       }
@@ -307,7 +361,7 @@ export default function GerenciarClientes() {
                   <th className="py-3 px-4">Empresa / Documento</th>
                   <th className="py-3 px-4">Plano</th>
                   <th className="py-3 px-4">Vencimento</th>
-                  <th className="py-3 px-4">Valor por Consulta</th>
+                  <th className="py-3 px-4">Produtos & Tarifas</th>
                   <th className="py-3 px-4">Saldo ou Limite</th>
                   <th className="py-3 px-4 min-w-[280px]">Acesso API</th>
                   <th className="py-3 px-4">Status</th>
@@ -337,8 +391,25 @@ export default function GerenciarClientes() {
                     <td className="py-3 px-4 font-bold text-slate-800">
                       Dia {c.billingDueDate || 10}
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-emerald-700">
-                      {c.customQueryPrice ? `R$ ${Number(c.customQueryPrice).toFixed(2)}` : 'Padrão (R$ 5,00)'}
+                    <td className="py-3 px-4">
+                      {c.allowedProducts && !c.allowedProducts.includes('ALL') ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                          {c.allowedProducts.length} de {PRODUCTS_CATALOG.length} produtos
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Todos (16 produtos)
+                        </span>
+                      )}
+                      {c.customPrices && Object.keys(c.customPrices).length > 0 ? (
+                        <span className="block text-[10px] text-slate-500 mt-0.5 font-sans">
+                          {Object.keys(c.customPrices).length} tarifas customizadas
+                        </span>
+                      ) : c.customQueryPrice ? (
+                        <span className="block text-[10px] text-slate-500 mt-0.5 font-mono">
+                          Tarifa global: R$ {Number(c.customQueryPrice).toFixed(2)}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="py-3 px-4 font-mono">
                       {c.accountType === 'PRE_PAID' ? (
@@ -787,115 +858,299 @@ export default function GerenciarClientes() {
         </div>
       )}
 
-      {/* Modal de Configuração do Plano (Update) */}
+      {/* Modal de Configuração Comercial e Produtos (Update) */}
       {editingCompany && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-lg w-full shadow-xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 max-w-3xl w-full shadow-2xl space-y-5 max-h-[92vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4 shrink-0">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Configuração do Plano</h3>
-                <p className="text-xs text-slate-500">{editingCompany.razaoSocial}</p>
+                <div className="flex items-center space-x-2">
+                  <span className="p-1.5 bg-blue-50 text-blue-700 rounded-lg">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Configuração Comercial & Produtos
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  {editingCompany.razaoSocial} • <span className="font-mono">{editingCompany.cnpjCpf}</span>
+                </p>
               </div>
-              <button onClick={() => setEditingCompany(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+              <button
+                type="button"
+                onClick={() => setEditingCompany(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={handleSaveSettings} className="space-y-4 text-xs">
-              {/* Modalidade */}
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1.5">Plano de Pagamento</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setAccountType('PRE_PAID')}
-                    className={`py-2.5 rounded-xl border font-bold transition ${
-                      accountType === 'PRE_PAID'
-                        ? 'bg-emerald-50 border-emerald-600 text-emerald-700 shadow-xs'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    Pré-pago (Recarga)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAccountType('POST_PAID')}
-                    className={`py-2.5 rounded-xl border font-bold transition ${
-                      accountType === 'POST_PAID'
-                        ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-xs'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    Pós-pago (Fatura Mensal)
-                  </button>
-                </div>
-              </div>
+            {/* Abas de Navegação */}
+            <div className="flex items-center space-x-2 border-b border-slate-100 pb-2 shrink-0 text-xs">
+              <button
+                type="button"
+                onClick={() => setModalTab('products')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${
+                  modalTab === 'products'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Produtos & Preços ({selectedProducts.length}/16)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalTab('billing')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${
+                  modalTab === 'billing'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+                }`}
+              >
+                <Wallet className="w-3.5 h-3.5" />
+                <span>Faturamento & Limites</span>
+              </button>
+            </div>
 
-              {/* Dia de Vencimento */}
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Dia de Vencimento da Fatura (1 a 31)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={billingDueDate}
-                  onChange={(e) => setBillingDueDate(parseInt(e.target.value, 10))}
-                  required
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
-                />
-              </div>
+            <form onSubmit={handleSaveSettings} className="flex-1 overflow-hidden flex flex-col space-y-4 text-xs">
+              {/* ABA 1: Matriz dos 16 Produtos & Preços Customizados */}
+              {modalTab === 'products' && (
+                <div className="flex-1 overflow-hidden flex flex-col space-y-3">
+                  {/* Barra de Ações Rápidas */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 shrink-0">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar produto pelo código ou nome..."
+                        value={productSearch}
+                        onChange={(e) => setProductSearch(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-600"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllProducts}
+                        className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg font-semibold text-[11px] transition cursor-pointer"
+                      >
+                        Liberar Todos (16)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeselectAllProducts}
+                        className="px-2.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 rounded-lg font-semibold text-[11px] transition cursor-pointer"
+                      >
+                        Bloquear Todos
+                      </button>
+                    </div>
+                  </div>
 
-              {/* Preço Customizado da Consulta */}
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">
-                  Valor Customizado por Consulta (R$) - Opcional
-                </label>
-                <input
-                  type="number"
-                  step="0.10"
-                  min="0"
-                  value={customQueryPrice}
-                  onChange={(e) => setCustomQueryPrice(e.target.value)}
-                  placeholder="Ex: 4.50"
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
-                />
-              </div>
+                  {/* Lista com Rolagem dos 16 Produtos */}
+                  <div className="flex-1 overflow-y-auto pr-1 space-y-2">
+                    {PRODUCTS_CATALOG.filter((p) => {
+                      const term = productSearch.trim().toLowerCase();
+                      if (!term) return true;
+                      return (
+                        p.code.toLowerCase().includes(term) ||
+                        p.name.toLowerCase().includes(term) ||
+                        p.categoryLabel.toLowerCase().includes(term)
+                      );
+                    }).map((p) => {
+                      const isEnabled = selectedProducts.includes(p.code);
+                      const customPriceVal = productPrices[p.code] || '';
 
-              {/* Limite de Crédito (para Pós-pago) */}
-              {accountType === 'POST_PAID' && (
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Limite Máximo de Consumo Pós-pago (R$)</label>
-                  <input
-                    type="number"
-                    step="50"
-                    min="0"
-                    value={creditLimit}
-                    onChange={(e) => setCreditLimit(e.target.value)}
-                    placeholder="Ex: 2000.00"
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
-                  />
+                      return (
+                        <div
+                          key={p.code}
+                          className={`p-3 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            isEnabled
+                              ? 'bg-blue-50/30 border-blue-200 shadow-2xs'
+                              : 'bg-slate-50/70 border-slate-200 opacity-60'
+                          }`}
+                        >
+                          {/* Identificação e Toggle */}
+                          <div className="flex items-start space-x-3 flex-1 min-w-0">
+                            <input
+                              type="checkbox"
+                              id={`prod-${p.code}`}
+                              checked={isEnabled}
+                              onChange={() => handleToggleProduct(p.code)}
+                              className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center space-x-2">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono border ${p.badgeColor.bg} ${p.badgeColor.text} ${p.badgeColor.border}`}
+                                >
+                                  {p.code}
+                                </span>
+                                <label
+                                  htmlFor={`prod-${p.code}`}
+                                  className="text-xs font-bold text-slate-900 truncate cursor-pointer hover:text-blue-700"
+                                >
+                                  {p.name}
+                                </label>
+                                <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded font-sans">
+                                  {p.categoryLabel}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                {p.description}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Ajuste de Preço Customizado */}
+                          <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+                            <div className="text-right">
+                              <span className="text-[10px] text-slate-400 font-medium block">
+                                Padrão: R$ {p.defaultPrice.toFixed(2).replace('.', ',')}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <span className="text-slate-400 font-mono text-[11px]">R$</span>
+                              <input
+                                type="number"
+                                step="0.05"
+                                min="0"
+                                disabled={!isEnabled}
+                                placeholder={p.defaultPrice.toFixed(2)}
+                                value={customPriceVal}
+                                onChange={(e) => handleProductPriceChange(p.code, e.target.value)}
+                                className="w-20 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono text-right disabled:bg-slate-100 disabled:text-slate-400"
+                                title="Preço unitário personalizado para este produto"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
-              {/* Ativo / Bloqueado */}
-              <div className="flex items-center space-x-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="isActive" className="text-slate-700 font-semibold cursor-pointer">
-                  Empresa Ativa e Liberada para Consultas
-                </label>
-              </div>
+              {/* ABA 2: Faturamento & Limites Comerciais */}
+              {modalTab === 'billing' && (
+                <div className="space-y-4 flex-1 overflow-y-auto pr-1">
+                  {/* Modalidade */}
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1.5">Plano de Pagamento</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setAccountType('PRE_PAID')}
+                        className={`py-2.5 rounded-xl border font-bold transition cursor-pointer ${
+                          accountType === 'PRE_PAID'
+                            ? 'bg-emerald-50 border-emerald-600 text-emerald-700 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        Pré-pago (Recarga)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAccountType('POST_PAID')}
+                        className={`py-2.5 rounded-xl border font-bold transition cursor-pointer ${
+                          accountType === 'POST_PAID'
+                            ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        Pós-pago (Fatura Mensal)
+                      </button>
+                    </div>
+                  </div>
 
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 rounded-xl text-xs transition shadow-xs disabled:opacity-50"
-              >
-                {saving ? 'Salvando...' : 'Salvar Alterações'}
-              </button>
+                  {/* Dia de Vencimento */}
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1">Dia de Vencimento da Fatura (1 a 31)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={billingDueDate}
+                      onChange={(e) => setBillingDueDate(parseInt(e.target.value, 10))}
+                      required
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                    />
+                  </div>
+
+                  {/* Tarifa Global Fallback */}
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1">
+                      Tarifa Padrão Global da Empresa (R$) — Fallback Opcional
+                    </label>
+                    <input
+                      type="number"
+                      step="0.10"
+                      min="0"
+                      value={customQueryPrice}
+                      onChange={(e) => setCustomQueryPrice(e.target.value)}
+                      placeholder="Deixe vazio para usar os preços individuais dos produtos"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Se preenchido, substitui o preço padrão dos produtos que não possuírem preço customizado na aba anterior.
+                    </p>
+                  </div>
+
+                  {/* Limite de Crédito (para Pós-pago) */}
+                  {accountType === 'POST_PAID' && (
+                    <div>
+                      <label className="block text-slate-700 font-semibold mb-1">Limite Máximo de Consumo Pós-pago (R$)</label>
+                      <input
+                        type="number"
+                        step="50"
+                        min="0"
+                        value={creditLimit}
+                        onChange={(e) => setCreditLimit(e.target.value)}
+                        placeholder="Ex: 2000.00"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                      />
+                    </div>
+                  )}
+
+                  {/* Ativo / Bloqueado */}
+                  <div className="flex items-center space-x-2 pt-2">
+                    <input
+                      type="checkbox"
+                      id="isActive"
+                      checked={isActive}
+                      onChange={(e) => setIsActive(e.target.checked)}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <label htmlFor="isActive" className="text-slate-700 font-semibold cursor-pointer">
+                      Empresa Ativa e Liberada para Consultas
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Botões do Rodapé */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between shrink-0">
+                <span className="text-[11px] text-slate-400">
+                  {selectedProducts.length} de {PRODUCTS_CATALOG.length} produtos habilitados
+                </span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCompany(null)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold transition cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-5 py-2.5 rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
+                  >
+                    {saving ? 'Salvando...' : 'Salvar Alterações'}
+                  </button>
+                </div>
+              </div>
             </form>
           </div>
         </div>

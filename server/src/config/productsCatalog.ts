@@ -3,7 +3,7 @@ export interface ServerProductConfig {
   slug: string;
   name: string;
   category: 'imobiliario' | 'veicular' | 'cadastral' | 'juridico';
-  inputType: 'cpf_cnpj' | 'cpf' | 'placa' | 'rg';
+  inputType: 'cpf_cnpj' | 'cpf' | 'placa' | 'rg' | 'chassi' | 'renavam';
   apiPrimary: string;
   apiContingencies: string[];
   defaultCost: number;

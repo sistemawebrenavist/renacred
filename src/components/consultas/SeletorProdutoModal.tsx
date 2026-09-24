@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { PRODUCTS_CATALOG, ProductDefinition } from '../../config/productsCatalog';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SeletorProdutoModalProps {
   isOpen: boolean;
@@ -14,8 +15,12 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
   onSelect,
   currentCode
 }) => {
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const allowedProducts: string[] = user?.company?.allowedProducts || ['ALL'];
+  const customPrices = (user?.company?.customPrices as Record<string, number>) || {};
 
   useEffect(() => {
     if (isOpen) {
@@ -72,6 +77,13 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
         <div className="overflow-y-auto p-3 space-y-1.5 flex-1 divide-y divide-slate-100">
           {filtered.map((p) => {
             const isSelected = p.code.toUpperCase() === currentCode.toUpperCase();
+            const isContracted = !!user?.isSuperAdmin || allowedProducts.includes('ALL') || allowedProducts.includes(p.code);
+            const effectivePrice = user?.isSuperAdmin
+              ? 0
+              : (typeof customPrices[p.code] === 'number'
+                  ? customPrices[p.code]
+                  : (user?.company?.customQueryPrice ? Number(user.company.customQueryPrice) : p.defaultPrice));
+
             return (
               <button
                 key={p.code}
@@ -79,7 +91,7 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
                   onSelect(p);
                   onClose();
                 }}
-                className={`w-full text-left p-3 rounded-lg flex items-center justify-between transition ${
+                className={`w-full text-left p-3 rounded-lg flex items-center justify-between transition cursor-pointer ${
                   isSelected
                     ? 'bg-blue-50/80 border border-blue-200/80 text-blue-950'
                     : 'hover:bg-slate-50 text-slate-800'
@@ -90,7 +102,14 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
                     {p.code}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold truncate text-slate-900">{p.name}</p>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-xs font-bold truncate text-slate-900">{p.name}</p>
+                      {!isContracted && (
+                        <span className="text-[9.5px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 shrink-0">
+                          Não Contratado
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-slate-500 truncate mt-0.5">{p.description}</p>
                   </div>
                 </div>
@@ -99,7 +118,7 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
                     {p.inputLabel}
                   </span>
                   <span className="text-xs font-bold font-mono text-slate-900">
-                    R$ {p.defaultPrice.toFixed(2).replace('.', ',')}
+                    R$ {effectivePrice.toFixed(2).replace('.', ',')}
                   </span>
                 </div>
               </button>

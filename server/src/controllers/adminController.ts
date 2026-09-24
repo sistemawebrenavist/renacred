@@ -30,6 +30,8 @@ export const createCompany = async (req: Request, res: Response) => {
       adminName,
       adminEmail,
       adminPassword,
+      allowedProducts,
+      customPrices
     } = req.body;
 
     if (!cnpjCpf || !razaoSocial || !email) {
@@ -85,6 +87,8 @@ export const createCompany = async (req: Request, res: Response) => {
           creditLimit: limitNum,
           billingDueDate: dueDateNum,
           customQueryPrice: customPriceNum,
+          allowedProducts: Array.isArray(allowedProducts) && allowedProducts.length > 0 ? allowedProducts : ['ALL'],
+          customPrices: typeof customPrices === 'object' && customPrices !== null ? customPrices : null,
         }
       });
 
@@ -339,7 +343,9 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
       customQueryPrice,
       creditLimit,
       isActive,
-      rateLimitPerMinute
+      rateLimitPerMinute,
+      allowedProducts,
+      customPrices
     } = req.body;
 
     const company = await prisma.company.findUnique({ where: { id } });
@@ -387,6 +393,18 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
       if (!isNaN(rate) && rate > 0) {
         dataToUpdate.rateLimitPerMinute = rate;
       }
+    }
+
+    if (allowedProducts !== undefined) {
+      dataToUpdate.allowedProducts = Array.isArray(allowedProducts) && allowedProducts.length > 0
+        ? allowedProducts
+        : ['ALL'];
+    }
+
+    if (customPrices !== undefined) {
+      dataToUpdate.customPrices = typeof customPrices === 'object' && customPrices !== null
+        ? customPrices
+        : null;
     }
 
     const updated = await prisma.company.update({

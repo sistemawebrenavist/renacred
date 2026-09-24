@@ -98,7 +98,12 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
             </span>
           </div>
           <span className="text-[11px] text-slate-500 mt-0.5 block font-mono">
-            Tarifa: R$ {custoDebitado.toFixed(2).replace('.', ',')}
+            Tarifa: R$ {(custoDebitado > 0 ? custoDebitado : (produto.defaultPrice || 0)).toFixed(2).replace('.', ',')}
+            {custoDebitado === 0 && (
+              <span className="ml-1.5 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-sans font-semibold">
+                Isento Administrador
+              </span>
+            )}
           </span>
         </div>
 
@@ -197,28 +202,39 @@ function renderConteudoProduto(code: string, dados: any) {
     // E4: Endereço do Proprietário
     case 'E4': {
       const prop = dados.proprietario || {};
+      const end = dados.endereco || prop.endereco || prop;
       const veic = dados.veiculo || {};
+      const logradouroCompleto = [
+        end.logradouro,
+        end.numero ? `Nº ${end.numero}` : null,
+        end.complemento
+      ].filter(Boolean).join(', ');
+
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 space-y-2">
             <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Dados do Proprietário</h4>
-            <div className="text-xs space-y-1">
+            <div className="text-xs space-y-1.5">
               <p><span className="text-slate-400 font-medium">Nome:</span> <span className="font-semibold text-slate-900">{prop.nome || '-'}</span></p>
               <p><span className="text-slate-400 font-medium">Documento:</span> <span className="font-mono text-slate-800">{prop.documento || '-'}</span></p>
-              <p><span className="text-slate-400 font-medium">Logradouro:</span> <span className="text-slate-800">{prop.logradouro || '-'}, {prop.numero || 'S/N'}</span></p>
-              <p><span className="text-slate-400 font-medium">Bairro:</span> <span className="text-slate-800">{prop.bairro || '-'}</span></p>
-              <p><span className="text-slate-400 font-medium">Município / UF:</span> <span className="font-semibold text-slate-900">{prop.municipio || '-'}{prop.uf ? ` - ${prop.uf}` : ''}</span></p>
-              <p><span className="text-slate-400 font-medium">CEP:</span> <span className="font-mono text-slate-800">{prop.cep || '-'}</span></p>
+              {prop.tipo_documento && <p><span className="text-slate-400 font-medium">Tipo Doc:</span> <span className="text-slate-700">{prop.tipo_documento}</span></p>}
+              <p><span className="text-slate-400 font-medium">Logradouro:</span> <span className="text-slate-800 font-medium">{logradouroCompleto || '-'}</span></p>
+              <p><span className="text-slate-400 font-medium">Bairro:</span> <span className="text-slate-800">{end.bairro || '-'}</span></p>
+              <p><span className="text-slate-400 font-medium">Município / UF:</span> <span className="font-semibold text-slate-900">{end.municipio || '-'}{end.uf && !end.municipio?.includes(end.uf) ? ` / ${end.uf}` : ''}</span></p>
+              <p><span className="text-slate-400 font-medium">CEP:</span> <span className="font-mono text-slate-800">{end.cep || '-'}</span></p>
+              {prop.origem_endereco && <p><span className="text-slate-400 font-medium">Origem do Endereço:</span> <span className="text-slate-600">{prop.origem_endereco}</span></p>}
+              {prop.data_atualizacao_endereco && <p><span className="text-slate-400 font-medium">Atualização:</span> <span className="text-slate-600">{prop.data_atualizacao_endereco}</span></p>}
             </div>
           </div>
           <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 space-y-2">
             <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Dados do Veículo</h4>
-            <div className="text-xs space-y-1">
+            <div className="text-xs space-y-1.5">
               <p><span className="text-slate-400 font-medium">Placa:</span> <span className="font-mono font-bold text-slate-900">{dados.placa}</span></p>
               <p><span className="text-slate-400 font-medium">Renavam:</span> <span className="font-mono text-slate-800">{dados.renavam || '-'}</span></p>
               <p><span className="text-slate-400 font-medium">Chassi:</span> <span className="font-mono text-slate-800">{veic.chassi || '-'}</span></p>
               <p><span className="text-slate-400 font-medium">Marca / Modelo:</span> <span className="text-slate-800">{veic.marca_modelo || '-'}</span></p>
               <p><span className="text-slate-400 font-medium">Ano Fabricação:</span> <span className="font-mono text-slate-800">{veic.ano_fabricacao || '-'}</span></p>
+              {veic.uf_jurisdicao && <p><span className="text-slate-400 font-medium">Jurisdição:</span> <span className="text-slate-800">{veic.uf_jurisdicao}</span></p>}
             </div>
           </div>
         </div>

@@ -128,7 +128,9 @@ export function normalizeE3(raw: any): NormalizedResult {
 export function normalizeE4(raw: any): NormalizedResult {
   const veic = raw?.veiculo || {};
   const prop = raw?.proprietario || {};
-  const hasData = !!(raw?.placa || prop.nome || veic.chassi);
+  const end = raw?.endereco || prop?.endereco || {};
+  const hasData = !!(raw?.placa || prop.nome || veic.chassi || end.logradouro);
+
   return {
     totalRegistros: hasData ? 1 : 0,
     dados: cleanObject({
@@ -143,13 +145,25 @@ export function normalizeE4(raw: any): NormalizedResult {
       proprietario: {
         nome: prop.nome,
         documento: prop.num_documento || prop.documento,
-        logradouro: prop.logradouro,
-        numero: prop.numero,
-        complemento: prop.complemento,
-        bairro: prop.bairro,
-        municipio: prop.municipio,
-        uf: prop.uf,
-        cep: prop.cep
+        tipo_documento: prop.tipo_documento_descricao || prop.tipo_documento,
+        origem_endereco: prop.origem_endereco_descricao || prop.origem_endereco,
+        data_atualizacao_endereco: prop.data_atualizacao_endereco_iso || prop.data_atualizacao_endereco,
+        logradouro: end.logradouro || prop.logradouro,
+        numero: end.numero || prop.numero,
+        complemento: end.complemento || prop.complemento,
+        bairro: end.bairro || prop.bairro,
+        municipio: end.cod_municipio_descricao || end.municipio || prop.municipio,
+        uf: end.uf || prop.uf,
+        cep: end.cep || prop.cep
+      },
+      endereco: {
+        logradouro: end.logradouro || prop.logradouro,
+        numero: end.numero || prop.numero,
+        complemento: end.complemento || prop.complemento,
+        bairro: end.bairro || prop.bairro,
+        municipio: end.cod_municipio_descricao || end.municipio || prop.municipio,
+        uf: end.uf || prop.uf,
+        cep: end.cep || prop.cep
       }
     }) || null
   };

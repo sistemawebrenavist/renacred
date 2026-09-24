@@ -12,8 +12,18 @@ router.get('/catalogo', async (req: any, res) => {
   const company = req.user?.company;
   const isSuperAdmin = !!req.user?.isSuperAdmin;
 
+  const allowedProducts: string[] = company?.allowedProducts || ['ALL'];
+  const customPrices = (company?.customPrices as Record<string, number>) || {};
+
   const catalogWithPrices = SERVER_PRODUCTS.map((p) => {
-    const customPrice = company?.customQueryPrice ? Number(company.customQueryPrice) : null;
+    const isContracted = isSuperAdmin || allowedProducts.includes('ALL') || allowedProducts.includes(p.code);
+    let resolvedPrice = p.defaultPrice;
+    if (typeof customPrices[p.code] === 'number') {
+      resolvedPrice = Number(customPrices[p.code]);
+    } else if (company?.customQueryPrice) {
+      resolvedPrice = Number(company.customQueryPrice);
+    }
+
     return {
       code: p.code,
       slug: p.slug,
@@ -21,7 +31,8 @@ router.get('/catalogo', async (req: any, res) => {
       category: p.category,
       inputType: p.inputType,
       defaultCost: p.defaultCost,
-      unitPrice: isSuperAdmin ? 0 : (customPrice || p.defaultPrice),
+      unitPrice: isSuperAdmin ? 0 : resolvedPrice,
+      isContracted,
       hasContingency: p.apiContingencies.length > 0
     };
   });
@@ -59,7 +70,7 @@ router.get('/historico', async (req: any, res) => {
       orderBy: { createdAt: 'desc' },
       take,
       select: {
-        id: primaryKeySelector(),
+        id: true,
         identifier: true,
         source: true,
         status: true,
@@ -86,10 +97,13 @@ router.get('/historico', async (req: any, res) => {
           status: q.status,
           cost: Number(q.cost),
           totalRegistros: q.totalDeclaracoes,
+          totalDeclaracoes: q.totalDeclaracoes,
           processingTimeMs: q.processingTimeMs,
-          hash: reqData.hash,
+          hash: reqData.hash || q.id,
           createdAt: q.createdAt,
-          hasData: q.totalDeclaracoes > 0
+          hasData: q.totalDeclaracoes > 0,
+          requestData: q.requestData,
+          resultData: q.resultData
         };
       })
     });
@@ -135,9 +149,5 @@ router.get('/detalhes/:id', async (req: any, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
-
-function primaryKeySelector() {
-  return true;
-}
 
 export default router;

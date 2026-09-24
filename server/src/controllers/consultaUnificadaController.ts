@@ -13,7 +13,7 @@ import { QuerySource, QueryStatus } from '../types/database';
  * Validador genérico por tipo de input configurado no produto
  */
 export function validateProductInput(
-  inputType: 'cpf_cnpj' | 'cpf' | 'placa' | 'rg',
+  inputType: 'cpf_cnpj' | 'cpf' | 'placa' | 'rg' | 'chassi' | 'renavam',
   inputValue: string
 ): { valid: boolean; cleaned: string; error?: string } {
   if (!inputValue || typeof inputValue !== 'string') {
@@ -51,6 +51,20 @@ export function validateProductInput(
         };
       }
       return { valid: true, cleaned: val.cleaned };
+    }
+    case 'chassi': {
+      const cleaned = raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      if (cleaned.length !== 17) {
+        return { valid: false, cleaned: '', error: 'Chassi deve conter exatamente 17 caracteres alfanuméricos.' };
+      }
+      return { valid: true, cleaned };
+    }
+    case 'renavam': {
+      const cleaned = raw.replace(/\D/g, '');
+      if (cleaned.length < 9 || cleaned.length > 11) {
+        return { valid: false, cleaned: '', error: 'Renavam deve conter entre 9 e 11 dígitos numéricos.' };
+      }
+      return { valid: true, cleaned };
     }
     case 'rg': {
       const cleaned = raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
@@ -111,9 +125,23 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
   const cleanQuery = validation.cleaned;
 
   // 3. Checagem de elegibilidade e faturamento
+  const company = req.user?.company;
   let eligibility: BillingCheckResult = { allowed: true, price: product.defaultPrice };
+
   if (!isSuperAdmin) {
-    const check = await billingService.checkEligibility(companyId, req.user?.company);
+    // 3.1 Governança B2B: Checar se o produto está contratado pela empresa
+    const allowedProducts: string[] = company?.allowedProducts || ['ALL'];
+    const isContracted = allowedProducts.includes('ALL') || allowedProducts.includes(product.code);
+
+    if (!isContracted) {
+      return res.status(403).json({
+        success: false,
+        code: 'PRODUCT_NOT_CONTRACTED',
+        message: `O produto ${product.code} (${product.name}) não está habilitado no plano contratado da sua organização. Entre em contato com seu gestor comercial para liberação imediata.`
+      });
+    }
+
+    const check = await billingService.checkEligibility(companyId, company);
     if (!check.allowed) {
       return res.status(402).json({
         success: false,
@@ -121,10 +149,16 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
         message: check.message
       });
     }
-    // Preço efetivo da consulta: usa o customQueryPrice da empresa ou o defaultPrice do produto
-    const effectivePrice = req.user?.company?.customQueryPrice
-      ? Number(req.user.company.customQueryPrice)
-      : product.defaultPrice;
+
+    // 3.2 Preço efetivo: customPrices[code] > customQueryPrice > defaultPrice
+    const customPrices = (company?.customPrices as Record<string, number>) || {};
+    let effectivePrice = product.defaultPrice;
+    if (typeof customPrices[product.code] === 'number') {
+      effectivePrice = Number(customPrices[product.code]);
+    } else if (company?.customQueryPrice) {
+      effectivePrice = Number(company.customQueryPrice);
+    }
+
     eligibility = { allowed: true, price: effectivePrice };
   }
 
@@ -251,9 +285,25 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
   const apiKey = req.apiKey;
   const isSuperAdmin = !!company?.isSuperAdmin;
 
-  // 1. Checar saldo / faturamento da empresa da chave
+  // 1. Checar se produto está contratado pela empresa ou autorizado na chave de API
   let eligibility: BillingCheckResult = { allowed: true, price: product.defaultPrice };
   if (!isSuperAdmin) {
+    const companyAllowed: string[] = company?.allowedProducts || ['ALL'];
+    const keyAllowed: string[] = apiKey?.allowedProducts || ['ALL'];
+
+    const allowedByCompany = companyAllowed.includes('ALL') || companyAllowed.includes(product.code);
+    const allowedByKey = keyAllowed.includes('ALL') || keyAllowed.includes(product.code);
+
+    if (!allowedByCompany || !allowedByKey) {
+      return res.status(403).json({
+        type: 'https://renacred.com.br/errors/product-not-allowed',
+        title: 'Produto Não Contratado',
+        status: 403,
+        detail: `A sua organização ou chave de API não possui permissão para consumir o produto ${product.code} (${product.name}). Entre em contato com seu gestor para liberação.`,
+        code: 'PRODUCT_NOT_ALLOWED'
+      });
+    }
+
     const check = await billingService.checkEligibility(company.id, company);
     if (!check.allowed) {
       return res.status(402).json({
@@ -262,9 +312,15 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
         message: check.message
       });
     }
-    const effectivePrice = company?.customQueryPrice
-      ? Number(company.customQueryPrice)
-      : product.defaultPrice;
+
+    const customPrices = (company?.customPrices as Record<string, number>) || {};
+    let effectivePrice = product.defaultPrice;
+    if (typeof customPrices[product.code] === 'number') {
+      effectivePrice = Number(customPrices[product.code]);
+    } else if (company?.customQueryPrice) {
+      effectivePrice = Number(company.customQueryPrice);
+    }
+
     eligibility = { allowed: true, price: effectivePrice };
   }
 

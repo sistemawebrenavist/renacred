@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { Eye } from 'lucide-react';
 import {
   PRODUCTS_CATALOG,
   ProductDefinition,
@@ -10,6 +11,14 @@ import {
 } from '../../config/productsCatalog';
 import { SeletorProdutoModal } from '../../components/consultas/SeletorProdutoModal';
 import { LaudoPericialUniversal } from '../../components/consultas/LaudoPericialUniversal';
+import {
+  maskPlaca,
+  isValidPlaca,
+  maskCPF,
+  maskDocument,
+  maskChassi,
+  maskRenavam
+} from '../../utils/masks';
 
 // Cache em memória de sessão por documento/placa para resposta imediata (0ms)
 const sessionHubCache = new Map<string, any>();
@@ -54,34 +63,27 @@ export default function HubConsulta() {
   const stepTimerRef = useRef<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Formatação de máscaras de entrada
+  // Formatação de máscaras de entrada (Padrão Oficial InfoSinistros)
   const formatInput = (val: string, type: ProductDefinition['inputType']): string => {
     if (type === 'placa') {
-      return val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+      return maskPlaca(val);
+    }
+    if (type === 'chassi') {
+      return maskChassi(val);
+    }
+    if (type === 'renavam') {
+      return maskRenavam(val);
+    }
+    if (type === 'cpf') {
+      return maskCPF(val);
+    }
+    if (type === 'cpf_cnpj') {
+      return maskDocument(val);
     }
     if (type === 'rg') {
       return val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
     }
-    if (type === 'cpf') {
-      const digits = val.replace(/\D/g, '').slice(0, 11);
-      return digits
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    }
-    // cpf_cnpj
-    const digits = val.replace(/\D/g, '').slice(0, 14);
-    if (digits.length <= 11) {
-      return digits
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    }
-    return digits
-      .replace(/(\d{2})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1/$2')
-      .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+    return val;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,6 +153,13 @@ export default function HubConsulta() {
     }
 
     const clean = target.replace(/[^a-zA-Z0-9]/g, '');
+
+    // Validação estrita de placa (Cinza e Mercosul)
+    if (currentProduct.inputType === 'placa' && !isValidPlaca(clean)) {
+      toast.error('Placa incompleta ou inválida. Digite no formato AAA-0000 ou AAA-0A00.');
+      return;
+    }
+
     const cacheKey = `${currentProduct.code}:${clean}`;
 
     // 1. Resposta instantânea se em cache de sessão
@@ -202,14 +211,35 @@ export default function HubConsulta() {
   };
 
   // Visualizar laudo a partir do histórico
-  const handleViewHistoricalLaudo = (item: any) => {
+  const handleViewHistoricalLaudo = async (item: any) => {
+    let resultData = item.resultData;
+    let requestData = item.requestData;
+
+    // Se resultData não veio na listagem compacta, busca os detalhes completos da consulta
+    if (!resultData) {
+      try {
+        const res = await api.get(`/api/consultas/detalhes/${item.id}`);
+        if (res.data?.success && res.data.query?.resultData) {
+          resultData = res.data.query.resultData;
+          requestData = res.data.query.requestData || requestData;
+        }
+      } catch (err) {
+        console.error('Erro ao buscar detalhes da consulta:', err);
+      }
+    }
+
+    if (!resultData) {
+      toast.error('Não foi possível carregar os dados deste laudo.');
+      return;
+    }
+
     setResult({
       queryId: item.id,
       identifier: item.identifier,
-      dados: item.resultData,
-      hash: item.requestData?.hash || item.id,
-      totalRegistros: item.totalDeclaracoes,
-      custoDebitado: Number(item.cost || 0),
+      dados: resultData,
+      hash: requestData?.hash || item.hash || item.id,
+      totalRegistros: item.totalRegistros ?? item.totalDeclaracoes ?? (resultData ? 1 : 0),
+      custoDebitado: Number(item.cost ?? item.custoDebitado ?? 0),
       consultadoEm: item.createdAt,
       tempoRespostaMs: item.processingTimeMs
     });
@@ -445,26 +475,31 @@ export default function HubConsulta() {
                     <td className="py-2.5 text-right font-sans">
                       <span
                         className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
-                          q.totalDeclaracoes > 0
+                          (q.totalRegistros ?? q.totalDeclaracoes ?? 0) > 0
                             ? 'bg-blue-50 text-blue-700'
                             : 'bg-slate-100 text-slate-500'
                         }`}
                       >
-                        {q.totalDeclaracoes}
+                        {q.totalRegistros ?? q.totalDeclaracoes ?? 0}
                       </span>
                     </td>
-                    <td className="py-2.5 text-right text-slate-700">
+                    <td className="py-2.5 text-right text-slate-700 font-mono">
                       R$ {Number(q.cost || 0).toFixed(2).replace('.', ',')}
+                      {Number(q.cost || 0) === 0 && (
+                        <span className="text-[10px] text-slate-400 block font-sans">Isento</span>
+                      )}
                     </td>
                     <td className="py-2.5 text-right text-slate-400 font-sans text-[11px]">
                       {q.processingTimeMs ? `${q.processingTimeMs}ms` : '-'}
                     </td>
-                    <td className="py-2.5 text-right font-sans space-x-1.5">
+                    <td className="py-2.5 text-right font-sans space-x-2">
                       <button
                         onClick={() => handleViewHistoricalLaudo(q)}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-800 transition"
+                        title="Visualizar laudo completo desta consulta"
                       >
-                        Ver Laudo
+                        <Eye className="w-3.5 h-3.5 mr-1" />
+                        Visualizar
                       </button>
                       <span className="text-slate-300">|</span>
                       <button
