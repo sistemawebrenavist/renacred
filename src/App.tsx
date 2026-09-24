@@ -7,6 +7,8 @@ import { AppLayout } from './components/layout/AppLayout';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import DashboardCliente from './pages/assinante/DashboardCliente';
+import HubConsulta from './pages/assinante/HubConsulta';
+import CatalogoProdutos from './pages/assinante/CatalogoProdutos';
 import ConsultarImobiliario from './pages/assinante/ConsultarImobiliario';
 import ConsultarProprietarios from './pages/assinante/ConsultarProprietarios';
 import MinhaAssinatura from './pages/assinante/MinhaAssinatura';
@@ -80,16 +82,18 @@ export default function App() {
           <Route path="/painel" element={<Navigate to="/dashboard" replace />} />
           <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
 
-          {/* Produto E1 - Busca de Imóvel por Documento */}
-          <Route path="/consultar" element={<ConsultarImobiliario />} />
-          <Route path="/produtos/e1" element={<ConsultarImobiliario />} />
-          <Route path="/produtos/e1-imovel" element={<ConsultarImobiliario />} />
-          <Route path="/admin/consulta" element={<Navigate to="/consultar" replace />} />
+          {/* Hub de Consulta Unificado (E1..E16) & Catálogo */}
+          <Route path="/consultar" element={<HubConsulta />} />
+          <Route path="/produtos" element={<CatalogoProdutos />} />
+          <Route path="/catalogo" element={<Navigate to="/produtos" replace />} />
 
-          {/* Produto E2 - Histórico de Proprietários Veiculares */}
-          <Route path="/produtos/e2" element={<ConsultarProprietarios />} />
-          <Route path="/veicular" element={<ConsultarProprietarios />} />
-          <Route path="/proprietarios" element={<ConsultarProprietarios />} />
+          {/* Redirecionamentos de Compatibilidade para Rotas Legadas */}
+          <Route path="/produtos/e1" element={<Navigate to="/consultar?produto=e1" replace />} />
+          <Route path="/produtos/e1-imovel" element={<Navigate to="/consultar?produto=e1" replace />} />
+          <Route path="/produtos/e2" element={<Navigate to="/consultar?produto=e2" replace />} />
+          <Route path="/veicular" element={<Navigate to="/consultar?produto=e2" replace />} />
+          <Route path="/proprietarios" element={<Navigate to="/consultar?produto=e2" replace />} />
+          <Route path="/admin/consulta" element={<Navigate to="/consultar" replace />} />
 
           {/* Módulos do Assinante */}
           <Route path="/minha-assinatura" element={<MinhaAssinatura />} />

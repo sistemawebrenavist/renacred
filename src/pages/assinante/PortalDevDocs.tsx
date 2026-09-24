@@ -1,99 +1,149 @@
-import React, { useState } from 'react';
-import { 
-  FileCode2, 
-  Terminal, 
-  Copy, 
-  Check, 
-  ShieldCheck, 
-  Play, 
-  Layers, 
-  AlertTriangle,
-  Code2,
-  Building2,
-  Car
-} from 'lucide-react';
+import React, { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import api from '../../services/api';
+import {
+  PRODUCTS_CATALOG,
+  ProductDefinition,
+  CATEGORIES_CONFIG,
+  getProductByCode
+} from '../../config/productsCatalog';
 
 export default function PortalDevDocs() {
-  const [activeProduct, setActiveProduct] = useState<'E1' | 'E2'>('E1');
+  const [selectedProductCode, setSelectedProductCode] = useState<string>('E1');
+  const [selectedCategory, setSelectedCategory] = useState<string>('todos');
   const [copiedLang, setCopiedLang] = useState<string | null>(null);
   const [activeLang, setActiveLang] = useState<'url_get' | 'curl' | 'node' | 'python' | 'php' | 'csharp'>('url_get');
 
-  // Playground E1
-  const [testDoc, setTestDoc] = useState('01036115925');
-  const [testResponseE1, setTestResponseE1] = useState<string | null>(null);
-  const [testingE1, setTestingE1] = useState(false);
+  // Playground Interativo
+  const [playgroundInput, setPlaygroundInput] = useState('01036115925');
+  const [playgroundLoading, setPlaygroundLoading] = useState(false);
+  const [playgroundResponse, setPlaygroundResponse] = useState<string | null>(null);
 
-  // Playground E2
-  const [testPlaca, setTestPlaca] = useState('ATT0849');
-  const [testResponseE2, setTestResponseE2] = useState<string | null>(null);
-  const [testingE2, setTestingE2] = useState(false);
+  const activeProduct: ProductDefinition = useMemo(() => {
+    return getProductByCode(selectedProductCode) || PRODUCTS_CATALOG[0];
+  }, [selectedProductCode]);
+
+  // Produtos filtrados por categoria para o seletor
+  const filteredProducts = useMemo(() => {
+    if (selectedCategory === 'todos') return PRODUCTS_CATALOG;
+    return PRODUCTS_CATALOG.filter((p) => p.category === selectedCategory);
+  }, [selectedCategory]);
+
+  // Altera o produto ativo e reseta o exemplo do playground
+  const handleSelectProduct = (product: ProductDefinition) => {
+    setSelectedProductCode(product.code);
+    setPlaygroundResponse(null);
+    if (product.inputType === 'placa') {
+      setPlaygroundInput('ATT0849');
+    } else if (product.inputType === 'rg') {
+      setPlaygroundInput('123456789');
+    } else {
+      setPlaygroundInput('01036115925');
+    }
+  };
 
   const copyCode = (code: string, lang: string) => {
     navigator.clipboard.writeText(code);
     setCopiedLang(lang);
-    toast.success('Código copiado para a área de transferência!');
+    toast.success('Código copiado para a área de transferência.');
     setTimeout(() => setCopiedLang(null), 2000);
   };
 
-  const e1CodeSnippets = {
-    url_get: `# 1. Chamada direta via GET (pode ser colada no navegador, webhook ou ERP):
-https://api.renacred.com.br/v1/imobiliario/historico?token=SUA_CHAVE_API&query=01036115925
+  // Gerador dinâmico de snippets de código para os 16 produtos
+  const codeSnippets = useMemo(() => {
+    const code = activeProduct.code.toLowerCase();
+    const slug = activeProduct.slug;
+    const sampleQuery =
+      activeProduct.inputType === 'placa'
+        ? 'ATT0849'
+        : activeProduct.inputType === 'rg'
+        ? '123456789'
+        : '01036115925';
 
-# 2. Chamada com parâmetro de serviço compatível:
-https://api.renacred.com.br/v1/imobiliario/historico?token=SUA_CHAVE_API&api=historico_imobiliario&query=01036115925`,
+    return {
+      url_get: `# 1. Requisição Direta via GET (Universal):
+https://api.renacred.com.br/v1/${code}?token=SUA_CHAVE_API&query=${sampleQuery}
 
-    curl: `curl -X GET "https://api.renacred.com.br/v1/imobiliario/historico?token=SUA_CHAVE_API&query=01036115925"`,
+# 2. Requisição por Slug Semântico:
+https://api.renacred.com.br/v1/${slug}?token=SUA_CHAVE_API&query=${sampleQuery}
 
-    node: `const axios = require('axios');
+# 3. Requisição via Query Parameter com Chave no Header:
+# GET /v1/${code}?query=${sampleQuery}
+# Header: x-api-key: SUA_CHAVE_API_AQUI`,
 
-async function consultarImobiliario() {
+      curl: `# Chamada GET com token via Query Param:
+curl -X GET "https://api.renacred.com.br/v1/${code}?token=SUA_CHAVE_API&query=${sampleQuery}"
+
+# Chamada POST com autenticação via Header (Padrão Corporativo):
+curl -X POST "https://api.renacred.com.br/v1/${code}" \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: SUA_CHAVE_API_AQUI" \\
+  -d '{"query": "${sampleQuery}"}'`,
+
+      node: `const axios = require('axios');
+
+async function consultarRenacred() {
   try {
     const response = await axios.post(
-      'https://api.renacred.com.br/v1/imobiliario/historico',
-      { query: '01036115925' },
-      { headers: { 'x-api-key': 'SUA_CHAVE_API_AQUI' } }
+      'https://api.renacred.com.br/v1/${code}',
+      { query: '${sampleQuery}' },
+      {
+        headers: {
+          'x-api-key': 'SUA_CHAVE_API_AQUI',
+          'Content-Type': 'application/json'
+        }
+      }
     );
-    console.log(response.data);
+
+    console.log('Status:', response.status);
+    console.log('Dados Oficiais:', response.data);
   } catch (error) {
     console.error('Erro na requisição:', error.response?.data || error.message);
   }
 }
 
-consultarImobiliario();`,
+consultarRenacred();`,
 
-    python: `import requests
+      python: `import requests
 
-url = "https://api.renacred.com.br/v1/imobiliario/historico"
+url = "https://api.renacred.com.br/v1/${code}"
 headers = {
     "x-api-key": "SUA_CHAVE_API_AQUI",
     "Content-Type": "application/json"
 }
 payload = {
-    "query": "01036115925"
+    "query": "${sampleQuery}"
 }
 
 response = requests.post(url, json=payload, headers=headers)
-print(response.json())`,
+print("Código HTTP:", response.status_code)
+print("Resposta Oficial:", response.json())`,
 
-    php: `<?php
-$ch = curl_init("https://api.renacred.com.br/v1/imobiliario/historico");
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    "x-api-key: SUA_CHAVE_API_AQUI",
-    "Content-Type: application/json"
+      php: `<?php
+$curl = curl_init();
+
+curl_setopt_array($curl, [
+  CURLOPT_URL => "https://api.renacred.com.br/v1/${code}",
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_CUSTOMREQUEST => "POST",
+  CURLOPT_POSTFIELDS => json_encode(["query" => "${sampleQuery}"]),
+  CURLOPT_HTTPHEADER => [
+    "Content-Type: application/json",
+    "x-api-key: SUA_CHAVE_API_AQUI"
+  ],
 ]);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-    "query" => "01036115925"
-]));
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-$response = curl_exec($ch);
-curl_close($ch);
+$response = curl_exec($curl);
+$err = curl_error($curl);
+curl_close($curl);
 
-echo $response;`,
+if ($err) {
+  echo "Erro cURL: " . $err;
+} else {
+  echo $response;
+}`,
 
-    csharp: `using System;
+      csharp: `using System;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -103,508 +153,407 @@ class Program {
         var client = new HttpClient();
         client.DefaultRequestHeaders.Add("x-api-key", "SUA_CHAVE_API_AQUI");
 
-        var json = "{\\"query\\":\\"01036115925\\"}";
+        var json = "{\\"query\\":\\"${sampleQuery}\\"}";
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await client.PostAsync("https://api.renacred.com.br/v1/imobiliario/historico", content);
+        var response = await client.PostAsync("https://api.renacred.com.br/v1/${code}", content);
         var result = await response.Content.ReadAsStringAsync();
+
+        Console.WriteLine($"Status: {response.StatusCode}");
         Console.WriteLine(result);
     }
 }`
-  };
+    };
+  }, [activeProduct]);
 
-  const e2CodeSnippets = {
-    url_get: `# 1. Chamada direta via GET (padrão oficial por placa):
-https://api.renacred.com.br/v1/veicular/proprietarios?token=SUA_CHAVE_API&query=ATT0849
-
-# 2. Chamada alternativa passando parâmetro placa:
-https://api.renacred.com.br/v1/veicular/proprietarios?token=SUA_CHAVE_API&placa=ATT0849`,
-
-    curl: `curl -X GET "https://api.renacred.com.br/v1/veicular/proprietarios?token=SUA_CHAVE_API&query=ATT0849"`,
-
-    node: `const axios = require('axios');
-
-async function consultarProprietarios() {
-  try {
-    const response = await axios.post(
-      'https://api.renacred.com.br/v1/veicular/proprietarios',
-      { placa: 'ATT0849' },
-      { headers: { 'x-api-key': 'SUA_CHAVE_API_AQUI' } }
-    );
-    console.log(response.data);
-  } catch (error) {
-    console.error('Erro na requisição:', error.response?.data || error.message);
-  }
-}
-
-consultarProprietarios();`,
-
-    python: `import requests
-
-url = "https://api.renacred.com.br/v1/veicular/proprietarios"
-headers = {
-    "x-api-key": "SUA_CHAVE_API_AQUI",
-    "Content-Type": "application/json"
-}
-payload = {
-    "placa": "ATT0849"
-}
-
-response = requests.post(url, json=payload, headers=headers)
-print(response.json())`,
-
-    php: `<?php
-$ch = curl_init("https://api.renacred.com.br/v1/veicular/proprietarios");
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    "x-api-key: SUA_CHAVE_API_AQUI",
-    "Content-Type: application/json"
-]);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-    "placa" => "ATT0849"
-]));
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-$response = curl_exec($ch);
-curl_close($ch);
-
-echo $response;`,
-
-    csharp: `using System;
-using System.Net.Http;
-using System.Text;
-using System.Threading.Tasks;
-
-class Program {
-    static async Task Main() {
-        var client = new HttpClient();
-        client.DefaultRequestHeaders.Add("x-api-key", "SUA_CHAVE_API_AQUI");
-
-        var json = "{\\"placa\\":\\"ATT0849\\"}";
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        var response = await client.PostAsync("https://api.renacred.com.br/v1/veicular/proprietarios", content);
-        var result = await response.Content.ReadAsStringAsync();
-        Console.WriteLine(result);
+  // Execução no Playground em Tempo Real
+  const handleRunPlayground = async () => {
+    if (!playgroundInput.trim()) {
+      toast.error('Informe um valor de teste para executar a requisição.');
+      return;
     }
-}`
-  };
 
-  const handleRunPlaygroundE1 = async () => {
-    if (!testDoc.trim()) return;
-    setTestingE1(true);
-    setTestResponseE1(null);
+    setPlaygroundLoading(true);
+    setPlaygroundResponse(null);
+
+    const clean = playgroundInput.replace(/[^a-zA-Z0-9]/g, '');
+
     try {
-      const res = await api.post('/api/imobiliario/consultar', { documento: testDoc });
-      setTestResponseE1(JSON.stringify(res.data, null, 2));
+      const res = await api.post(`/api/consultas/${activeProduct.code}`, {
+        query: clean
+      });
+      setPlaygroundResponse(JSON.stringify(res.data, null, 2));
+      toast.success('Resposta recebida com sucesso das bases oficiais.');
     } catch (err: any) {
-      setTestResponseE1(JSON.stringify(err.response?.data || { error: err.message }, null, 2));
+      const errData = err.response?.data || { error: err.message };
+      setPlaygroundResponse(JSON.stringify(errData, null, 2));
+      toast.error('A API retornou uma resposta com erro ou recusa.');
     } finally {
-      setTestingE1(false);
+      setPlaygroundLoading(false);
     }
   };
-
-  const handleRunPlaygroundE2 = async () => {
-    if (!testPlaca.trim()) return;
-    setTestingE2(true);
-    setTestResponseE2(null);
-    try {
-      const res = await api.post('/api/veicular/proprietarios', { placa: testPlaca });
-      setTestResponseE2(JSON.stringify(res.data, null, 2));
-    } catch (err: any) {
-      setTestResponseE2(JSON.stringify(err.response?.data || { error: err.message }, null, 2));
-    } finally {
-      setTestingE2(false);
-    }
-  };
-
-  const currentSnippets = activeProduct === 'E1' ? e1CodeSnippets : e2CodeSnippets;
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-16">
-      {/* Topo / Introdução */}
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs">
-        <div className="flex items-center space-x-2 text-blue-700 text-xs font-bold uppercase tracking-wider mb-2">
-          <ShieldCheck className="w-4 h-4 text-blue-600" />
-          <span>Catálogo de APIs & Produtos Oficiais</span>
+    <div className="space-y-8 max-w-7xl mx-auto pb-16">
+      {/* Cabeçalho Técnico */}
+      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center space-x-2 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                Portal do Desenvolvedor
+              </span>
+              <span className="text-xs text-slate-400 font-mono">v1.4.0</span>
+            </div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              Documentação da API REST Oficial
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 max-w-3xl">
+              Integração programática direta com os 16 produtos de inteligência patrimonial, cadastral e veicular da Renacred. Respostas em JSON de alta velocidade com garantia de custo zero para consultas sem registros.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 font-mono text-xs shrink-0">
+            <div className="bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-slate-700">
+              <span className="text-slate-400 font-sans block text-[10px]">Base URL</span>
+              <span className="text-blue-700 font-bold">https://api.renacred.com.br</span>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-slate-700">
+              <span className="text-slate-400 font-sans block text-[10px]">Autenticação</span>
+              <span className="text-slate-900 font-bold">x-api-key: rena_live_...</span>
+            </div>
+          </div>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Documentação Técnica da API
-        </h2>
-        <p className="text-slate-600 text-sm mt-2 leading-relaxed max-w-3xl">
-          Conecte os produtos e consultas automatizadas da Renacred diretamente ao seu ERP, CRM ou esteira de crédito via endpoints REST de alta performance.
+
+        {/* Diretrizes Rápidas de Faturamento */}
+        <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+            <span className="font-semibold text-slate-800 block">Regra de Custo Zero:</span>
+            <span className="text-slate-500 text-[11px]">
+              Se <code className="text-slate-700 font-mono">total_registros: 0</code>, nenhum centavo é debitado.
+            </span>
+          </div>
+          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+            <span className="font-semibold text-slate-800 block">Fallback & Contingência:</span>
+            <span className="text-slate-500 text-[11px]">
+              Produtos com contingência alternam automaticamente entre bases em caso de oscilação.
+            </span>
+          </div>
+          <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+            <span className="font-semibold text-slate-800 block">Autenticação Dupla:</span>
+            <span className="text-slate-500 text-[11px]">
+              Suporte a cabeçalho <code className="text-slate-700 font-mono">x-api-key</code> ou query param <code className="text-slate-700 font-mono">?token=</code>.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Navegador dos 16 Produtos Oficiais */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">
+              Selecione o Produto para Documentação e Teste
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Clique em um dos 16 produtos para carregar endpoints, snippets de código e playground
+            </p>
+          </div>
+
+          {/* Filtro de Categoria */}
+          <div className="flex flex-wrap items-center gap-1">
+            {CATEGORIES_CONFIG.map((cat) => {
+              const active = selectedCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition ${
+                    active
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Grade de Seleção de Produtos */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
+          {filteredProducts.map((p) => {
+            const isSelected = p.code === activeProduct.code;
+            return (
+              <button
+                key={p.code}
+                onClick={() => handleSelectProduct(p)}
+                className={`p-2.5 rounded-lg border text-left transition flex flex-col justify-between ${
+                  isSelected
+                    ? 'border-blue-600 bg-blue-50/70 shadow-xs'
+                    : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                      isSelected
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : `${p.badgeColor.bg} ${p.badgeColor.text} ${p.badgeColor.border}`
+                    }`}
+                  >
+                    {p.code}
+                  </span>
+                  {p.hasContingency && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Contingência ativa" />
+                  )}
+                </div>
+                <div className="mt-2">
+                  <p className="text-[11px] font-semibold text-slate-900 truncate">
+                    {p.shortName}
+                  </p>
+                  <p className="text-[9px] font-mono text-slate-400 mt-0.5 uppercase truncate">
+                    {p.inputType}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Detalhes Técnicos do Produto Selecionado */}
+      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center space-x-2">
+              <span
+                className={`px-2 py-0.5 rounded text-xs font-bold font-mono border ${activeProduct.badgeColor.bg} ${activeProduct.badgeColor.text} ${activeProduct.badgeColor.border}`}
+              >
+                {activeProduct.code}
+              </span>
+              <h2 className="text-base font-bold text-slate-900">
+                {activeProduct.name}
+              </h2>
+              <span className="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                {activeProduct.categoryLabel}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              {activeProduct.description}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+            <span className="px-2 py-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+              GET
+            </span>
+            <span className="px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200 font-bold">
+              POST
+            </span>
+            <span className="px-2.5 py-1 rounded bg-slate-100 text-slate-800 font-semibold border border-slate-200">
+              /v1/{activeProduct.code.toLowerCase()}
+            </span>
+            <span className="px-2.5 py-1 rounded bg-slate-50 text-slate-500 border border-slate-200 text-[11px]">
+              /v1/{activeProduct.slug}
+            </span>
+          </div>
+        </div>
+
+        {/* Tabela de Parâmetros e Resposta */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Parâmetros de Entrada
+            </h3>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-2">
+              <div className="flex justify-between border-b border-slate-200/60 pb-1.5">
+                <span className="font-mono font-bold text-slate-800">query</span>
+                <span className="font-mono text-slate-500">string (obrigatório)</span>
+              </div>
+              <p className="text-[11px] text-slate-600">
+                Tipo esperado: <strong>{activeProduct.inputLabel}</strong> ({activeProduct.inputType}).
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Formatos aceitos: dígitos limpos ou formatados. A Renacred realiza sanitização e validação de dígitos verificadores automaticamente.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Destaques Oficiais Retornados
+            </h3>
+            <ul className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1">
+              {activeProduct.highlights.map((h, i) => (
+                <li key={i} className="text-slate-700 flex items-start space-x-1.5">
+                  <span className="text-blue-600 font-bold">•</span>
+                  <span>{h}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Seletor de Linguagens & Snippets */}
+        <div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Exemplo de Código para Integração
+            </h3>
+            <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
+              {(
+                [
+                  { id: 'url_get', label: 'URL (GET)' },
+                  { id: 'curl', label: 'cURL' },
+                  { id: 'node', label: 'Node.js' },
+                  { id: 'python', label: 'Python' },
+                  { id: 'php', label: 'PHP' },
+                  { id: 'csharp', label: 'C#' }
+                ] as const
+              ).map((lang) => (
+                <button
+                  key={lang.id}
+                  onClick={() => setActiveLang(lang.id)}
+                  className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
+                    activeLang === lang.id
+                      ? 'bg-white text-slate-900 font-bold shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-200 overflow-x-auto">
+            <button
+              onClick={() => copyCode(codeSnippets[activeLang], activeLang)}
+              className="absolute right-3 top-3 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 font-sans transition"
+            >
+              {copiedLang === activeLang ? 'Copiado' : 'Copiar'}
+            </button>
+            <pre className="pt-2 leading-relaxed">{codeSnippets[activeLang]}</pre>
+          </div>
+        </div>
+
+        {/* Playground Interativo */}
+        <div className="pt-4 border-t border-slate-100 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Playground Interativo • Teste ao Vivo ({activeProduct.code})
+            </h3>
+            <span className="text-[11px] text-slate-400">
+              Executa requisição real autenticada por sua conta
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={playgroundInput}
+              onChange={(e) => setPlaygroundInput(e.target.value)}
+              placeholder={activeProduct.placeholder}
+              className="flex-1 px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-600 transition"
+            />
+            <button
+              onClick={handleRunPlayground}
+              disabled={playgroundLoading}
+              className="px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg transition shrink-0"
+            >
+              {playgroundLoading ? 'Consultando...' : 'Testar Requisição'}
+            </button>
+          </div>
+
+          {playgroundResponse && (
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1">
+                <span>Resposta JSON das Bases Oficiais:</span>
+                <button
+                  onClick={() => copyCode(playgroundResponse, 'json_response')}
+                  className="hover:text-slate-800 underline font-mono text-[10px]"
+                >
+                  Copiar JSON
+                </button>
+              </div>
+              <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-200 overflow-x-auto max-h-80">
+                <pre>{playgroundResponse}</pre>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Matriz Completa dos 16 Endpoints Oficiais */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+        <h3 className="text-sm font-bold text-slate-900 mb-1">
+          Matriz Completa de Endpoints REST (E1 a E16)
+        </h3>
+        <p className="text-xs text-slate-500 mb-4">
+          Todos os endpoints respondem tanto via GET quanto POST no caminho <code className="font-mono text-slate-700">/v1/:codigo</code>
         </p>
 
-        <div className="mt-6 flex flex-wrap gap-4 text-xs font-mono">
-          <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-slate-700">
-            <span className="text-slate-500 font-sans">Endereço Base: </span>
-            <span className="text-blue-700 font-bold">https://api.renacred.com.br</span>
-          </div>
-          <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-slate-700">
-            <span className="text-slate-500 font-sans">Chave no Cabeçalho: </span>
-            <span className="text-slate-900 font-bold">x-api-key: rena_live_...</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Seletor de Produto */}
-      <div className="flex items-center space-x-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-fit">
-        <button
-          onClick={() => setActiveProduct('E1')}
-          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-            activeProduct === 'E1'
-              ? 'bg-white text-blue-700 shadow-xs border border-slate-200'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Building2 className="w-4 h-4 text-blue-600" />
-          <span>PRODUTO E1 • Imóveis (DOI/Cartórios)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveProduct('E2')}
-          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-            activeProduct === 'E2'
-              ? 'bg-white text-emerald-800 shadow-xs border border-slate-200'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Car className="w-4 h-4 text-emerald-600" />
-          <span>PRODUTO E2 • Proprietários Veiculares</span>
-        </button>
-      </div>
-
-      {/* Especificação do Produto Selecionado */}
-      {activeProduct === 'E1' ? (
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
-            <div>
-              <div className="flex items-center space-x-2.5 mb-1.5">
-                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200">
-                  PRODUTO E1
-                </span>
-                <h3 className="text-base font-bold text-slate-900">
-                  E1 - Busca de Imóvel por Documento
-                </h3>
-              </div>
-              <p className="text-xs text-slate-500">
-                Varredura de titularidade, declarações DOI (Receita Federal) e matrículas cartorárias ativas e históricas.
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <span className="px-2 py-0.5 rounded-lg text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
-                GET
-              </span>
-              <span className="px-2 py-0.5 rounded-lg text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
-                POST
-              </span>
-              <span className="text-xs font-bold text-slate-900 font-mono bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-                /v1/imobiliario/historico
-              </span>
-            </div>
-          </div>
-
-          {/* Parâmetros E1 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div>
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Exemplo de Envio (JSON)</h4>
-              <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-200">
-                <pre>{`{
-  "query": "01036115925" // CPF ou CNPJ (apenas números)
-}`}</pre>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Exemplo de Resposta (JSON)</h4>
-              <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-200 overflow-x-auto max-h-48">
-                <pre>{`{
-  "periodo": "1990 até 2024",
-  "total_declaracoes": 1,
-  "declaracoes": [
-    {
-      "numDeclaracao": "10023456",
-      "tipoDeclaracao": "Aquisição",
-      "matricula": "54210",
-      "cartorio": "1º Cartório de Registro de Imóveis",
-      "dataLavratura": "2023-08-10",
-      "alienantes": [{ "nome": "EMPRESA VENDEDORA LTDA", "cpfCnpj": "..." }],
-      "adquirentes": [{ "nome": "PROPRIETÁRIO ATUAL", "cpfCnpj": "..." }]
-    }
-  ],
-  "api_central": {
-    "api_utilizada": "historico_imobiliario",
-    "query_fornecida": "01036115925",
-    "timestamp": "2026-09-21T18:30:00.000Z"
-  }
-}`}</pre>
-              </div>
-            </div>
-          </div>
-
-          {/* Exemplos de Código E1 */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Exemplos de Código (E1)</h4>
-              <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
-                {(['url_get', 'curl', 'node', 'python', 'php', 'csharp'] as const).map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => setActiveLang(lang)}
-                    className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
-                      activeLang === lang
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {lang === 'url_get' ? 'URL (GET)' : lang.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative">
-              <pre className="bg-slate-950 border border-slate-900 rounded-2xl p-5 text-xs text-slate-200 font-mono overflow-x-auto">
-                {currentSnippets[activeLang]}
-              </pre>
-              <button
-                onClick={() => copyCode(currentSnippets[activeLang], activeLang)}
-                className="absolute top-4 right-4 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center transition border border-slate-700 shadow-xs cursor-pointer"
-              >
-                {copiedLang === activeLang ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
-                    Copiado!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 mr-1.5" />
-                    Copiar
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Playground Interativo E1 */}
-          <div className="border-t border-slate-100 pt-6 space-y-4">
-            <div className="flex items-center space-x-2">
-              <Code2 className="w-5 h-5 text-blue-600" />
-              <h4 className="text-sm font-bold text-slate-900">Simulador do Produto E1 (Histórico Imobiliário)</h4>
-            </div>
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={testDoc}
-                onChange={(e) => setTestDoc(e.target.value)}
-                placeholder="Digite um CPF ou CNPJ de teste..."
-                className="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
-              />
-              <button
-                onClick={handleRunPlaygroundE1}
-                disabled={testingE1}
-                className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-5 py-2.5 rounded-xl text-xs flex items-center transition shadow-xs disabled:opacity-50 cursor-pointer"
-              >
-                <Play className="w-3.5 h-3.5 mr-1.5" />
-                {testingE1 ? 'Executando...' : 'Executar Teste E1'}
-              </button>
-            </div>
-
-            {testResponseE1 && (
-              <pre className="bg-slate-950 border border-slate-900 rounded-xl p-4 text-xs text-emerald-400 font-mono max-h-96 overflow-y-auto">
-                {testResponseE1}
-              </pre>
-            )}
-          </div>
-        </div>
-      ) : (
-        /* PRODUTO E2 */
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
-            <div>
-              <div className="flex items-center space-x-2.5 mb-1.5">
-                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono bg-emerald-100 text-emerald-900 border border-emerald-300">
-                  PRODUTO E2
-                </span>
-                <h3 className="text-base font-bold text-slate-900">
-                  E2 - Histórico de Proprietários por Placa
-                </h3>
-              </div>
-              <p className="text-xs text-slate-500">
-                Auditoria de cadeia dominial, transferências de titularidade e histórico cronológico completo de proprietários veiculares.
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <span className="px-2 py-0.5 rounded-lg text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
-                GET
-              </span>
-              <span className="px-2 py-0.5 rounded-lg text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
-                POST
-              </span>
-              <span className="text-xs font-bold text-slate-900 font-mono bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-                /v1/veicular/proprietarios
-              </span>
-            </div>
-          </div>
-
-          {/* Parâmetros E2 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div>
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Exemplo de Envio (JSON)</h4>
-              <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-200">
-                <pre>{`{
-  "placa": "ATT0849" // Padrão convencional ou Mercosul (ex: ATT0I49)
-}`}</pre>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Exemplo de Resposta (JSON) - Ordem Cronológica</h4>
-              <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-200 overflow-x-auto max-h-48">
-                <pre>{`{
-  "success": true,
-  "placa": "ATT0I49",
-  "renavam": "00281216878",
-  "total": 10,
-  "proprietario_atual": {
-    "nome": "SILVIA MARIA ALESSI DUDA",
-    "documento": "101.899.149-20",
-    "tipo": "Pessoa fisica",
-    "uf": "PR",
-    "municipio": "IRATI"
-  },
-  "historico": [
-    {
-      "ordem": 1, // Começa pela data mais antiga
-      "data": "27/01/2011",
-      "nome": "RESTAURANTE E LANCHONETE IPIRANGAO LTDA",
-      "documento": "76.112.507/0001-07",
-      "municipio": "CASTRO",
-      "uf": "PR",
-      "atual": false
-    },
-    ...
-    {
-      "ordem": 10, // Termina no proprietário vigente
-      "data": "15/03/2024",
-      "nome": "SILVIA MARIA ALESSI DUDA",
-      "documento": "101.899.149-20",
-      "municipio": "IRATI",
-      "uf": "PR",
-      "atual": true
-    }
-  ]
-}`}</pre>
-              </div>
-            </div>
-          </div>
-
-          {/* Exemplos de Código E2 */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Exemplos de Código (E2)</h4>
-              <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
-                {(['url_get', 'curl', 'node', 'python', 'php', 'csharp'] as const).map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => setActiveLang(lang)}
-                    className={`px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
-                      activeLang === lang
-                        ? 'bg-emerald-700 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {lang === 'url_get' ? 'URL (GET)' : lang.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative">
-              <pre className="bg-slate-950 border border-slate-900 rounded-2xl p-5 text-xs text-slate-200 font-mono overflow-x-auto">
-                {currentSnippets[activeLang]}
-              </pre>
-              <button
-                onClick={() => copyCode(currentSnippets[activeLang], activeLang)}
-                className="absolute top-4 right-4 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center transition border border-slate-700 shadow-xs cursor-pointer"
-              >
-                {copiedLang === activeLang ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
-                    Copiado!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 mr-1.5" />
-                    Copiar
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Playground Interativo E2 */}
-          <div className="border-t border-slate-100 pt-6 space-y-4">
-            <div className="flex items-center space-x-2">
-              <Car className="w-5 h-5 text-emerald-700" />
-              <h4 className="text-sm font-bold text-slate-900">Simulador do Produto E2 (Histórico de Proprietários)</h4>
-            </div>
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={testPlaca}
-                onChange={(e) => setTestPlaca(e.target.value.toUpperCase())}
-                placeholder="Digite uma Placa de teste (ex: ATT0849)..."
-                className="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 font-mono uppercase"
-              />
-              <button
-                onClick={handleRunPlaygroundE2}
-                disabled={testingE2}
-                className="bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-semibold px-5 py-2.5 rounded-xl text-xs flex items-center transition shadow-xs disabled:opacity-50 cursor-pointer"
-              >
-                <Play className="w-3.5 h-3.5 mr-1.5" />
-                {testingE2 ? 'Executando...' : 'Executar Teste E2'}
-              </button>
-            </div>
-
-            {testResponseE2 && (
-              <pre className="bg-slate-950 border border-slate-900 rounded-xl p-4 text-xs text-emerald-400 font-mono max-h-96 overflow-y-auto">
-                {testResponseE2}
-              </pre>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Códigos de Retorno HTTP Globais */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
-        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Respostas e Códigos HTTP Padronizados</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-            <span className="font-bold text-emerald-700 font-mono">200 Sucesso</span>
-            <p className="text-slate-600 mt-1">Consulta realizada com sucesso. Retorna os registros oficiais encontrados.</p>
-          </div>
-          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-            <span className="font-bold text-amber-800 font-mono">400 Parâmetro Inválido</span>
-            <p className="text-slate-600 mt-1">Documento ou placa informado em formato inválido.</p>
-          </div>
-          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-            <span className="font-bold text-rose-700 font-mono">401 Não Autorizado</span>
-            <p className="text-slate-600 mt-1">Chave de acesso inválida ou ausente no cabeçalho/query param.</p>
-          </div>
-          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-            <span className="font-bold text-rose-700 font-mono">402 Saldo Insuficiente</span>
-            <p className="text-slate-600 mt-1">Saldo esgotado (pré-pago) ou limite mensal atingido (pós-pago).</p>
-          </div>
-          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-            <span className="font-bold text-amber-800 font-mono">429 Rate Limit</span>
-            <p className="text-slate-600 mt-1">Limite operacional de chamadas por minuto excedido.</p>
-          </div>
-          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-            <span className="font-bold text-slate-700 font-mono">500 Instabilidade</span>
-            <p className="text-slate-600 mt-1">Instabilidade temporária no acesso às bases cadastrais.</p>
-          </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider">
+                <th className="pb-2">Cód.</th>
+                <th className="pb-2">Nome do Produto</th>
+                <th className="pb-2">Categoria</th>
+                <th className="pb-2">Entrada</th>
+                <th className="pb-2">Endpoint v1</th>
+                <th className="pb-2 text-center">Contingência</th>
+                <th className="pb-2 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {PRODUCTS_CATALOG.map((p) => (
+                <tr key={p.code} className="hover:bg-slate-50/70 transition">
+                  <td className="py-2.5 font-mono font-bold text-slate-900">
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] border ${p.badgeColor.bg} ${p.badgeColor.text} ${p.badgeColor.border}`}
+                    >
+                      {p.code}
+                    </span>
+                  </td>
+                  <td className="py-2.5 font-medium text-slate-800">
+                    {p.name}
+                  </td>
+                  <td className="py-2.5 text-slate-500">
+                    {p.categoryLabel}
+                  </td>
+                  <td className="py-2.5 font-mono text-[11px] text-slate-600 uppercase">
+                    {p.inputType}
+                  </td>
+                  <td className="py-2.5 font-mono text-blue-700 text-[11px]">
+                    /v1/{p.code.toLowerCase()}
+                  </td>
+                  <td className="py-2.5 text-center">
+                    {p.hasContingency ? (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        Ativa
+                      </span>
+                    ) : (
+                      <span className="text-slate-300 text-[10px]">—</span>
+                    )}
+                  </td>
+                  <td className="py-2.5 text-right">
+                    <button
+                      onClick={() => {
+                        handleSelectProduct(p);
+                        window.scrollTo({ top: 350, behavior: 'smooth' });
+                      }}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      Ver Detalhes
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
