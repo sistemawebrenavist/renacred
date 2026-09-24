@@ -15,6 +15,7 @@ import apiKeyRoutes from './routes/apiKeyRoutes';
 import adminRoutes from './routes/adminRoutes';
 import v1Routes from './routes/v1Routes';
 import veicularRoutes from './routes/veicularRoutes';
+import consultasRoutes from './routes/consultasRoutes';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -50,6 +51,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/imobiliario', imobiliarioRoutes);
 app.use('/api/veicular', veicularRoutes);
+app.use('/api/consultas', consultasRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/pagamentos', paymentRoutes);
 app.use('/api/webhooks', webhookRoutes);
