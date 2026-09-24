@@ -2,21 +2,28 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implementar o catálogo completo de 16 produtos oficiais da Renacred (E1 a E16) no frontend e backend, substituindo a listagem isolada do Sidebar por um Hub de Consultas com seletor inteligente e uma página de Catálogo de Produtos para o assinante, com suporte à contingência transparente, higienização de dados e expansão da API pública externa v1.
+**Goal:** Implementar o catálogo completo de 16 produtos oficiais da Renacred (E1 a E16) no frontend e backend, substituindo a listagem isolada do Sidebar por um Hub de Consultas com seletor inteligente e uma página de Catálogo de Produtos para o assinante, com suporte à contingência transparente, higienização de dados e expansão da API pública externa v1, aplicando rigorosamente as diretrizes da skill **Impeccable** (zero ícones decorativos, zero emojis, design de birô corporativo de alta densidade).
 
 **Architecture:** Fonte única de verdade de metadados (`productsCatalog.ts`) compartilhada conceitualmente entre frontend e backend. No backend, dispatcher com execução em cascata de contingências transparentes e camada de normalização/higienização antes da persistência e retorno. No frontend, menu lateral enxuto apontando para o Hub (`/consultar`) e Catálogo (`/produtos`), com inputs adaptativos e renderização pericial polimórfica.
 
-**Tech Stack:** React 18, TypeScript, Tailwind CSS, Vite, Lucide React, Node.js 20, Express, Prisma ORM, PostgreSQL 16, Axios, Winston.
+**Tech Stack:** React 18, TypeScript, Tailwind CSS, Vite, Lucide React (apenas para controles de ação funcionais), Node.js 20, Express, Prisma ORM, PostgreSQL 16, Axios, Winston.
 
 **Spec:** [`docs/superpowers/specs/2026-09-24-catalogo-16-produtos-hub-consulta-design.md`](file:///c:/Users/Henrique%20-%20PC/Desktop/Projetos%20Dev/Renacred/docs/superpowers/specs/2026-09-24-catalogo-16-produtos-hub-consulta-design.md)
 
-## Global Constraints
+---
 
+## Global Constraints & Diretrizes Impeccable
+
+- **Zero Ícones Decorativos & Zero Emojis:** Proibido o uso de emojis (🚗, 🏢, ⚖️, 📦, etc.) ou ícones soltos servindo como adorno visual em títulos, badges ou cards. Ícones são restritos a controles de ação explícita (fechar, expandir, copiar, pesquisar, status funcional de carregamento).
+- **Sem Kickers ou Eyebrows:** Proibido subtítulos decorativos vazios ou rótulos flutuantes acima de títulos (o título deve sustentar seu próprio peso).
+- **Sem Gradientes em Textos:** Títulos e cabeçalhos usam cores sólidas de alto contraste (`#0F172A`, `#FFFFFF`). Ênfase visual alcançada por peso (`font-bold`, `font-semibold`) e escala tipográfica.
+- **Sem Efeitos de Fundo Artificiais:** Proibido o uso de `blur-3xl`, orbes coloridos difusos ou sombras coloridas de raio zero (halos). Superfícies sólidas, bordas discretas (`#E2E8F0` / `#1E293B`) e contraste mínimo de 4.5:1.
 - **Sigilo Absoluto de Provedores:** Nunca exibir nomes externos no frontend ou na documentação do assinante. Usar sempre "Fontes Oficiais", "Bases Federais", "DOI", "Serventias Cartorárias" ou "Bases Estaduais/Senatran".
 - **Custo Zero Sem Dados:** Consultas que retornarem `0` registros/declarações devem aplicar estritamente `custo_debitado: 0.00`.
-- **Zero Redundância & Ocultação de Nulos:** Descartar códigos numéricos redundantes (ex: código de cidade) quando houver nome legível, e ocultar chaves com valores nulos/vazios.
-- **Design Institucional Anti-AI Slop:** Sem gradientes em textos (`bg-clip-text`), sem `blur-3xl`, usar paleta navy/slate corporativa e tipografia com numerais tabulares (`font-mono`, `tnum`).
+- **Zero Redundância & Ocultação de Nulos:** Descartar códigos numéricos redundantes (ex: código de cidade descartado quando houver nome legível), e ocultar chaves com valores nulos/vazios.
 - **IPv4 Obrigatório no Backend:** Todas as chamadas para o provedor externo devem utilizar `family: 4` e `keepAlive: false` no `https.Agent`.
+
+---
 
 ## Review Focus
 
@@ -35,9 +42,9 @@
 - `server/src/config/productsCatalog.ts`: Configuração backend dos endpoints oficiais, provedores primários e contingências.
 - `server/src/services/productNormalizers.ts`: Camada pura de normalização e higienização de dados por produto.
 - `server/src/controllers/consultaUnificadaController.ts`: Controller backend para processar qualquer um dos 16 produtos na web e na API externa.
-- `src/pages/assinante/CatalogoProdutos.tsx`: Vitrine executiva com filtros por categoria e busca para os 16 produtos.
+- `src/pages/assinante/CatalogoProdutos.tsx`: Vitrine executiva com filtros por categoria e busca para os 16 produtos (design Impeccable sóbrio).
 - `src/pages/assinante/HubConsulta.tsx`: Página central com seletor inteligente, formulário adaptativo e visualização de laudos.
-- `src/components/consultas/SeletorProdutoModal.tsx`: Modal/dropdown de troca rápida de produto com pesquisa instantânea.
+- `src/components/consultas/SeletorProdutoModal.tsx`: Modal/gaveta rápida de seleção de produto com pesquisa instantânea.
 - `src/components/consultas/LaudoPericialUniversal.tsx`: Renderizador polimórfico de laudos periciais higienizados.
 
 ### Arquivos a Modificar:
@@ -58,8 +65,8 @@
 - Criar: `src/config/productsCatalog.ts`
 - Criar: `server/src/config/productsCatalog.ts`
 
-- [ ] **Passo 1:** Criar `src/config/productsCatalog.ts` com a lista completa dos 16 produtos (E1 a E16), definindo categorias (`imobiliario`, `veicular`, `cadastral`, `juridico`), tipo de input (`cpf_cnpj`, `cpf`, `placa`, `rg`), preços oficiais (custo e venda R$ 1,32 / R$ 5,00), descrições institucionais e badges.
-- [ ] **Passo 2:** Criar `server/src/config/productsCatalog.ts` espelhando a lista com o mapeamento técnico de `apiPrimary` e `apiContingencies` para a FetchBrasil conforme validado nos testes.
+- [ ] **Passo 1:** Criar `src/config/productsCatalog.ts` com a lista completa dos 16 produtos (E1 a E16), definindo categorias (`imobiliario`, `veicular`, `cadastral`, `juridico`), tipo de input (`cpf_cnpj`, `cpf`, `placa`, `rg`), preços oficiais (custo e venda R$ 1,32 / R$ 5,00), descrições institucionais sóbrias e badges de texto limpo (sem ícones/emojis decorativos).
+- [ ] **Passo 2:** Criar `server/src/config/productsCatalog.ts` espelhando a lista com o mapeamento técnico de `apiPrimary` e `apiContingencies` para a FetchBrasil conforme validado nos testes da VPS.
 - [ ] **Passo 3:** Executar validação de tipos TypeScript em ambos os projetos para garantir ausência de erros.
 - [ ] **Passo 4:** Commit: `feat: criar definicao centralizada do catalogo de 16 produtos`
 
@@ -117,10 +124,10 @@
 - Modificar: `src/App.tsx`
 
 - [ ] **Passo 1:** Atualizar `src/components/layout/Sidebar.tsx`:
-  - Substituir a lista vertical de E1 e E2 por dois itens principais na seção de Produtos:
-    - 🔍 **Consultar** (`/consultar`): com ícone de busca/camadas.
-    - 📦 **Catálogo de Produtos** (`/produtos`): com ícone de catálogo e badge `16`.
-  - Manter o restante da barra perfeitamente intacto e alinhado (Visão Geral, Minha Assinatura, Chaves, Guia, Configurações).
+  - Substituir a lista vertical de E1 e E2 por dois itens principais na seção de Produtos (sem ícones decorativos ou emojis):
+    - **Consultar** (`/consultar`)
+    - **Catálogo de Produtos** (`/produtos`) com tag textual discreta `16`.
+  - Manter a sobriedade e o alinhamento institucional do menu lateral.
 - [ ] **Passo 2:** Em `src/App.tsx`, registrar as rotas autenticadas:
   - `/consultar` -> `HubConsulta`
   - `/produtos` -> `CatalogoProdutos`
@@ -131,21 +138,20 @@
 
 ---
 
-### Tarefa 5: Frontend - Página "Catálogo de Produtos" (`/produtos`)
+### Tarefa 5: Frontend - Página "Catálogo de Produtos" (`/produtos`) (Padrão Impeccable)
 
 **Arquivos:**
 - Criar: `src/pages/assinante/CatalogoProdutos.tsx`
 
-- [ ] **Passo 1:** Desenvolver o cabeçalho executivo com título, descrição institucional, badge de saldo e barra de pesquisa em tempo real.
-- [ ] **Passo 2:** Implementar as abas de filtro por categoria (`Todos (16)`, `Veicular (8)`, `Imobiliário (1)`, `Cadastral (5)`, `Jurídico (2)`).
-- [ ] **Passo 3:** Renderizar o grid de cards dos 16 produtos:
-  - Código oficial com cor de categoria corporativa.
-  - Título, descrição clara do laudo e bullets com destaques dos dados entregues.
-  - Tipo de parâmetro exigido (badge formatado).
-  - Preço da consulta e selo `Custo zero sem dados`.
-  - Botão de ação: `Consultar Agora →` que navega para `/consultar?produto={code}`.
-- [ ] **Passo 4:** Aplicar estilo 100% aderente ao `DESIGN.md` (superfícies sólidas, bordas limpas `#E2E8F0`, tipografia tabular).
-- [ ] **Passo 5:** Commit: `feat(ui): pagina de catalogo de produtos para o assinante`
+- [ ] **Passo 1:** Desenvolver o cabeçalho executivo: título sólido sem gradiente, tipografia com alto contraste, resumo da modalidade/saldo em fonte mono tabular.
+- [ ] **Passo 2:** Implementar filtros por categoria em botões de texto limpo (`Todos (16)`, `Veicular (8)`, `Imobiliário (1)`, `Cadastral (5)`, `Jurídico (2)`), sem emojis ou ícones ilustrativos.
+- [ ] **Passo 3:** Renderizar o grid de cards corporativos:
+  - Fundo sólido slate/branco elevado, contornos nítidos `#E2E8F0`.
+  - Tag textual do código oficial (`E1`, `E5`, etc.) e categoria em peso `font-semibold`.
+  - Título do produto e descrição pericial precisa.
+  - Parâmetro exigido e tarifa formatada com `font-mono tnum` e selo de fé pública `Custo zero sem dados`.
+  - Botão de ação textual: `Consultar →`.
+- [ ] **Passo 4:** Commit: `feat(ui): pagina de catalogo de produtos no padrao impecavel`
 
 ---
 
@@ -156,19 +162,18 @@
 - Criar: `src/pages/assinante/HubConsulta.tsx`
 
 - [ ] **Passo 1:** Criar `SeletorProdutoModal.tsx`:
-  - Modal/gaveta rápida de seleção de produto com campo de busca com foco automático.
-  - Lista agrupada por categoria com badges de código e atalhos rápidos.
+  - Diálogo de alta usabilidade com busca textual rápida e agrupamento por categorias.
+  - Seleção direta por tecla Enter ou clique.
 - [ ] **Passo 2:** Em `HubConsulta.tsx`:
-  - Ler produto ativo via query parameter (`?produto=e5`) com fallback para `E1`.
-  - Exibir barra superior com o produto selecionado, badge oficial e botão "Trocar Produto".
-  - Montar o formulário adaptativo:
-    - Se o produto exige CPF/CNPJ: máscara dinâmica para 11 ou 14 dígitos.
-    - Se exige CPF puro: máscara estrita `000.000.000-00`.
-    - Se exige Placa: input em maiúsculas com suporte a placa padrão Mercosul e cinza.
-    - Se exige RG: campo de texto limpo com seletor de UF opcional.
-  - Botão de envio com feedback de carregamento em skeleton shimmer e micro-etapas periciais.
-- [ ] **Passo 3:** Tratar erro com badge claro e exibir aviso de `Custo R$ 0,00` quando nenhum dado for localizado.
-- [ ] **Passo 4:** Commit: `feat(ui): hub de consulta com seletor dinâmico e campos adaptativos`
+  - Barra de topo exibindo o produto selecionado em destaque sóbrio com botão `Alterar Consulta`.
+  - Formulário adaptativo de alta densidade:
+    - `cpf_cnpj`: Máscara dinâmica para 11 ou 14 dígitos.
+    - `cpf`: Máscara estrita `000.000.000-00`.
+    - `placa`: Entrada forçada em maiúsculas com compatibilidade Mercosul / tradicional.
+    - `rg`: Campo alfanumérico limpo.
+  - Botão de ação `Consultar` com estado de carregamento funcional.
+- [ ] **Passo 3:** Feedback claro e legível quando a pesquisa retornar sem dados (badge neutro indicando custo R$ 0,00).
+- [ ] **Passo 4:** Commit: `feat(ui): hub de consulta com seletor dinamico e campos adaptativos`
 
 ---
 
@@ -178,12 +183,11 @@
 - Criar: `src/components/consultas/LaudoPericialUniversal.tsx`
 - Modificar: `src/pages/assinante/HubConsulta.tsx`
 
-- [ ] **Passo 1:** Criar `LaudoPericialUniversal.tsx` capaz de renderizar os laudos normalizados dos 16 produtos:
-  - Header pericial com logotipo Renacred, carimbo temporal e hash de autenticação digital.
-  - Cards executivos com os dados-chave do produto (ex: resumo do condutor para CNH, resumo do veículo para BIN/Roubo/Multas/Gravame, árvore familiar para Parentes, ou bens para Imobiliário/Frota).
-  - Tabela estruturada limpa, sem campos nulos e sem códigos duplicados.
-  - Botões de exportação para Laudo em PDF e Planilha Excel.
-- [ ] **Passo 2:** Integrar a tabela de últimas consultas realizadas no final da página, filtradas pelo produto atualmente selecionado, permitindo reabrir o laudo ou reconsultar com um clique.
+- [ ] **Passo 1:** Criar `LaudoPericialUniversal.tsx`:
+  - Layout pericial de birô corporativo com cabeçalho institucional, carimbo de data/hora e hash de autenticação digital.
+  - Exibição de dados higienizados sem campos nulos e sem códigos repetitivos.
+  - Ações funcionais: Exportar PDF pericial e Exportar Planilha Excel.
+- [ ] **Passo 2:** Tabela de consultas recentes no rodapé com numerais tabulares e ações diretas: `Ver Laudo` (0ms) e `Reconsultar`.
 - [ ] **Passo 3:** Commit: `feat(ui): laudo pericial universal higienizado e historico contextual`
 
 ---
@@ -209,7 +213,7 @@
 - [ ] **Passo 2:** Executar compilação do Backend: `npm --prefix server run build`.
 - [ ] **Passo 3:** Corrigir eventuais avisos de tipos ou dependências ausentes.
 - [ ] **Passo 4:** Testar chamadas no simulador e certificar que nenhum erro de console ou rede ocorra.
-- [ ] **Passo 5:** Commit: `chore: ajustes e validacao da compilacao de producao`
+- [ ] **Passo 5:** Commit: `chore: validacao e ajustes de compilacao de producao`
 
 ---
 
