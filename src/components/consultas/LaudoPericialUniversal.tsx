@@ -22,6 +22,19 @@ const formatDocumento = (doc: string) => {
   return doc.toUpperCase();
 };
 
+// Formatação universal de data brasileira (DD/MM/AAAA)
+const formatDateBR = (val?: string): string => {
+  if (!val || typeof val !== 'string') return '-';
+  const trimmed = val.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+    const parts = trimmed.split('T')[0].split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  }
+  return trimmed;
+};
+
 interface LaudoPericialUniversalProps {
   produto: ProductDefinition;
   identifier: string;
@@ -101,8 +114,16 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
             <span className="text-sm font-bold font-mono text-slate-900">
               {totalRegistros} {totalRegistros === 1 ? 'registro' : 'registros'}
             </span>
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${totalRegistros > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
-              {totalRegistros > 0 ? 'Dados Localizados' : 'Sem Ocorrências'}
+            <span
+              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                dados?.aviso
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                  : totalRegistros > 0
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {dados?.aviso ? 'Aviso da Base' : totalRegistros > 0 ? 'Dados Localizados' : 'Sem Ocorrências'}
             </span>
           </div>
           <span className="text-[11px] text-slate-500 mt-0.5 block font-mono">
@@ -131,7 +152,7 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
 
       {/* Conteúdo Específico do Laudo Higienizado */}
       <div className="space-y-4">
-        {totalRegistros === 0 ? (
+        {totalRegistros === 0 && !dados?.aviso ? (
           <div className="border border-slate-200 rounded-lg p-8 text-center bg-slate-50/50">
             <p className="text-sm font-semibold text-slate-800">Nenhum registro oficial localizado</p>
             <p className="text-xs text-slate-500 mt-1 max-w-lg mx-auto">
@@ -355,43 +376,68 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
     // E3: Frota Veicular
     case 'E3': {
       const veiculos = dados.veiculos || [];
+      const aviso = dados.aviso;
+      const orientacao = dados.orientacao;
+
       return (
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 font-semibold text-xs text-slate-800">
-            Veículos Vinculados ao Documento ({veiculos.length})
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left text-slate-700">
-              <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                <tr>
-                  <th className="px-4 py-2.5">Placa</th>
-                  <th className="px-4 py-2.5">Marca / Modelo</th>
-                  <th className="px-4 py-2.5">Chassi</th>
-                  <th className="px-4 py-2.5">Cor</th>
-                  <th className="px-4 py-2.5">Ano</th>
-                  <th className="px-4 py-2.5">UF</th>
-                  <th className="px-4 py-2.5">Situação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-mono">
-                {veiculos.map((v: any, idx: number) => (
-                  <tr key={idx} className="hover:bg-slate-50/60">
-                    <td className="px-4 py-2 font-bold text-slate-900">{v.placa}</td>
-                    <td className="px-4 py-2 font-sans font-medium text-slate-800">{v.marca_modelo}</td>
-                    <td className="px-4 py-2 text-slate-600">{v.chassi}</td>
-                    <td className="px-4 py-2 font-sans text-slate-600">{v.cor}</td>
-                    <td className="px-4 py-2 text-slate-600">{v.ano_fabricacao}</td>
-                    <td className="px-4 py-2 text-slate-600">{v.uf}</td>
-                    <td className="px-4 py-2">
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        {v.situacao}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="space-y-4">
+          {aviso && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-xs text-amber-900 space-y-2">
+              <div className="flex items-center space-x-2 font-bold text-sm text-amber-950">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>{aviso}</span>
+              </div>
+              <p className="text-amber-800 text-xs leading-relaxed">
+                {orientacao || 'A empresa pesquisada possui frota de grande porte que excede o limite máximo para retorno em lote desta consulta.'}
+              </p>
+              <div className="pt-2 border-t border-amber-200/60 flex flex-wrap items-center justify-between gap-2 text-[11px] text-amber-800">
+                <span>Orientação: Para auditar os veículos, realize a consulta individual informando a placa ou chassi no Catálogo de Produtos.</span>
+                <span className="font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-300">
+                  Custo Debitado: R$ 0,00
+                </span>
+              </div>
+            </div>
+          )}
+
+          {veiculos.length > 0 && (
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 font-semibold text-xs text-slate-800">
+                Veículos Vinculados ao Documento ({veiculos.length})
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left text-slate-700">
+                  <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-2.5">Placa</th>
+                      <th className="px-4 py-2.5">Marca / Modelo</th>
+                      <th className="px-4 py-2.5">Chassi</th>
+                      <th className="px-4 py-2.5">Cor</th>
+                      <th className="px-4 py-2.5">Ano</th>
+                      <th className="px-4 py-2.5">UF</th>
+                      <th className="px-4 py-2.5">Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-mono">
+                    {veiculos.map((v: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-2 font-bold text-slate-900">{v.placa}</td>
+                        <td className="px-4 py-2 font-sans font-medium text-slate-800">{v.marca_modelo}</td>
+                        <td className="px-4 py-2 text-slate-600">{v.chassi}</td>
+                        <td className="px-4 py-2 font-sans text-slate-600">{v.cor}</td>
+                        <td className="px-4 py-2 text-slate-600">{v.ano_fabricacao}</td>
+                        <td className="px-4 py-2 text-slate-600">{v.uf}</td>
+                        <td className="px-4 py-2">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            {v.situacao || 'Regular'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -413,14 +459,19 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
             <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Dados do Proprietário</h4>
             <div className="text-xs space-y-1.5">
               <p><span className="text-slate-400 font-medium">Nome:</span> <span className="font-semibold text-slate-900">{prop.nome || '-'}</span></p>
-              <p><span className="text-slate-400 font-medium">Documento:</span> <span className="font-mono text-slate-800">{prop.documento || '-'}</span></p>
+              <p><span className="text-slate-400 font-medium">Documento:</span> <span className="font-mono text-slate-800">{formatDocumento(prop.documento || '')}</span></p>
               {prop.tipo_documento && <p><span className="text-slate-400 font-medium">Tipo Doc:</span> <span className="text-slate-700">{prop.tipo_documento}</span></p>}
               <p><span className="text-slate-400 font-medium">Logradouro:</span> <span className="text-slate-800 font-medium">{logradouroCompleto || '-'}</span></p>
               <p><span className="text-slate-400 font-medium">Bairro:</span> <span className="text-slate-800">{end.bairro || '-'}</span></p>
               <p><span className="text-slate-400 font-medium">Município / UF:</span> <span className="font-semibold text-slate-900">{end.municipio || '-'}{end.uf && !end.municipio?.includes(end.uf) ? ` / ${end.uf}` : ''}</span></p>
               <p><span className="text-slate-400 font-medium">CEP:</span> <span className="font-mono text-slate-800">{end.cep || '-'}</span></p>
               {prop.origem_endereco && <p><span className="text-slate-400 font-medium">Origem do Endereço:</span> <span className="text-slate-600">{prop.origem_endereco}</span></p>}
-              {prop.data_atualizacao_endereco && <p><span className="text-slate-400 font-medium">Atualização:</span> <span className="text-slate-600">{prop.data_atualizacao_endereco}</span></p>}
+              {prop.data_atualizacao_endereco && (
+                <p>
+                  <span className="text-slate-400 font-medium">Atualização:</span>{' '}
+                  <span className="text-slate-700 font-mono font-medium">{formatDateBR(prop.data_atualizacao_endereco)}</span>
+                </p>
+              )}
             </div>
           </div>
           <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 space-y-2">
@@ -442,67 +493,250 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
     case 'E5': {
       const ocorrencias = dados.ocorrencias || [];
       return (
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 font-semibold text-xs text-slate-800">
-            Ocorrências Policiais Registradas ({ocorrencias.length})
-          </div>
-          <div className="divide-y divide-slate-100 p-4 space-y-3">
-            {ocorrencias.map((o: any, idx: number) => (
-              <div key={idx} className="bg-rose-50/50 border border-rose-200/80 rounded-lg p-3.5 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                    {o.tipo}
-                  </span>
-                  <span className="text-xs font-mono text-slate-500">{o.data}</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs pt-1">
-                  <p><span className="text-slate-500 font-medium">Boletim:</span> <span className="font-mono font-bold text-slate-900">{o.numero_boletim || '-'}</span></p>
-                  <p><span className="text-slate-500 font-medium">Município/UF:</span> <span className="font-semibold text-slate-900">{o.municipio}{o.uf ? `/${o.uf}` : ''}</span></p>
-                  <p><span className="text-slate-500 font-medium">Órgão de Segurança:</span> <span className="text-slate-700">{o.orgao_seguranca || '-'}</span></p>
-                </div>
-                {o.descricao && (
-                  <p className="text-[11px] text-slate-600 bg-white/60 p-2 rounded border border-rose-100">
-                    {o.descricao}
-                  </p>
-                )}
+        <div className="space-y-4">
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-semibold text-slate-800">
+                Ocorrências Policiais Registradas ({ocorrencias.length})
+              </span>
+              <div className="flex items-center space-x-3 font-mono text-slate-600 text-[11px]">
+                {dados.placa && <span>Placa: <strong className="text-slate-900">{dados.placa}</strong></span>}
+                {dados.chassi && <span>Chassi: <strong className="text-slate-900">{dados.chassi}</strong></span>}
               </div>
-            ))}
+            </div>
+            <div className="divide-y divide-slate-100 p-4 space-y-3">
+              {ocorrencias.map((o: any, idx: number) => {
+                const isRecuperado = (o.tipo || '').toLowerCase().includes('recupera') || (o.tipo || '').toLowerCase().includes('devolu');
+                return (
+                  <div
+                    key={idx}
+                    className={`border rounded-lg p-3.5 space-y-1.5 ${
+                      isRecuperado ? 'bg-emerald-50/40 border-emerald-200/80' : 'bg-rose-50/50 border-rose-200/80'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                          isRecuperado
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                            : 'bg-rose-100 text-rose-800 border-rose-200'
+                        }`}
+                      >
+                        {o.tipo}
+                      </span>
+                      <span className="text-xs font-mono text-slate-500">
+                        {o.data ? formatDateBR(o.data) : (o.ano ? `Ano ${o.ano}` : '-')}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs pt-1">
+                      <p>
+                        <span className="text-slate-500 font-medium">Boletim:</span>{' '}
+                        <span className="font-mono font-bold text-slate-900">{o.numero_boletim || '-'}</span>
+                      </p>
+                      <p>
+                        <span className="text-slate-500 font-medium">Localidade:</span>{' '}
+                        <span className="font-semibold text-slate-900">
+                          {o.municipio ? `${o.municipio} / ${o.uf}` : (o.uf ? `UF: ${o.uf}` : '-')}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-slate-500 font-medium">Órgão de Segurança:</span>{' '}
+                        <span className="text-slate-700">{o.orgao_seguranca || '-'}</span>
+                      </p>
+                    </div>
+                    {o.descricao && (
+                      <p className="text-[11px] text-slate-600 bg-white/60 p-2 rounded border border-slate-200/60">
+                        {o.descricao}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       );
     }
 
-    // E6 & E7: CNH
-    case 'E6':
-    case 'E7': {
+    // E6: CNH com Imagem Oficial (Senatran)
+    case 'E6': {
+      const isVencida = !!dados.validade_vencida;
+      const temRetencao = !!dados.possui_retencao;
+
       return (
-        <div className="border border-slate-200 rounded-lg p-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 text-xs">
-              <p><span className="text-slate-400 font-medium">Nome do Condutor:</span> <span className="font-bold text-slate-900 text-sm block">{dados.nome}</span></p>
-              <p><span className="text-slate-400 font-medium">CPF:</span> <span className="font-mono text-slate-800">{dados.cpf}</span></p>
-              <p><span className="text-slate-400 font-medium">Número de Registro:</span> <span className="font-mono text-slate-800 font-semibold">{dados.numero_registro || '-'}</span></p>
-              <p><span className="text-slate-400 font-medium">Renach:</span> <span className="font-mono text-slate-800">{dados.renach || '-'}</span></p>
-              <p><span className="text-slate-400 font-medium">Categoria:</span> <span className="font-bold text-blue-900 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded inline-block">{dados.categoria || '-'}</span></p>
-            </div>
-            <div className="space-y-2 text-xs">
-              <p><span className="text-slate-400 font-medium">Data de Validade:</span> <span className="font-mono font-bold text-slate-900">{dados.data_validade || '-'}</span></p>
-              <p><span className="text-slate-400 font-medium">Nome da Mãe:</span> <span className="text-slate-800">{dados.nome_mae || '-'}</span></p>
-              <p><span className="text-slate-400 font-medium">UF:</span> <span className="font-mono text-slate-800">{dados.uf || '-'}</span></p>
-              {dados.impedimento && (
-                <p><span className="text-slate-400 font-medium">Impedimentos:</span> <span className="text-rose-700 font-semibold">{dados.impedimento}</span></p>
+        <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-5 bg-white shadow-xs">
+          <div className="flex flex-col md:flex-row items-start gap-6">
+            {/* Foto Oficial Biométrica da CNH */}
+            {dados.foto_base64 && (
+              <div className="shrink-0 flex flex-col items-center">
+                <div className="w-32 h-44 bg-slate-100 border-2 border-slate-300 rounded-lg overflow-hidden shadow-xs flex items-center justify-center p-1 bg-white">
+                  <img
+                    src={dados.foto_base64.startsWith('data:') ? dados.foto_base64 : `data:image/jpeg;base64,${dados.foto_base64}`}
+                    alt="Espelho Fotográfico CNH"
+                    className="w-full h-full object-cover rounded"
+                  />
+                </div>
+                <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mt-2">
+                  Biometria Oficial Senatran
+                </span>
+              </div>
+            )}
+
+            {/* Grid de Dados do Condutor */}
+            <div className="flex-1 space-y-4 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Nome do Condutor:</span>
+                  <span className="font-bold text-slate-900 text-sm block mt-0.5">{String(dados.nome || '-')}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">CPF:</span>
+                  <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatDocumento(String(dados.cpf || ''))}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Número do Registro:</span>
+                  <span className="font-mono font-bold text-slate-900 block mt-0.5">{String(dados.numero_registro || '-')}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Formulário Renach:</span>
+                  <span className="font-mono text-slate-700 block mt-0.5">{String(dados.renach || '-')}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Categoria Habilitação:</span>
+                  <span className="font-mono font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded inline-block mt-0.5">
+                    {String(dados.categoria || '-')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">UF de Emissão:</span>
+                  <span className="font-mono font-bold text-slate-800 block mt-0.5">{String(dados.uf || '-')}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Data de Emissão:</span>
+                  <span className="font-mono text-slate-700 block mt-0.5">{formatDateBR(String(dados.data_emissao || ''))}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Data de Validade:</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="font-mono font-bold text-slate-900">{formatDateBR(String(dados.data_validade || ''))}</span>
+                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold border ${isVencida ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                      {isVencida ? 'Vencida' : 'Regular'}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Filiação Materna:</span>
+                  <span className="text-slate-800 font-medium block mt-0.5">{String(dados.nome_mae || '-')}</span>
+                </div>
+              </div>
+
+              {/* Status e Observações */}
+              <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Retenção Administrativa:</span>
+                  <span className={`font-semibold ${temRetencao ? 'text-rose-700' : 'text-slate-700'}`}>
+                    {temRetencao ? 'Consta Retenção Administrativa' : 'Não consta retenção'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Cursos Especializados:</span>
+                  <span className="text-slate-600 text-[11.5px]">
+                    {typeof dados.cursos_especiais === 'string' ? dados.cursos_especiais : (Array.isArray(dados.cursos_especiais) && dados.cursos_especiais.length > 0 ? dados.cursos_especiais.join(', ') : 'Não consta realização de cursos especiais.')}
+                  </span>
+                </div>
+              </div>
+
+              {dados.observacoes && (
+                <div className="pt-2 text-xs">
+                  <span className="text-[11px] text-slate-400 font-medium block">Observações do Condutor:</span>
+                  <p className="text-slate-700 bg-slate-50 p-2 rounded border border-slate-200 mt-1">{String(dados.observacoes)}</p>
+                </div>
               )}
             </div>
           </div>
-          {dados.foto_base64 && (
-            <div className="pt-3 border-t border-slate-100 flex items-center space-x-4">
-              <div className="border border-slate-300 rounded p-1 bg-white">
-                <img src={`data:image/jpeg;base64,${dados.foto_base64}`} alt="Foto CNH" className="w-24 h-32 object-cover rounded" />
+        </div>
+      );
+    }
+
+    // E7: CNH sem Imagem (Dados Cadastrais Oficiais)
+    case 'E7': {
+      return (
+        <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Prontuário de Habilitação & Dados Civis
+            </span>
+            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+              Base Nacional de Condutores
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block">Nome Completo:</span>
+              <span className="font-bold text-slate-900 text-sm block mt-0.5">{String(dados.nome || '-')}</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block">CPF:</span>
+              <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatDocumento(String(dados.cpf || ''))}</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block">Registro CNH:</span>
+              <span className="font-mono font-bold text-slate-900 block mt-0.5">{String(dados.numero_registro || '-')}</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block">Renach:</span>
+              <span className="font-mono text-slate-700 block mt-0.5">{String(dados.renach || '-')}</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block">Categoria:</span>
+              <span className="font-mono font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded inline-block mt-0.5">
+                {String(dados.categoria || '-')}
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block">Data de Validade:</span>
+              <span className="font-mono font-bold text-slate-900 block mt-0.5">{formatDateBR(String(dados.data_validade || ''))}</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block">Data de Nascimento:</span>
+              <span className="font-mono text-slate-700 block mt-0.5">{formatDateBR(String(dados.data_nascimento || ''))}</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block">Sexo:</span>
+              <span className="text-slate-800 block mt-0.5">{String(dados.sexo || '-')}</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block">Município / UF Nascimento:</span>
+              <span className="text-slate-800 font-medium block mt-0.5">
+                {dados.cidade_nascimento ? `${dados.cidade_nascimento}${dados.uf ? ` - ${dados.uf}` : ''}` : String(dados.uf || '-')}
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block">Nome da Mãe:</span>
+              <span className="text-slate-800 font-medium block mt-0.5">{String(dados.nome_mae || '-')}</span>
+            </div>
+            {dados.rg_numero && (
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Registro Geral (RG):</span>
+                <span className="font-mono text-slate-800 font-semibold block mt-0.5">
+                  {String(dados.rg_numero)} {dados.rg_orgao ? `(${dados.rg_orgao}/${dados.rg_uf || ''})` : ''}
+                </span>
               </div>
-              <div className="text-xs text-slate-500">
-                <p className="font-semibold text-slate-800">Espelho Fotográfico Oficial</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Captura biométrica do banco nacional de condutores.</p>
+            )}
+            {typeof dados.pontos_cnh === 'number' && (
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Pontos na CNH:</span>
+                <span className={`font-mono font-bold block mt-0.5 ${dados.pontos_cnh > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                  {dados.pontos_cnh} {dados.pontos_cnh === 1 ? 'ponto' : 'pontos'}
+                </span>
               </div>
+            )}
+          </div>
+
+          {dados.impedimento && (
+            <div className="pt-2 text-xs">
+              <span className="text-rose-700 font-semibold">Impedimento: {String(dados.impedimento)}</span>
             </div>
           )}
         </div>

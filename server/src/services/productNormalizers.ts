@@ -102,12 +102,17 @@ export function normalizeE2(raw: any): NormalizedResult {
  */
 export function normalizeE3(raw: any): NormalizedResult {
   const veiculos = Array.isArray(raw?.veiculos) ? raw.veiculos : [];
+  const aviso = raw?.message || raw?.mensagem;
+  const orientacao = raw?.hint || raw?.orientacao;
+
   return {
     totalRegistros: veiculos.length,
     dados: cleanObject({
       documento: raw?.documento,
       proprietario: raw?.proprietario,
       quantidade_veiculos: veiculos.length,
+      aviso: aviso,
+      orientacao: orientacao,
       veiculos: veiculos.map((v: any) => ({
         placa: v.placa,
         chassi: v.chassi,
@@ -174,27 +179,34 @@ export function normalizeE4(raw: any): NormalizedResult {
  */
 export function normalizeE5(raw: any): NormalizedResult {
   let ocorrencias: any[] = [];
+  const rawList = Array.isArray(raw?.ocorrencias) ? raw.ocorrencias : [];
 
-  // Padrão 1: renavam_ocorrencia
-  if (Array.isArray(raw?.ocorrencias)) {
-    ocorrencias = raw.ocorrencias.map((o: any) => {
-      const bo = o.boletim_ocorrencia || {};
-      return {
-        tipo: o.cod_indicador_categoria_descricao || o.tipo || 'OCORRENCIA',
-        data: bo.data || o.data,
-        municipio: bo.municipio || o.municipio,
-        uf: bo.uf || o.uf,
-        numero_boletim: bo.numero || o.numeroBoletimAno || o.numero,
-        orgao_seguranca: bo.orgao_seguranca || o.orgaoSegurancaUf,
-        descricao: o.descricao
-      };
+  ocorrencias = rawList.map((o: any) => {
+    const bo = o.boletim_ocorrencia || {};
+    const numBo = bo.num || o.num_bo || bo.numero || o.numeroBoletimAno || o.numero;
+    const anoBo = bo.ano || o.ano_bo;
+    const numFormatado = numBo ? (anoBo && !String(numBo).includes(String(anoBo)) ? `${numBo}/${anoBo}` : String(numBo)) : undefined;
+
+    return cleanObject({
+      tipo: o.cod_indicador_categoria_descricao || o.tipo || 'OCORRÊNCIA',
+      data: bo.data || o.data || (anoBo ? `Ano ${anoBo}` : undefined),
+      ano: anoBo,
+      municipio: bo.municipio || o.municipio,
+      uf: bo.uf || o.uf_boletim || o.uf,
+      numero_boletim: numFormatado,
+      orgao_seguranca: bo.orgao_seguranca || o.orgao_seguranca || (bo.cod_orgao_seguranca || o.cod_orgao_seguranca ? `Cód. ${bo.cod_orgao_seguranca || o.cod_orgao_seguranca}` : undefined),
+      descricao: o.descricao,
+      chassi: o.chassi
     });
-  }
+  }).filter(Boolean);
+
+  const chassiGeral = raw?.chassi || rawList[0]?.chassi;
 
   return {
     totalRegistros: ocorrencias.length,
     dados: cleanObject({
-      placa: raw?.placa || raw?.placa_consultada,
+      placa: raw?.placa || raw?.placa_consultada || raw?.placa_resposta,
+      chassi: chassiGeral,
       total_ocorrencias: ocorrencias.length,
       ocorrencias
     }) || null
@@ -202,11 +214,13 @@ export function normalizeE5(raw: any): NormalizedResult {
 }
 
 /**
- * Normalizador E6: CNH com Imagem Oficial
+ * Normalizador E6: CNH com Imagem Oficial (Senatran)
  */
 export function normalizeE6(raw: any): NormalizedResult {
   const cond = raw?.condutor || raw?.data || raw;
   const hasCond = !!(cond?.nome || cond?.cpf);
+  const foto = cond?.retrato || cond?.foto || cond?.imagem || cond?.foto_base64;
+
   return {
     totalRegistros: hasCond ? 1 : 0,
     dados: cleanObject({
@@ -217,20 +231,29 @@ export function normalizeE6(raw: any): NormalizedResult {
       categoria: cond.categoria,
       data_emissao: cond.dataEmissao,
       data_validade: cond.dataValidade,
+      validade_vencida: cond.dataValidadeVencida,
       uf: cond.uf,
       nome_mae: cond.nomeMae || cond.mae,
-      foto_base64: cond.foto || cond.imagem || cond.foto_base64,
+      observacoes: cond.observacoes,
+      bloqueios: Array.isArray(cond.bloqueios) && cond.bloqueios.length > 0 ? cond.bloqueios : undefined,
+      possui_retencao: cond.possuiRetencaoAdministrativa,
+      cursos_especiais: cond.mensagemCursosEspeciais || (Array.isArray(cond.cursosEspeciais) && cond.cursosEspeciais.length > 0 ? cond.cursosEspeciais : undefined),
+      foto_base64: foto,
       assinatura_base64: cond.assinatura || cond.assinatura_base64
     }) || null
   };
 }
 
 /**
- * Normalizador E7: CNH sem Imagem (com Contingência Renach)
+ * Normalizador E7: CNH sem Imagem (com Contingência PWN/Renach)
  */
 export function normalizeE7(raw: any): NormalizedResult {
   const data = raw?.data || raw?.condutor || raw;
   const hasData = !!(data?.name || data?.nome || data?.cpf);
+  const cnhObj = typeof data?.cnh === 'object' && data?.cnh !== null ? data.cnh : {};
+  const rgObj = typeof data?.rg === 'object' && data?.rg !== null ? data.rg : {};
+  const pointsObj = typeof data?.points === 'object' && data?.points !== null ? data.points : {};
+
   return {
     totalRegistros: hasData ? 1 : 0,
     dados: cleanObject({
@@ -239,13 +262,18 @@ export function normalizeE7(raw: any): NormalizedResult {
       data_nascimento: data.birthday || data.data_nascimento,
       sexo: data.gender || data.sexo,
       nome_mae: data.mother || data.nome_mae,
-      renach: data.renach || data.num_renach,
-      numero_registro: data.cnh || data.num_registro,
-      categoria: data.category || data.categoria,
-      data_validade: data.validade || data.data_validade,
-      uf: data.uf || data.birthState,
+      renach: data.renach || data.num_renach || data.formCnh,
+      numero_registro: cnhObj.number || (typeof data.cnh === 'string' ? data.cnh : undefined) || data.num_registro || data.numeroRegistro,
+      categoria: cnhObj.category || data.category || data.categoria,
+      data_validade: cnhObj.dueDate || data.validade || data.data_validade,
+      uf: cnhObj.state || data.uf || data.birthState,
       cidade_nascimento: data.birthCity || data.municipio_nascimento,
-      impedimento: data.block || data.num_lista_impedimento
+      rg_numero: rgObj.number || (typeof data.rg === 'string' ? data.rg : undefined),
+      rg_orgao: rgObj.dispatcher,
+      rg_uf: rgObj.uf,
+      pontos_cnh: typeof pointsObj.total === 'number' ? pointsObj.total : undefined,
+      impedimento: data.block || data.num_lista_impedimento,
+      observacoes: data.observation || data.observacoes
     }) || null
   };
 }
