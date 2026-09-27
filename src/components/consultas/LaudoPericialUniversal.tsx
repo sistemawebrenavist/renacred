@@ -9,28 +9,67 @@ import { DeclaracaoCard } from '../imobiliario/DeclaracaoCard';
 import { ExportPdfButton } from '../imobiliario/ExportPdfButton';
 import { ExportExcelButton } from '../imobiliario/ExportExcelButton';
 
-// Formatação universal de CPF/CNPJ/Placa
-const formatDocumento = (doc: string) => {
+// Formatação universal de CPF com 11 dígitos garantidos (preenchimento com zero à esquerda)
+const formatCPF = (doc?: string | number | null): string => {
   if (!doc) return '-';
-  const clean = doc.replace(/\D/g, '');
-  if (clean.length === 11) {
-    return clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  const clean = String(doc).replace(/\D/g, '');
+  if (!clean) return '-';
+  const padded = clean.padStart(11, '0');
+  if (padded.length === 11) {
+    return padded.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  }
+  return formatDocumento(doc);
+};
+
+// Formatação universal de CPF/CNPJ/Placa
+const formatDocumento = (doc?: string | number | null) => {
+  if (!doc) return '-';
+  const str = String(doc).trim();
+  const clean = str.replace(/\D/g, '');
+  if (clean.length > 0 && clean.length <= 11) {
+    const padded = clean.padStart(11, '0');
+    return padded.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   }
   if (clean.length === 14) {
     return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
   }
-  return doc.toUpperCase();
+  return str.toUpperCase();
+};
+
+// Formatação universal de CEP (00000-000)
+const formatCEP = (cep?: string | number | null): string => {
+  if (!cep) return '-';
+  const clean = String(cep).replace(/\D/g, '').padStart(8, '0');
+  if (clean.length === 8) {
+    return clean.replace(/(\d{5})(\d{3})/, '$1-$2');
+  }
+  return String(cep);
 };
 
 // Formatação universal de data brasileira (DD/MM/AAAA)
-const formatDateBR = (val?: string): string => {
+const formatDateBR = (val?: string | null): string => {
   if (!val || typeof val !== 'string') return '-';
   const trimmed = val.trim();
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(trimmed)) {
+    return trimmed;
+  }
   if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
     const parts = trimmed.split('T')[0].split('-');
     if (parts.length === 3) {
       return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
+  }
+  if (/^\d{8}$/.test(trimmed)) {
+    const ano = trimmed.substring(0, 4);
+    const mes = trimmed.substring(4, 6);
+    const dia = trimmed.substring(6, 8);
+    return `${dia}/${mes}/${ano}`;
+  }
+  if (/^\d{6}$/.test(trimmed)) {
+    const ano = `20${trimmed.substring(0, 2)}`;
+    const mes = trimmed.substring(2, 4);
+    const dia = trimmed.substring(4, 6);
+    return `${dia}/${mes}/${ano}`;
   }
   return trimmed;
 };
@@ -569,7 +608,7 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
             {/* Foto Oficial Biométrica da CNH */}
             {dados.foto_base64 && (
               <div className="shrink-0 flex flex-col items-center">
-                <div className="w-32 h-44 bg-slate-100 border-2 border-slate-300 rounded-lg overflow-hidden shadow-xs flex items-center justify-center p-1 bg-white">
+                <div className="w-32 h-44 bg-white border-2 border-slate-300 rounded-lg overflow-hidden shadow-xs flex items-center justify-center p-1">
                   <img
                     src={dados.foto_base64.startsWith('data:') ? dados.foto_base64 : `data:image/jpeg;base64,${dados.foto_base64}`}
                     alt="Espelho Fotográfico CNH"
@@ -619,7 +658,7 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                   <span className="text-[11px] text-slate-400 font-medium block">Data de Validade:</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="font-mono font-bold text-slate-900">{formatDateBR(String(dados.data_validade || ''))}</span>
-                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold border ${isVencida ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border ${isVencida ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
                       {isVencida ? 'Vencida' : 'Regular'}
                     </span>
                   </div>
@@ -747,42 +786,117 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
     case 'E8': {
       const multas = dados.multas || [];
       return (
-        <div className="border border-slate-200 rounded-lg overflow-hidden space-y-4">
+        <div className="border border-slate-200 rounded-xl overflow-hidden space-y-0 bg-white shadow-xs">
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div>
-              <span className="text-slate-500">Total de Infrações:</span> <span className="font-bold text-slate-900">{dados.total_multas}</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-slate-500 font-medium">Total de Infrações:</span>
+              <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200 font-mono">
+                {dados.total_multas || multas.length}
+              </span>
             </div>
-            <div className="space-x-4 font-mono">
-              <span>Valor Total: <strong className="text-slate-900">R$ {dados.valor_total || '0,00'}</strong></span>
-              <span>Exigível: <strong className="text-rose-700">R$ {dados.valor_total_exigivel || '0,00'}</strong></span>
+            <div className="flex flex-wrap items-center gap-4 font-mono text-xs">
+              <span>
+                Valor Total: <strong className="text-slate-900">R$ {dados.valor_total || '0,00'}</strong>
+              </span>
+              <span>
+                Exigível: <strong className={dados.valor_total_exigivel && dados.valor_total_exigivel !== '0.00' && dados.valor_total_exigivel !== '0,00' ? 'text-rose-700 font-bold' : 'text-slate-700'}>R$ {dados.valor_total_exigivel || '0,00'}</strong>
+              </span>
+              {dados.valor_total_nao_exigivel && (
+                <span className="text-slate-500">
+                  Não Exigível: <strong>R$ {dados.valor_total_nao_exigivel}</strong>
+                </span>
+              )}
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left text-slate-700">
-              <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                <tr>
-                  <th className="px-4 py-2.5">Auto de Infração</th>
-                  <th className="px-4 py-2.5">Data / Hora</th>
-                  <th className="px-4 py-2.5">Órgão Autuador</th>
-                  <th className="px-4 py-2.5">Descrição</th>
-                  <th className="px-4 py-2.5">Valor (R$)</th>
-                  <th className="px-4 py-2.5">Situação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-mono">
-                {multas.map((m: any, idx: number) => (
-                  <tr key={idx} className="hover:bg-slate-50/60">
-                    <td className="px-4 py-2 font-bold text-slate-900">{m.auto_infracao}</td>
-                    <td className="px-4 py-2 text-slate-600">{m.data_infracao} {m.hora_infracao || ''}</td>
-                    <td className="px-4 py-2 font-sans text-slate-700">{m.orgao_autuador}</td>
-                    <td className="px-4 py-2 font-sans text-slate-700">{m.descricao_infracao}</td>
-                    <td className="px-4 py-2 font-bold text-slate-900">{m.valor}</td>
-                    <td className="px-4 py-2 font-sans">{m.situacao}</td>
+
+          {multas.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400">
+              Nenhuma infração ou multa nacional ativa vinculada a este veículo na base RENAINF.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left text-slate-700">
+                <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase text-[11px] tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3">Auto de Infração</th>
+                    <th className="px-4 py-3">Data / Hora</th>
+                    <th className="px-4 py-3">Órgão Autuador</th>
+                    <th className="px-4 py-3">Descrição da Infração</th>
+                    <th className="px-4 py-3 text-right">Valor (R$)</th>
+                    <th className="px-4 py-3 text-center">Situação</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {multas.map((m: any, idx: number) => {
+                    const isExigivel = (m.situacao || '').toLowerCase().includes('exigível') && !(m.situacao || '').toLowerCase().includes('não');
+                    const formattedValor = typeof m.valor === 'number'
+                      ? m.valor.toFixed(2).replace('.', ',')
+                      : (Number(m.valor) ? Number(m.valor).toFixed(2).replace('.', ',') : (m.valor || '0,00'));
+
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="px-4 py-3 font-mono font-bold text-slate-900 align-top">
+                          <div>{m.auto_infracao || '-'}</div>
+                          {m.codigo_infracao && (
+                            <div className="text-[10px] text-slate-400 font-sans font-normal mt-0.5">
+                              Enquadramento: {m.codigo_infracao}
+                            </div>
+                          )}
+                          {m.artigo_ctb && (
+                            <div className="text-[10px] text-blue-800 font-sans font-medium mt-0.5">
+                              {m.artigo_ctb}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-slate-700 align-top whitespace-nowrap">
+                          <div className="font-semibold">{formatDateBR(m.data_infracao)}</div>
+                          {m.hora_infracao && (
+                            <div className="text-[10px] text-slate-400 font-normal">{m.hora_infracao}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 font-sans text-slate-700 align-top">
+                          <span className="font-semibold text-slate-800 block">
+                            {m.orgao_autuador || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-sans text-slate-800 align-top max-w-xs">
+                          <p className="leading-snug">
+                            {m.descricao_infracao || '-'}
+                          </p>
+                          {m.local && (
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              Local: {m.local}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 font-mono font-bold text-slate-900 text-right align-top whitespace-nowrap">
+                          R$ {formattedValor}
+                        </td>
+                        <td className="px-4 py-3 text-center align-top whitespace-nowrap">
+                          <div className="inline-flex flex-col items-center gap-1">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                isExigivel
+                                  ? 'bg-rose-50 text-rose-800 border-rose-200'
+                                  : 'bg-slate-100 text-slate-700 border-slate-200'
+                              }`}
+                            >
+                              {m.situacao || 'Autuada'}
+                            </span>
+                            {m.gravidade && (
+                              <span className="text-[10px] text-slate-500 font-sans font-medium">
+                                {m.gravidade} {m.pontos ? `• ${m.pontos}` : ''}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       );
     }
@@ -791,22 +905,44 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
     case 'E9': {
       const processos = dados.processos || [];
       return (
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 font-semibold text-xs text-slate-800">
-            Processos e Ordens Judiciais ({processos.length})
+        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between font-semibold text-xs text-slate-800">
+            <span>Processos e Ordens Judiciais ({processos.length})</span>
+            <span className="font-mono text-slate-500">Placa: {dados.placa || identifier}</span>
           </div>
           <div className="divide-y divide-slate-100 p-4 space-y-3">
             {processos.map((p: any, idx: number) => (
-              <div key={idx} className="bg-purple-50/40 border border-purple-200/80 rounded-lg p-3.5 space-y-1.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-purple-900 text-sm">{p.numero_processo}</span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                    {p.tipo_restricao}
+              <div key={idx} className="bg-purple-50/40 border border-purple-200 rounded-xl p-4 space-y-3 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-purple-200/70">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 block">
+                      Número do Processo
+                    </span>
+                    <span className="font-mono font-extrabold text-purple-950 text-base block mt-0.5 select-all">
+                      {p.numero_processo || '-'}
+                    </span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs">
+                    {p.tipo_restricao || 'Bloqueio Judicial'}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 text-slate-700">
-                  <p><span className="text-slate-400 font-medium">Tribunal:</span> <span className="font-bold">{p.tribunal}</span></p>
-                  <p><span className="text-slate-400 font-medium">Órgão Judiciário:</span> {p.orgao_judiciario}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-slate-700">
+                  <div>
+                    <span className="text-slate-400 font-medium block">Tribunal:</span>
+                    <span className="font-bold text-slate-900 mt-0.5 block">{p.tribunal || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium block">Órgão Judiciário:</span>
+                    <span className="font-semibold text-slate-900 mt-0.5 block">{p.orgao_judiciario || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium block">Data de Inclusão:</span>
+                    <span className="font-mono text-slate-800 mt-0.5 block">{formatDateBR(p.data_inclusao) || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium block">Situação do Registro:</span>
+                    <span className="font-semibold text-purple-800 mt-0.5 block">{p.situacao || 'Ativa'}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -818,33 +954,174 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
     // E10: Comunicação de Venda
     case 'E10': {
       const comunicados = dados.comunicados || [];
+      const propCRV = dados.proprietario_crv;
+
       return (
-        <div className="border border-slate-200 rounded-lg overflow-hidden space-y-4">
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-800 uppercase tracking-wider">
-              Comunicações de Venda Registradas ({comunicados.length})
-            </span>
-            <span className="font-mono text-slate-600">Placa: {dados.placa || identifier}</span>
+        <div className="border border-slate-200 rounded-xl overflow-hidden space-y-4 bg-white shadow-xs p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div>
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                Comunicação Oficial de Venda Veicular
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Registro de transferência de posse civil perante serventias e órgãos de trânsito
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="font-mono text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded">
+                Placa: {dados.placa || identifier}
+              </span>
+              {dados.renavam && (
+                <span className="font-mono text-xs text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded">
+                  Renavam: {dados.renavam}
+                </span>
+              )}
+            </div>
           </div>
+
+          {/* Dados do Proprietário no CRV (Vendedor) */}
+          {propCRV && propCRV.documento && (
+            <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  Proprietário Registrado no CRV (Vendedor)
+                </span>
+                <span className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded">
+                  {propCRV.tipo_documento || 'Documento Oficial'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-400 font-medium block">Documento do Titular CRV:</span>
+                  <span className="font-mono font-bold text-slate-900 text-sm mt-0.5 block">
+                    {formatDocumento(propCRV.documento)}
+                  </span>
+                </div>
+                {propCRV.nome && (
+                  <div>
+                    <span className="text-slate-400 font-medium block">Nome / Razão Social:</span>
+                    <span className="font-bold text-slate-900 text-sm mt-0.5 block">{propCRV.nome}</span>
+                  </div>
+                )}
+                {propCRV.numero_crv && (
+                  <div>
+                    <span className="text-slate-400 font-medium block">Número do CRV:</span>
+                    <span className="font-mono text-slate-800 mt-0.5 block">{propCRV.numero_crv}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Lista de Comunicações de Venda (Adquirentes) */}
           {comunicados.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-400">
-              Nenhuma comunicação de venda registrada para este veículo.
+            <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/50 rounded-xl border border-slate-200">
+              Nenhuma comunicação de venda registrada para este veículo na base oficial.
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 p-4 space-y-3">
-              {comunicados.map((c: any, idx: number) => (
-                <div key={idx} className="bg-slate-50/70 border border-slate-200 rounded-lg p-3.5 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-sm">{c.nome_comprador || 'Comprador não informado'}</span>
-                    <span className="font-mono text-slate-500">Data Venda: {c.data_venda || '-'}</span>
+            <div className="space-y-4">
+              {comunicados.map((c: any, idx: number) => {
+                const logradouroCompleto = [
+                  c.logradouro_comprador,
+                  c.numero_imovel_comprador ? `Nº ${c.numero_imovel_comprador}` : null,
+                  c.complemento_imovel_comprador
+                ].filter(Boolean).join(', ');
+
+                return (
+                  <div key={idx} className="border border-blue-200/80 bg-blue-50/30 rounded-xl p-4 sm:p-5 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-blue-100">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white uppercase tracking-wider">
+                          Comunicado {idx + 1} de {comunicados.length}
+                        </span>
+                        <span className="text-xs font-bold text-blue-950">
+                          {c.nome_comprador || 'Comprador Adquirente'}
+                        </span>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        {c.situacao || 'Ativo'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      {/* Bloco 1: Dados do Comprador */}
+                      <div className="space-y-2 bg-white/80 p-3.5 rounded-lg border border-blue-100">
+                        <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider block">
+                          Dados do Comprador / Adquirente
+                        </span>
+                        <p>
+                          <span className="text-slate-400 font-medium">Nome / Razão Social:</span>{' '}
+                          <strong className="text-slate-900 block mt-0.5">{c.nome_comprador || '-'}</strong>
+                        </p>
+                        <p>
+                          <span className="text-slate-400 font-medium">Documento:</span>{' '}
+                          <strong className="font-mono text-slate-800 block mt-0.5">
+                            {formatDocumento(c.documento_comprador || '')}
+                            {c.tipo_documento_comprador && (
+                              <span className="ml-1.5 text-[10px] font-sans font-medium text-slate-500">
+                                ({c.tipo_documento_comprador})
+                              </span>
+                            )}
+                          </strong>
+                        </p>
+                        <p>
+                          <span className="text-slate-400 font-medium">Logradouro:</span>{' '}
+                          <span className="text-slate-800 font-medium block mt-0.5">{logradouroCompleto || '-'}</span>
+                        </p>
+                        <p>
+                          <span className="text-slate-400 font-medium">Bairro:</span>{' '}
+                          <span className="text-slate-800 block mt-0.5">{c.bairro_imovel_comprador || '-'}</span>
+                        </p>
+                        <p>
+                          <span className="text-slate-400 font-medium">Município / UF:</span>{' '}
+                          <span className="font-semibold text-slate-900 block mt-0.5">
+                            {c.municipio_comprador || '-'}{c.uf_comprador && !c.municipio_comprador?.includes(c.uf_comprador) ? ` / ${c.uf_comprador}` : ''}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="text-slate-400 font-medium">CEP:</span>{' '}
+                          <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatCEP(c.cep_comprador)}</span>
+                        </p>
+                      </div>
+
+                      {/* Bloco 2: Dados da Transação de Venda */}
+                      <div className="space-y-2 bg-white/80 p-3.5 rounded-lg border border-blue-100">
+                        <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider block">
+                          Dados da Venda & Cartório
+                        </span>
+                        <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                          <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block">
+                            Data Efetiva da Venda
+                          </span>
+                          <span className="font-mono font-extrabold text-blue-950 text-base block mt-0.5">
+                            {formatDateBR(c.data_venda) || '-'}
+                          </span>
+                        </div>
+                        <p>
+                          <span className="text-slate-400 font-medium">Local da Venda:</span>{' '}
+                          <span className="font-semibold text-slate-800 block mt-0.5">{c.local_venda || '-'}</span>
+                        </p>
+                        {c.data_registro && (
+                          <p>
+                            <span className="text-slate-400 font-medium">Data do Registro:</span>{' '}
+                            <span className="font-mono text-slate-700 block mt-0.5">{formatDateBR(c.data_registro)}</span>
+                          </p>
+                        )}
+                        {c.numero_protocolo && (
+                          <p>
+                            <span className="text-slate-400 font-medium">Protocolo do Registro:</span>{' '}
+                            <span className="font-mono text-slate-700 block mt-0.5">{c.numero_protocolo}</span>
+                          </p>
+                        )}
+                        <p>
+                          <span className="text-slate-400 font-medium">Status do Comunicado:</span>{' '}
+                          <span className="font-semibold text-emerald-700 block mt-0.5">{c.situacao || 'Ativo'}</span>
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-slate-600">
-                    <p><span className="text-slate-400 font-medium">Documento:</span> <span className="font-mono font-semibold text-slate-800">{formatDocumento(c.documento_comprador || '')}</span></p>
-                    <p><span className="text-slate-400 font-medium">Protocolo:</span> <span className="font-mono text-slate-800">{c.numero_protocolo || '-'}</span></p>
-                    <p><span className="text-slate-400 font-medium">Data Inclusão:</span> <span className="font-mono text-slate-700">{c.data_inclusao || '-'}</span></p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -854,23 +1131,86 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
     // E11: Parentes
     case 'E11': {
       const parentes = dados.parentes || [];
+      const cpfPesquisado = dados.cpf_pesquisado || identifier;
+      const nomePesquisado = dados.nome_pesquisado;
+
       return (
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 font-semibold text-xs text-slate-800">
-            Vínculos Familiares Mapeados ({parentes.length})
-          </div>
-          <div className="divide-y divide-slate-100">
-            {parentes.map((p: any, idx: number) => (
-              <div key={idx} className="p-3.5 flex items-center justify-between hover:bg-slate-50 text-xs">
-                <div className="flex items-center space-x-3">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200 uppercase">
-                    {p.vinculo}
-                  </span>
-                  <span className="font-semibold text-slate-900">{p.nome}</span>
-                </div>
-                <span className="font-mono text-slate-600 font-medium">{p.cpf}</span>
+        <div className="space-y-4">
+          {/* Card de Identificação do Pesquisado */}
+          <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center font-bold shrink-0 border border-teal-200">
+                <User className="w-5 h-5 text-teal-700" />
               </div>
-            ))}
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Titular Auditado (Alvo dos Vínculos)
+                </span>
+                <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                  <span className="font-mono font-extrabold text-slate-900 text-sm">
+                    {formatCPF(cpfPesquisado)}
+                  </span>
+                  {nomePesquisado && (
+                    <span className="text-xs font-bold text-slate-700">
+                      • {nomePesquisado}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <span className="px-2.5 py-1 rounded text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                {parentes.length} {parentes.length === 1 ? 'vínculo familiar mapeado' : 'vínculos familiares mapeados'}
+              </span>
+            </div>
+          </div>
+
+          {/* Tabela com Colunas Separadas: Nome (Col 1), Grau de Parentesco (Col 2), CPF 11 dígitos (Col 3) */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-800 uppercase tracking-wider">
+              Árvore de Vínculos Familiares Mapeados ({parentes.length})
+            </div>
+
+            {parentes.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400">
+                Nenhum vínculo familiar de 1º grau localizado para este documento.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left text-slate-700">
+                  <thead className="bg-slate-100/80 text-slate-600 font-semibold border-b border-slate-200 text-[11px] uppercase tracking-wider">
+                    <tr>
+                      <th className="px-4 py-3 text-left">Familiar / Parente</th>
+                      <th className="px-4 py-3 text-center">Grau de Parentesco</th>
+                      <th className="px-4 py-3 text-right">CPF (11 Dígitos Padronizado)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {parentes.map((p: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                        {/* Coluna 1: Nome Completo */}
+                        <td className="px-4 py-3 font-semibold text-slate-900">
+                          {p.nome || 'NOME NÃO INFORMADO'}
+                        </td>
+
+                        {/* Coluna 2: Grau de Parentesco Separado */}
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-block px-2.5 py-0.5 rounded text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200 uppercase tracking-wide">
+                            {p.vinculo || 'FAMILIAR'}
+                          </span>
+                        </td>
+
+                        {/* Coluna 3: CPF com 11 dígitos com zero à esquerda padronizado */}
+                        <td className="px-4 py-3 text-right font-mono font-bold text-slate-800">
+                          {formatCPF(p.cpf)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       );

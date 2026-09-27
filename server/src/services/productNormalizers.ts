@@ -286,21 +286,35 @@ export function normalizeE8(raw: any): NormalizedResult {
   return {
     totalRegistros: multas.length,
     dados: cleanObject({
-      placa: raw?.placa || raw?.placa_consultada,
-      total_multas: multas.length,
+      placa: raw?.placa || raw?.placa_consultada || raw?.placa_resposta,
+      total_multas: typeof raw?.quantidade === 'number' ? raw.quantidade : multas.length,
       valor_total: raw?.valor_total,
       valor_total_exigivel: raw?.valor_total_exigivel,
       valor_total_nao_exigivel: raw?.valor_total_nao_exigivel,
-      multas: multas.map((m: any) => ({
-        auto_infracao: m.auto_infracao,
-        orgao_autuador: m.orgao_autuador_descricao || m.orgao_autuador,
-        data_infracao: m.data_infracao,
-        hora_infracao: m.hora_infracao,
-        local: m.local_infracao || m.local,
-        descricao_infracao: m.descricao_infracao || m.infracao,
-        valor: m.valor_infracao || m.valor,
-        situacao: m.situacao_descricao || m.situacao
-      }))
+      multas: multas.map((m: any) => {
+        let dataStr = m.data_infracao_iso || m.data_infracao;
+        if (dataStr && /^\d{6}$/.test(String(dataStr))) {
+          const s = String(dataStr);
+          dataStr = `20${s.substring(0, 2)}-${s.substring(2, 4)}-${s.substring(4, 6)}`;
+        }
+        const exigivelDesc = m.exigivel === '1' || m.exigivel === 1 ? 'Exigível' : (m.exigivel === '0' || m.exigivel === 0 ? 'Não Exigível' : undefined);
+        const situacaoFinal = m.situacao_descricao || m.situacao || exigivelDesc || 'Autuada';
+
+        return cleanObject({
+          auto_infracao: m.auto_infracao,
+          codigo_infracao: m.codigo_completo || m.cod_infracao || m.codigo,
+          orgao_autuador: m.orgao_autuador_descricao || m.orgao_autuador,
+          data_infracao: dataStr,
+          hora_infracao: m.hora_infracao || m.hora,
+          local: m.local_infracao || m.local,
+          descricao_infracao: m.descricao || m.cod_infracao_descricao || m.descricao_infracao || m.infracao,
+          valor: m.valor_multa || m.valor_infracao || m.valor,
+          situacao: situacaoFinal,
+          gravidade: m.nivel_gravidade,
+          pontos: m.pontos ? `${m.pontos} pts` : undefined,
+          artigo_ctb: m.artigo_ctb
+        });
+      })
     }) || null
   };
 }
@@ -318,11 +332,11 @@ export function normalizeE9(raw: any): NormalizedResult {
       total_processos: processos.length,
       processos: processos.map((p: any) => ({
         numero_processo: p.numero_processo,
-        tribunal: p.codigo_tribunal,
-        orgao_judiciario: p.nome_orgao_judiciario,
-        data_inclusao: p.data_inclusao,
-        tipo_restricao: p.descricao_tipo_restricao || p.tipo_restricao,
-        situacao: p.situacao
+        tribunal: p.codigo_tribunal || p.tribunal,
+        orgao_judiciario: p.nome_orgao_judiciario || p.orgao_judiciario,
+        data_inclusao: p.data_inclusao_iso || p.data_inclusao,
+        tipo_restricao: p.descricao_tipo_restricao || p.tipo_restricao || 'Restrição Judicial',
+        situacao: p.situacao_descricao || p.situacao || 'Ativa'
       }))
     }) || null
   };
@@ -332,21 +346,59 @@ export function normalizeE9(raw: any): NormalizedResult {
  * Normalizador E10: Comunicação de Venda Veicular
  */
 export function normalizeE10(raw: any): NormalizedResult {
-  const ocorrencias = Array.isArray(raw?.ocorrencias) ? raw.ocorrencias : [];
+  const ocorrencias = Array.isArray(raw?.ocorrencias) && raw.ocorrencias.length > 0
+    ? raw.ocorrencias
+    : raw?.comunicacao_venda
+      ? [raw.comunicacao_venda]
+      : [];
+
+  const cartorio = raw?.dados_veiculo_cartorio || {};
+  const compradorRoot = raw?.comprador || {};
+  const enderecoRoot = raw?.endereco_comprador || {};
+  const controle = raw?.dados_controle || {};
+
   return {
     totalRegistros: ocorrencias.length,
     dados: cleanObject({
-      placa: raw?.placa,
-      renavam: raw?.renavam,
+      placa: raw?.placa || raw?.veiculo?.placa,
+      renavam: raw?.renavam || raw?.veiculo?.renavam,
       total_comunicados: ocorrencias.length,
-      comunicados: ocorrencias.map((o: any) => ({
-        tipo_documento_comprador: o.tipo_documento_comprador_descricao,
-        documento_comprador: o.numero_documento_comprador,
-        nome_comprador: o.nome_comprador,
-        data_venda: o.data_venda,
-        data_inclusao: o.data_inclusao,
-        numero_protocolo: o.numero_protocolo
-      }))
+      proprietario_crv: cleanObject({
+        documento: cartorio.numero_documento_proprietario_crv,
+        tipo_documento: cartorio.tipo_documento_proprietario_crv_descricao,
+        nome: cartorio.nome_proprietario_crv,
+        numero_crv: cartorio.numero_crv && cartorio.numero_crv !== '000000000000' ? cartorio.numero_crv : undefined
+      }),
+      comunicados: ocorrencias.map((o: any) => {
+        let dataVendaStr = o.data_venda_iso || o.data_venda;
+        if (dataVendaStr && /^\d{8}$/.test(String(dataVendaStr))) {
+          const s = String(dataVendaStr);
+          dataVendaStr = `${s.substring(0, 4)}-${s.substring(4, 6)}-${s.substring(6, 8)}`;
+        }
+        let dataRegistroStr = o.data_registro_iso || o.data_registro || controle.data_registro_iso || controle.data_registro;
+        if (dataRegistroStr && /^\d{8}$/.test(String(dataRegistroStr))) {
+          const s = String(dataRegistroStr);
+          dataRegistroStr = `${s.substring(0, 4)}-${s.substring(4, 6)}-${s.substring(6, 8)}`;
+        }
+
+        return cleanObject({
+          tipo_documento_comprador: o.tipo_documento_comprador_descricao || compradorRoot.tipo_documento_descricao,
+          documento_comprador: o.numero_documento_comprador || compradorRoot.documento,
+          nome_comprador: o.nome_comprador || compradorRoot.nome,
+          logradouro_comprador: o.logradouro_comprador || enderecoRoot.logradouro,
+          numero_imovel_comprador: o.numero_imovel_comprador || enderecoRoot.numero,
+          complemento_imovel_comprador: o.complemento_imovel_comprador || enderecoRoot.complemento,
+          bairro_imovel_comprador: o.bairro_imovel_comprador || enderecoRoot.bairro,
+          municipio_comprador: o.cod_municipio_imovel_comprador_descricao || enderecoRoot.cod_municipio_descricao,
+          uf_comprador: o.uf_imovel_comprador || enderecoRoot.uf,
+          cep_comprador: o.cep_imovel_comprador || enderecoRoot.cep,
+          local_venda: o.cod_municipio_local_venda_descricao,
+          data_venda: dataVendaStr,
+          data_registro: dataRegistroStr,
+          situacao: o.indicador_situacao_descricao || controle.indicador_situacao_descricao || 'Ativo',
+          numero_protocolo: o.numero_protocolo
+        });
+      })
     }) || null
   };
 }
@@ -359,12 +411,18 @@ export function normalizeE11(raw: any): NormalizedResult {
   return {
     totalRegistros: list.length,
     dados: cleanObject({
+      cpf_pesquisado: raw?.cpf || raw?.CPF || raw?.query || raw?.meta?.cpf,
+      nome_pesquisado: raw?.nome || raw?.NOME || raw?.nome_pesquisado,
       total_vinculos: list.length,
-      parentes: list.map((item: any) => ({
-        vinculo: item.VINCULO || item.tipo_vinculo || 'FAMILIAR',
-        nome: item.NOME_VINCULO || item.nome,
-        cpf: item.CPF_VINCULO || item.cpf
-      }))
+      parentes: list.map((item: any) => {
+        const cpfRaw = item.CPF_VINCULO || item.cpf;
+        const cpfDigits = cpfRaw ? String(cpfRaw).replace(/\D/g, '').padStart(11, '0') : undefined;
+        return cleanObject({
+          vinculo: item.VINCULO || item.tipo_vinculo || 'FAMILIAR',
+          nome: item.NOME_VINCULO || item.nome,
+          cpf: cpfDigits || cpfRaw
+        });
+      })
     }) || null
   };
 }
