@@ -14,6 +14,7 @@ interface ProprietarioItem {
   municipio: string;
   evento: string | null;
   atual: boolean;
+  tempoPosse?: string;
 }
 
 interface ExportPdfVeicularProps {
@@ -301,6 +302,18 @@ export const ExportPdfVeicularButton: React.FC<ExportPdfVeicularProps> = ({
       doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'normal');
       doc.text(eventoStr, 17, currentY + 18);
+
+      if (item.tempoPosse) {
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'bold');
+        if (isAtual) {
+          doc.setTextColor(22, 163, 74);
+          doc.text(`Tempo de Posse: ${item.tempoPosse}`, 194, currentY + 18, { align: 'right' });
+        } else {
+          doc.setTextColor(71, 85, 105);
+          doc.text(`Tempo de Posse: ${item.tempoPosse}`, 194, currentY + 18, { align: 'right' });
+        }
+      }
 
       currentY += cardHeight + 2.5;
     });

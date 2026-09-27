@@ -21,6 +21,7 @@ import { ExportExcelButton } from './ExportExcelButton';
 import { ExportPdfVeicularButton } from '../veicular/ExportPdfVeicularButton';
 import { ExportExcelVeicularButton } from '../veicular/ExportExcelVeicularButton';
 import { ProprietarioTimelineCard } from '../veicular/ProprietarioTimelineCard';
+import { processarHistoricoProprietarios } from '../../utils/veicularUtils';
 
 interface DetalhesConsultaModalProps {
   isOpen: boolean;
@@ -74,46 +75,13 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
   const totalDeclaracoes = queryData?.totalDeclaracoes || declaracoes.length;
   const periodo = resultData?.periodo || '';
 
-  // E2 Data & Ordenação Cronológica Ascendente (Começa pela data mais antiga!)
-  const parseDataHora = (dataStr?: string, horaStr?: string): number => {
-    if (!dataStr) return 0;
-    try {
-      const parts = dataStr.trim().split('/');
-      if (parts.length !== 3) return 0;
-      const dia = parseInt(parts[0], 10);
-      const mes = parseInt(parts[1], 10) - 1;
-      const ano = parseInt(parts[2], 10);
-
-      let horas = 0;
-      let minutos = 0;
-      let segundos = 0;
-
-      if (horaStr) {
-        const timeParts = horaStr.trim().split(':');
-        horas = parseInt(timeParts[0], 10) || 0;
-        minutos = parseInt(timeParts[1], 10) || 0;
-        segundos = parseInt(timeParts[2], 10) || 0;
-      }
-
-      return new Date(ano, mes, dia, horas, minutos, segundos).getTime();
-    } catch {
-      return 0;
-    }
-  };
-
+  // E2 Data & Ordenação Cronológica Ascendente com cálculo de Tempo de Posse
   const historicoOrdenado = useMemo(() => {
-    if (!Array.isArray(resultData?.historico)) return [];
-    const list = [...resultData.historico];
-    list.sort((a, b) => {
-      const timeA = parseDataHora(a.data, a.hora);
-      const timeB = parseDataHora(b.data, b.hora);
-      return timeA - timeB; // Ascendente: da mais antiga para a mais recente!
-    });
-    return list;
+    return processarHistoricoProprietarios(resultData?.historico || []);
   }, [resultData?.historico]);
 
   const totalProprietarios = resultData?.total !== undefined ? resultData.total : historicoOrdenado.length;
-  const proprietarioAtual = resultData?.proprietario_atual || historicoOrdenado.find((h: any) => h.atual);
+  const proprietarioAtual = resultData?.proprietario_atual || historicoOrdenado.find((h: any) => h.atual) || historicoOrdenado[historicoOrdenado.length - 1];
 
   const formatDoc = (val: string) => {
     if (!val) return '-';
@@ -292,7 +260,7 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
                         <div>
                           <span className="text-[11px] text-slate-500 font-medium block">Nome Completo do Titular:</span>
                           <div className="flex items-center mt-1">
@@ -311,6 +279,16 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
                             </span>
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-slate-100 text-slate-600">
                               {proprietarioAtual.tipo || 'Pessoa'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[11px] text-slate-500 font-medium block">Tempo de Posse Vigente:</span>
+                          <div className="flex items-center gap-1.5 mt-1 font-mono">
+                            <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span className="font-bold text-blue-900 text-sm">
+                              {proprietarioAtual.tempoPosse || 'Posse Ativa'}
                             </span>
                           </div>
                         </div>

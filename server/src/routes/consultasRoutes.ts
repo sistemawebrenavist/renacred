@@ -31,7 +31,7 @@ router.get('/catalogo', async (req: any, res) => {
       category: p.category,
       inputType: p.inputType,
       defaultCost: p.defaultCost,
-      unitPrice: isSuperAdmin ? 0 : resolvedPrice,
+      unitPrice: resolvedPrice,
       isContracted,
       hasContingency: p.apiContingencies.length > 0
     };

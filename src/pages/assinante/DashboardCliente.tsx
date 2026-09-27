@@ -10,7 +10,8 @@ import {
   DollarSign,
   ShieldCheck,
   Layers,
-  KeyRound
+  KeyRound,
+  LayoutGrid
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
@@ -68,11 +69,11 @@ export default function DashboardCliente() {
           </button>
 
           <Link
-            to="/consultar"
+            to="/produtos"
             className="bg-[#1D4ED8] hover:bg-[#1E40AF] active:bg-[#172554] text-white font-semibold px-5 py-2.5 rounded-xl text-xs flex items-center transition shadow-xs"
           >
-            <Search className="w-4 h-4 mr-2" />
-            Nova Pesquisa Imobiliária
+            <LayoutGrid className="w-4 h-4 mr-2" />
+            Catálogo de Produtos (16)
             <ArrowRight className="w-4 h-4 ml-1.5" />
           </Link>
         </div>
@@ -83,23 +84,23 @@ export default function DashboardCliente() {
         <div className="space-y-1.5">
           <div className="flex items-center space-x-2 text-blue-400 text-xs font-bold uppercase tracking-wider">
             <Building2 className="w-4 h-4 text-[#1D4ED8]" />
-            <span>Serviço Oficial Cartorário & DOI</span>
+            <span>Portfólio de 16 Bases Oficiais em Tempo Real</span>
           </div>
           <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-            Pesquisa e Rastreio de Histórico Imobiliário Nacional
+            Consultas Oficiais: Imobiliário, Veicular, Cadastral e Jurídico
           </h3>
           <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-            Consulte escrituras, matrículas, compras, vendas e titularidades vinculadas a qualquer CPF ou CNPJ com emissão de laudo pericial oficial e exportação para PDF e Excel.
+            Acesse o catálogo unificado de 16 produtos periciais da Renacred. Pesquise por CPF, CNPJ ou Placa com emissão de laudo eletrônico, histórico e exportação para PDF e Excel com garantia de custo zero para consultas sem dados.
           </p>
         </div>
 
         <div className="flex items-center space-x-3 shrink-0">
           <Link
-            to="/consultar"
+            to="/produtos"
             className="inline-flex items-center px-6 py-3 bg-[#1D4ED8] hover:bg-[#1E40AF] text-white font-bold rounded-xl text-xs transition shadow-xs group"
           >
-            <Search className="w-4 h-4 mr-2" />
-            Ir para Consulta de Imóveis
+            <LayoutGrid className="w-4 h-4 mr-2" />
+            Acessar Catálogo de Produtos
             <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition" />
           </Link>
         </div>

@@ -20,6 +20,7 @@ export const ExportExcelVeicularButton: React.FC<ExportExcelVeicularProps> = ({ 
       Municipio: item.municipio || '',
       UF: item.uf || '',
       Evento: item.evento || 'Registro de Propriedade',
+      Tempo_de_Posse: item.tempoPosse || '',
       Situacao: item.atual ? 'Proprietário Atual (Vigente)' : 'Anterior',
     }));
 

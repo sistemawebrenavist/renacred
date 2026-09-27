@@ -1,7 +1,6 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { 
-  Search,
   LayoutGrid,
   KeyRound, 
   FileCode2, 
@@ -22,13 +21,6 @@ export const Sidebar: React.FC = () => {
 
   // Navegação de Consultas & Catálogo Oficial (Unificado)
   const productLinks = [
-    { 
-      to: '/consultar', 
-      label: 'Consultar', 
-      icon: Search, 
-      badge: null,
-      badgeColor: ''
-    },
     { 
       to: '/produtos', 
       label: 'Catálogo de Produtos', 

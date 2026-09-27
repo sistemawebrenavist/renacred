@@ -1,5 +1,26 @@
 import React from 'react';
 import { ProductDefinition } from '../../config/productsCatalog';
+import { Clock, User, MapPin, Building, Calendar, FileText, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ProprietarioTimelineCard } from '../veicular/ProprietarioTimelineCard';
+import { processarHistoricoProprietarios } from '../../utils/veicularUtils';
+import { ExportPdfVeicularButton } from '../veicular/ExportPdfVeicularButton';
+import { ExportExcelVeicularButton } from '../veicular/ExportExcelVeicularButton';
+import { DeclaracaoCard } from '../imobiliario/DeclaracaoCard';
+import { ExportPdfButton } from '../imobiliario/ExportPdfButton';
+import { ExportExcelButton } from '../imobiliario/ExportExcelButton';
+
+// Formatação universal de CPF/CNPJ/Placa
+const formatDocumento = (doc: string) => {
+  if (!doc) return '-';
+  const clean = doc.replace(/\D/g, '');
+  if (clean.length === 11) {
+    return clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  }
+  if (clean.length === 14) {
+    return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  }
+  return doc.toUpperCase();
+};
 
 interface LaudoPericialUniversalProps {
   produto: ProductDefinition;
@@ -23,19 +44,6 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
   tempoRespostaMs
 }) => {
   const dataFormatada = new Date(consultadoEm).toLocaleString('pt-BR');
-
-  // Formatação de documento para o card
-  const formatDocumento = (doc: string) => {
-    if (!doc) return '-';
-    const clean = doc.replace(/\D/g, '');
-    if (clean.length === 11) {
-      return clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    }
-    if (clean.length === 14) {
-      return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-    }
-    return doc.toUpperCase();
-  };
 
   const handleImprimir = () => {
     window.print();
@@ -131,7 +139,7 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
             </p>
           </div>
         ) : (
-          renderConteudoProduto(produto.code, dados)
+          renderConteudoProduto(produto.code, dados, identifier)
         )}
       </div>
 
@@ -151,10 +159,199 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
 /**
  * Renderizador de seções específicas conforme o produto
  */
-function renderConteudoProduto(code: string, dados: any) {
+function renderConteudoProduto(code: string, dados: any, identifier: string) {
   if (!dados) return null;
 
   switch (code.toUpperCase()) {
+    // E1: Histórico Imobiliário & Cartórios (DOI)
+    case 'E1': {
+      const declaracoes = dados.declaracoes || [];
+      return (
+        <div className="space-y-4">
+          <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 text-xs">
+              <span className="font-bold text-slate-800 font-mono text-sm uppercase">Documento: {formatDocumento(identifier)}</span>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                {declaracoes.length} {declaracoes.length === 1 ? 'declaração encontrada' : 'declarações encontradas'}
+              </span>
+              {dados.periodo && (
+                <span className="text-slate-500 font-medium">• Período: {dados.periodo}</span>
+              )}
+            </div>
+            {declaracoes.length > 0 && (
+              <div className="flex items-center space-x-2">
+                <ExportExcelButton documento={identifier} declaracoes={declaracoes} />
+                <ExportPdfButton
+                  documento={identifier}
+                  totalDeclaracoes={declaracoes.length}
+                  periodo={dados.periodo}
+                  declaracoes={declaracoes}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {declaracoes.map((dec: any, idx: number) => (
+              <DeclaracaoCard key={idx} declaracao={dec} index={idx} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // E2: Histórico de Proprietários Veiculares
+    case 'E2': {
+      const historicoComPosse = processarHistoricoProprietarios(dados.historico || []);
+      const titularVigente = historicoComPosse.find((h) => h.atual) || historicoComPosse[historicoComPosse.length - 1];
+      const proprietarioAtual = titularVigente || dados.proprietario_atual ? {
+        ...(titularVigente || {}),
+        ...(dados.proprietario_atual || {}),
+        tempoPosse: titularVigente?.tempoPosse || dados.proprietario_atual?.tempoPosse || '',
+        data: titularVigente?.data || dados.proprietario_atual?.data || '',
+      } : null;
+      const tempoPosseAtual = proprietarioAtual?.tempoPosse || '';
+
+      return (
+        <div className="space-y-5">
+          {/* Barra de Ações & Resumo Veicular */}
+          <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <span className="font-bold text-slate-800 font-mono text-sm uppercase">Placa: {dados.placa || identifier}</span>
+              {dados.renavam && (
+                <span className="font-mono text-slate-500">• Renavam: <strong className="text-slate-800">{dados.renavam}</strong></span>
+              )}
+              <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                {historicoComPosse.length} {historicoComPosse.length === 1 ? 'registro dominial' : 'registros dominiais'}
+              </span>
+            </div>
+
+            {historicoComPosse.length > 0 && (
+              <div className="flex items-center space-x-2">
+                <ExportExcelVeicularButton
+                  placa={dados.placa || identifier}
+                  renavam={dados.renavam}
+                  historico={historicoComPosse}
+                />
+                <ExportPdfVeicularButton
+                  placa={dados.placa || identifier}
+                  renavam={dados.renavam}
+                  total={historicoComPosse.length}
+                  proprietarioAtual={proprietarioAtual}
+                  historico={historicoComPosse}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Card Executivo de Destaque: Proprietário Atual Vigente */}
+          {proprietarioAtual && (
+            <div className="bg-gradient-to-br from-emerald-50/50 via-white to-white border border-emerald-200 rounded-2xl p-5 sm:p-6 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-emerald-100">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-700 text-white shadow-2xs">
+                    PROPRIETÁRIO ATUAL VIGENTE
+                  </span>
+                  <span className="text-xs text-emerald-900/70 font-medium">Titular Ativo do Veículo</span>
+                </div>
+                <span className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
+                  Titularidade Vigente
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Nome do Titular Atual:</span>
+                  <div className="flex items-center mt-1">
+                    <User className="w-4 h-4 mr-1.5 text-emerald-700 shrink-0" />
+                    <span className="font-extrabold text-slate-900 text-base truncate">
+                      {proprietarioAtual.nome || 'NÃO INFORMADO'}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Documento Identificador:</span>
+                  <div className="flex items-center gap-2 mt-1 font-mono">
+                    <span className="font-bold text-slate-800 text-sm">
+                      {formatDocumento(proprietarioAtual.documento || '')}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-slate-100 text-slate-600">
+                      {proprietarioAtual.tipo || 'Pessoa'}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Tempo de Posse Vigente:</span>
+                  <div className="flex items-center gap-1.5 mt-1 font-mono">
+                    <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="font-bold text-emerald-800 text-sm">
+                      {tempoPosseAtual || 'Posse Ativa'}
+                    </span>
+                  </div>
+                  {proprietarioAtual.data && (
+                    <span className="text-[10px] text-slate-500 font-mono block mt-0.5">
+                      Desde {proprietarioAtual.data} {proprietarioAtual.hora ? `às ${proprietarioAtual.hora}` : ''}
+                    </span>
+                  )}
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-3 pt-3 border-t border-emerald-100 flex flex-wrap items-center justify-between text-slate-600 text-xs gap-2">
+                  <div className="flex items-center">
+                    <MapPin className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+                    <span className="font-semibold text-slate-800">
+                      {proprietarioAtual.municipio || 'MUNICÍPIO NÃO INFORMADO'}
+                    </span>
+                    {proprietarioAtual.uf && <span className="ml-1 font-bold text-slate-500">/ {proprietarioAtual.uf}</span>}
+                  </div>
+                  {proprietarioAtual.evento && (
+                    <span className="text-slate-500 font-mono text-[11px]">
+                      Último Evento: {proprietarioAtual.evento}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Linha do Tempo / Timeline Cronológica Ascendente */}
+          {historicoComPosse.length === 0 ? (
+            <div className="border border-slate-200 rounded-xl p-8 text-center text-slate-500 bg-slate-50">
+              <p className="text-sm font-semibold text-slate-800">Nenhum histórico de transferências localizado</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Não constam registros de transferências de propriedade para esta placa na base oficial.
+              </p>
+            </div>
+          ) : (
+            <div className="border border-slate-200/90 rounded-2xl p-5 sm:p-6 bg-white space-y-5 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <Clock className="w-4 h-4 text-emerald-600" />
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Cadeia Dominial Cronológica ({historicoComPosse.length} registros)
+                  </h3>
+                </div>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Ordenado da 1ª aquisição registrada até o proprietário vigente
+                </span>
+              </div>
+
+              <div className="pt-2">
+                {historicoComPosse.map((item, idx) => (
+                  <ProprietarioTimelineCard
+                    key={idx}
+                    item={item}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // E3: Frota Veicular
     case 'E3': {
       const veiculos = dados.veiculos || [];
@@ -384,6 +581,42 @@ function renderConteudoProduto(code: string, dados: any) {
       );
     }
 
+    // E10: Comunicação de Venda
+    case 'E10': {
+      const comunicados = dados.comunicados || [];
+      return (
+        <div className="border border-slate-200 rounded-lg overflow-hidden space-y-4">
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+            <span className="font-bold text-slate-800 uppercase tracking-wider">
+              Comunicações de Venda Registradas ({comunicados.length})
+            </span>
+            <span className="font-mono text-slate-600">Placa: {dados.placa || identifier}</span>
+          </div>
+          {comunicados.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400">
+              Nenhuma comunicação de venda registrada para este veículo.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100 p-4 space-y-3">
+              {comunicados.map((c: any, idx: number) => (
+                <div key={idx} className="bg-slate-50/70 border border-slate-200 rounded-lg p-3.5 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 text-sm">{c.nome_comprador || 'Comprador não informado'}</span>
+                    <span className="font-mono text-slate-500">Data Venda: {c.data_venda || '-'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-slate-600">
+                    <p><span className="text-slate-400 font-medium">Documento:</span> <span className="font-mono font-semibold text-slate-800">{formatDocumento(c.documento_comprador || '')}</span></p>
+                    <p><span className="text-slate-400 font-medium">Protocolo:</span> <span className="font-mono text-slate-800">{c.numero_protocolo || '-'}</span></p>
+                    <p><span className="text-slate-400 font-medium">Data Inclusão:</span> <span className="font-mono text-slate-700">{c.data_inclusao || '-'}</span></p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // E11: Parentes
     case 'E11': {
       const parentes = dados.parentes || [];
@@ -447,6 +680,70 @@ function renderConteudoProduto(code: string, dados: any) {
               <span className="px-2.5 py-0.5 rounded font-mono font-bold bg-blue-100 text-blue-900">
                 {dados.score}
               </span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // E14: SNG Gravames Financeiros
+    case 'E14': {
+      const grav = dados.gravame || {};
+      const hasGravame = grav.ativo !== false && !!grav.agente_financeiro;
+      return (
+        <div className="border border-slate-200 rounded-lg p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Situação do Gravame Financeiro</span>
+            <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${hasGravame ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'}`}>
+              {hasGravame ? 'Gravame Ativo / Alienação Fiduciária' : 'Sem Gravame Ativo'}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="space-y-2">
+              <p><span className="text-slate-400 font-medium">Agente Financeiro:</span> <span className="font-bold text-slate-900 block">{grav.agente_financeiro || 'Não consta'}</span></p>
+              <p><span className="text-slate-400 font-medium">Número do Contrato:</span> <span className="font-mono text-slate-800 font-semibold">{grav.numero_contrato || '-'}</span></p>
+              <p><span className="text-slate-400 font-medium">Data de Inclusão:</span> <span className="font-mono text-slate-800">{grav.data_inclusao || '-'}</span></p>
+            </div>
+            <div className="space-y-2">
+              <p><span className="text-slate-400 font-medium">Placa:</span> <span className="font-mono font-bold text-slate-900">{dados.placa || identifier}</span></p>
+              <p><span className="text-slate-400 font-medium">Renavam:</span> <span className="font-mono text-slate-800">{dados.renavam || '-'}</span></p>
+              <p><span className="text-slate-400 font-medium">Chassi:</span> <span className="font-mono text-slate-800">{dados.chassi || '-'}</span></p>
+              <p><span className="text-slate-400 font-medium">Remarcação:</span> <span className="text-slate-700">{dados.remarcacao || 'Normal'}</span></p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // E16: Busca por RG
+    case 'E16': {
+      const registros = dados.registros || [];
+      return (
+        <div className="border border-slate-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+            <span className="font-semibold text-slate-800">
+              Registros Vinculados ao RG ({registros.length})
+            </span>
+            <span className="font-mono text-slate-500">RG: {dados.rg_pesquisado || identifier}</span>
+          </div>
+          {registros.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400">
+              Nenhum registro localizado para este RG.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {registros.map((r: any, idx: number) => (
+                <div key={idx} className="p-3.5 flex flex-wrap items-center justify-between hover:bg-slate-50 text-xs gap-2">
+                  <div>
+                    <span className="font-bold text-slate-900 block">{r.nome}</span>
+                    <span className="text-slate-400 font-mono text-[11px]">Nascimento: {r.data_nascimento || '-'}</span>
+                  </div>
+                  <div className="flex items-center space-x-3 font-mono">
+                    <span className="text-slate-600">CPF: <strong className="text-slate-900">{formatDocumento(r.cpf || '')}</strong></span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">UF: {r.uf || '-'}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

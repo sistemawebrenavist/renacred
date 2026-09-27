@@ -256,7 +256,10 @@ export default function HubConsulta() {
 
   // Cálculo de Preço do Produto
   const unitPrice = useMemo(() => {
-    if (user?.isSuperAdmin) return 0;
+    const customPrices = (user?.company?.customPrices as Record<string, number>) || {};
+    if (typeof customPrices[currentProduct.code] === 'number') {
+      return customPrices[currentProduct.code];
+    }
     if (user?.company?.customQueryPrice) return Number(user.company.customQueryPrice);
     return currentProduct.defaultPrice;
   }, [user, currentProduct]);
@@ -388,11 +391,16 @@ export default function HubConsulta() {
               <span>•</span>
               <span className="text-slate-600">Tempo médio de resposta &lt; 2.5s.</span>
             </div>
-            <div className="font-mono text-slate-700">
-              Valor da consulta:{' '}
+            <div className="font-mono text-slate-700 flex items-center space-x-1.5">
+              <span>Valor da consulta:</span>
               <strong className="text-slate-900">
-                {unitPrice === 0 ? 'Isento' : `R$ ${unitPrice.toFixed(2).replace('.', ',')}`}
+                R$ {unitPrice.toFixed(2).replace('.', ',')}
               </strong>
+              {user?.isSuperAdmin && (
+                <span className="text-[10px] font-sans font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                  Isento Adm
+                </span>
+              )}
             </div>
           </div>
         </form>

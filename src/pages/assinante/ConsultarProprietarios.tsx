@@ -22,6 +22,7 @@ import { ExportExcelVeicularButton } from '../../components/veicular/ExportExcel
 import { ProprietarioTimelineCard } from '../../components/veicular/ProprietarioTimelineCard';
 import DetalhesConsultaModal from '../../components/imobiliario/DetalhesConsultaModal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import { processarHistoricoProprietarios } from '../../utils/veicularUtils';
 
 // Cache em memória de sessão para resposta instantânea (0ms)
 const sessionVeicularCache = new Map<string, any>();
@@ -171,47 +172,12 @@ export default function ConsultarProprietarios() {
     }
   };
 
-  // Ordenação garantida cronológica da mais antiga para a mais recente
+  // Ordenação garantida cronológica da mais antiga para a mais recente com cálculo de Tempo de Posse
   const historicoOrdenado = useMemo(() => {
-    if (!result?.historico || !Array.isArray(result.historico)) return [];
-    const list = [...result.historico];
-    
-    const parseDataHora = (dataStr?: string, horaStr?: string): number => {
-      if (!dataStr) return 0;
-      try {
-        const parts = dataStr.trim().split('/');
-        if (parts.length !== 3) return 0;
-        const dia = parseInt(parts[0], 10);
-        const mes = parseInt(parts[1], 10) - 1;
-        const ano = parseInt(parts[2], 10);
-
-        let horas = 0;
-        let minutos = 0;
-        let segundos = 0;
-
-        if (horaStr) {
-          const timeParts = horaStr.trim().split(':');
-          horas = parseInt(timeParts[0], 10) || 0;
-          minutos = parseInt(timeParts[1], 10) || 0;
-          segundos = parseInt(timeParts[2], 10) || 0;
-        }
-
-        return new Date(ano, mes, dia, horas, minutos, segundos).getTime();
-      } catch {
-        return 0;
-      }
-    };
-
-    list.sort((a, b) => {
-      const timeA = parseDataHora(a.data, a.hora);
-      const timeB = parseDataHora(b.data, b.hora);
-      return timeA - timeB; // Ascendente: da mais antiga para a mais recente
-    });
-
-    return list;
+    return processarHistoricoProprietarios(result?.historico || []);
   }, [result?.historico]);
 
-  const proprietarioAtual = result?.proprietario_atual || historicoOrdenado.find((h: any) => h.atual);
+  const proprietarioAtual = result?.proprietario_atual || historicoOrdenado.find((h: any) => h.atual) || historicoOrdenado[historicoOrdenado.length - 1];
   const totalRegistros = result?.total !== undefined ? result.total : historicoOrdenado.length;
 
   const formatDoc = (val: string) => {
@@ -391,7 +357,7 @@ export default function ConsultarProprietarios() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
                 <div>
                   <span className="text-[11px] text-slate-500 font-medium block">Nome do Titular Atual:</span>
                   <div className="flex items-center mt-1">
@@ -410,6 +376,16 @@ export default function ConsultarProprietarios() {
                     </span>
                     <span className="px-2 py-0.5 rounded text-[10px] font-sans font-medium bg-slate-100 text-slate-600">
                       {proprietarioAtual.tipo || 'Pessoa'}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-slate-500 font-medium block">Tempo de Posse Vigente:</span>
+                  <div className="flex items-center gap-1.5 mt-1 font-mono">
+                    <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="font-bold text-emerald-800 text-sm">
+                      {proprietarioAtual.tempoPosse || 'Posse Ativa'}
                     </span>
                   </div>
                 </div>

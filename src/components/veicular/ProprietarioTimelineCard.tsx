@@ -13,6 +13,7 @@ export interface ProprietarioTimelineProps {
   evento: string | null;
   atual: boolean;
   total: number;
+  tempoPosse?: string;
   isFirst: boolean;
   isLast: boolean;
 }
@@ -90,14 +91,27 @@ export const ProprietarioTimelineCard: React.FC<{ item: ProprietarioTimelineProp
             )}
           </div>
 
-          {/* Data e Hora */}
-          <div className="flex items-center space-x-3 text-xs text-slate-500 font-mono">
-            <div className="flex items-center">
+          {/* Data, Hora e Tempo de Posse */}
+          <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono">
+            {item.tempoPosse && (
+              <span 
+                className={`inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-semibold border ${
+                  item.atual
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}
+                title={item.atual ? 'Tempo de posse do titular ativo até a presente data' : 'Período total de posse deste proprietário'}
+              >
+                <Clock className="w-3 h-3 mr-1 text-slate-400" />
+                Tempo de Posse: <strong className="ml-1 font-bold">{item.tempoPosse}</strong>
+              </span>
+            )}
+            <div className="flex items-center text-slate-500">
               <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
               <span>{item.data || '-'}</span>
             </div>
             {item.hora && (
-              <div className="flex items-center">
+              <div className="flex items-center text-slate-500">
                 <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
                 <span>{item.hora}</span>
               </div>

@@ -78,11 +78,9 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
           {filtered.map((p) => {
             const isSelected = p.code.toUpperCase() === currentCode.toUpperCase();
             const isContracted = !!user?.isSuperAdmin || allowedProducts.includes('ALL') || allowedProducts.includes(p.code);
-            const effectivePrice = user?.isSuperAdmin
-              ? 0
-              : (typeof customPrices[p.code] === 'number'
-                  ? customPrices[p.code]
-                  : (user?.company?.customQueryPrice ? Number(user.company.customQueryPrice) : p.defaultPrice));
+            const effectivePrice = typeof customPrices[p.code] === 'number'
+              ? customPrices[p.code]
+              : (user?.company?.customQueryPrice ? Number(user.company.customQueryPrice) : p.defaultPrice);
 
             return (
               <button
