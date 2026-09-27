@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProductDefinition } from '../../config/productsCatalog';
-import { Clock, User, MapPin, Building, Calendar, FileText, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Clock, User, MapPin, Building, Calendar, FileText, CheckCircle2, ShieldCheck, AlertCircle, Phone, Mail, Award, CreditCard, Briefcase, Users, Scale, ShieldAlert, Shield, CheckCircle, Car } from 'lucide-react';
 import { ProprietarioTimelineCard } from '../veicular/ProprietarioTimelineCard';
 import { processarHistoricoProprietarios } from '../../utils/veicularUtils';
 import { ExportPdfVeicularButton } from '../veicular/ExportPdfVeicularButton';
@@ -1218,72 +1218,987 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
     // E12: BIN Online
     case 'E12': {
+      const restricoes = Array.isArray(dados.restricoes) ? dados.restricoes : [];
+      const hasRestricaoAtiva = dados.tem_restricao || restricoes.some((r: any) => r.valor && !r.valor.toUpperCase().includes('SEM RESTRICAO'));
+
       return (
-        <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 space-y-3">
-          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Ficha Técnica do Veículo (BIN)</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-            <div><span className="text-slate-400 block font-medium">Placa:</span> <span className="font-mono font-bold text-slate-900">{dados.placa}</span></div>
-            <div><span className="text-slate-400 block font-medium">Renavam:</span> <span className="font-mono text-slate-800">{dados.renavam}</span></div>
-            <div><span className="text-slate-400 block font-medium">Chassi:</span> <span className="font-mono text-slate-800">{dados.chassi}</span></div>
-            <div><span className="text-slate-400 block font-medium">Marca / Modelo:</span> <span className="font-semibold text-slate-900">{dados.marca_modelo}</span></div>
-            <div><span className="text-slate-400 block font-medium">Ano Fab / Mod:</span> <span className="font-mono text-slate-800">{dados.ano_fabricacao}/{dados.ano_modelo || dados.ano_fabricacao}</span></div>
-            <div><span className="text-slate-400 block font-medium">Cor:</span> <span className="text-slate-800">{dados.cor}</span></div>
-            <div><span className="text-slate-400 block font-medium">Combustível:</span> <span className="text-slate-800">{dados.combustivel || '-'}</span></div>
-            <div><span className="text-slate-400 block font-medium">Município / UF:</span> <span className="font-semibold text-slate-900">{dados.municipio} - {dados.uf}</span></div>
+        <div className="space-y-4">
+          {/* Header Executivo da BIN */}
+          <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="font-mono font-bold text-slate-900 text-sm">
+                Placa Padrão: {dados.placa_modelo_antigo || dados.placa || identifier}
+              </span>
+              {dados.placa_modelo_novo && (
+                <span className="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-blue-100 text-blue-900 border border-blue-200">
+                  Mercosul: {dados.placa_modelo_novo}
+                </span>
+              )}
+              <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                {dados.situacao_veiculo || 'Em Circulação'}
+              </span>
+            </div>
+
+            {dados.data_registro_base && (
+              <span className="text-[11px] text-slate-500 font-mono">
+                Data Base BIN: {dados.data_registro_base}
+              </span>
+            )}
+          </div>
+
+          {/* Grid de Seções: Identificação do Veículo & Dados Técnicos */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Bloco 1: Identificação Cadastral Oficial */}
+            <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Identificação do Veículo
+                </span>
+                <span className="text-[11px] font-mono text-slate-500">Renavam: {dados.renavam || '-'}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-400 font-medium block">Marca:</span>
+                  <span className="font-bold text-slate-900 block mt-0.5">{dados.marca || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Modelo:</span>
+                  <span className="font-bold text-slate-900 block mt-0.5">{dados.modelo || dados.marca_modelo || '-'}</span>
+                </div>
+                {dados.submodelo && (
+                  <div>
+                    <span className="text-slate-400 font-medium block">Submodelo / Grupo:</span>
+                    <span className="font-semibold text-slate-800 block mt-0.5">{dados.submodelo}</span>
+                  </div>
+                )}
+                {dados.versao && (
+                  <div>
+                    <span className="text-slate-400 font-medium block">Versão:</span>
+                    <span className="font-semibold text-slate-800 block mt-0.5">{dados.versao}</span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-slate-400 font-medium block">Ano Fab / Modelo:</span>
+                  <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                    {dados.ano_fabricacao} / {dados.ano_modelo || dados.ano_fabricacao}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Cor Predominante:</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5 uppercase">{dados.cor || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Combustível:</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5">{dados.combustivel || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Município / UF Placa:</span>
+                  <span className="font-semibold text-slate-900 block mt-0.5">
+                    {dados.municipio ? `${dados.municipio} / ${dados.uf}` : String(dados.uf || '-')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 text-xs">
+                <span className="text-slate-400 font-medium block">Chassi:</span>
+                <div className="flex items-center justify-between mt-0.5">
+                  <span className="font-mono font-bold text-slate-900">{dados.chassi || '-'}</span>
+                  <span className="text-[10px] text-slate-500 font-medium bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                    Situação: {dados.situacao_chassi || 'Normal'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bloco 2: Conjunto Mecânico & Engenharia */}
+            <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Mecânica & Conjunto Técnico
+                </span>
+                <span className="text-[11px] font-semibold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  {dados.tipo_veiculo || 'Automóvel'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-400 font-medium block">Número do Motor:</span>
+                  <span className="font-mono font-bold text-slate-900 block mt-0.5">{dados.motor || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Número da Carroceria:</span>
+                  <span className="font-mono font-semibold text-slate-800 block mt-0.5">{dados.carroceria || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Espécie:</span>
+                  <span className="font-medium text-slate-800 block mt-0.5">{dados.especie || 'Passageiro'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Segmento:</span>
+                  <span className="font-medium text-slate-800 block mt-0.5">
+                    {dados.segmento || 'Auto'} {dados.sub_segmento ? `(${dados.sub_segmento})` : ''}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Nacionalidade:</span>
+                  <span className="font-medium text-slate-800 block mt-0.5">{dados.nacionalidade || 'Nacional'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Tipo de Montagem:</span>
+                  <span className="font-medium text-slate-800 block mt-0.5">{dados.tipo_montagem || '1 - Original'}</span>
+                </div>
+                {dados.caixa_cambio && (
+                  <div>
+                    <span className="text-slate-400 font-medium block">Caixa de Câmbio:</span>
+                    <span className="font-mono text-slate-800 block mt-0.5">{dados.caixa_cambio}</span>
+                  </div>
+                )}
+                {dados.cilindradas && (
+                  <div>
+                    <span className="text-slate-400 font-medium block">Cilindradas:</span>
+                    <span className="font-mono text-slate-800 block mt-0.5">{dados.cilindradas} cc</span>
+                  </div>
+                )}
+                {dados.eixos && (
+                  <div>
+                    <span className="text-slate-400 font-medium block">Eixos:</span>
+                    <span className="font-mono text-slate-800 block mt-0.5">{dados.eixos}</span>
+                  </div>
+                )}
+                {dados.peso_bruto_total && (
+                  <div>
+                    <span className="text-slate-400 font-medium block">Peso Bruto Total (PBT):</span>
+                    <span className="font-mono text-slate-800 block mt-0.5">{dados.peso_bruto_total} kg</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Grid Inferior: Faturamento de Origem & Restrições na BIN */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Bloco 3: Dados Fiscais e Faturamento */}
+            <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block pb-2.5 border-b border-slate-100">
+                Faturamento & Registro Fiscal de Origem
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-400 font-medium block">CNPJ / CPF Faturado:</span>
+                  <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                    {formatDocumento(dados.faturado_documento || '')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Tipo Doc Faturado:</span>
+                  <span className="font-medium text-slate-800 block mt-0.5">{dados.tipo_doc_faturado || 'Jurídica'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">UF Faturamento:</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5">{dados.uf_faturado || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Tipo Doc Proprietário:</span>
+                  <span className="font-medium text-slate-800 block mt-0.5">{dados.tipo_doc_prop || 'Física'}</span>
+                </div>
+                {dados.di && (
+                  <div>
+                    <span className="text-slate-400 font-medium block">Declaração de Importação (DI):</span>
+                    <span className="font-mono text-slate-800 block mt-0.5">{dados.di}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bloco 4: Quadro Oficial de Restrições da BIN */}
+            <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Quadro de Restrições (BIN)
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                    hasRestricaoAtiva
+                      ? 'bg-rose-50 text-rose-800 border-rose-200'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  }`}
+                >
+                  {hasRestricaoAtiva ? 'Consta Restrição' : 'Nada Consta'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {restricoes.map((r: any, idx: number) => {
+                  const isClean = !r.valor || r.valor.toUpperCase().includes('SEM RESTRICAO');
+                  return (
+                    <div key={idx} className="p-2.5 rounded-lg border bg-slate-50/70 border-slate-200">
+                      <span className="text-[10px] text-slate-400 font-medium block">{r.label}:</span>
+                      <span className={`font-semibold block mt-0.5 ${isClean ? 'text-slate-700' : 'text-rose-700 font-bold'}`}>
+                        {r.valor || 'SEM RESTRIÇÃO'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {dados.limite_restricao_trib && (
+                <div className="pt-2 text-[11px] text-slate-500">
+                  <span>Limite Restrição Tributária: {dados.limite_restricao_trib}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       );
     }
 
-    // E13 & E15: CPF Básico / Completo
+    // E13 & E15: Consulta Cadastral de CPF (Nível I Básico e Nível II Completo)
     case 'E13':
     case 'E15': {
+      const ident = dados.identificacao || dados;
+      const docs = dados.documentos || dados;
+      const fin = dados.financeiro || dados;
+      const ocup = dados.ocupacao || dados;
+      const cont = dados.contatos || dados;
+      const jur = dados.juridico || dados;
+      const seg = dados.seguranca || dados;
+
+      const nomeCivil = ident.nome || dados.nome || '-';
+      const cpfFormatado = formatCPF(ident.cpf || dados.cpf || identifier);
+      const dataNasc = formatDateBR(ident.data_nascimento || dados.data_nascimento);
+      const nomeMae = ident.nome_mae || dados.nome_mae || '-';
+      const nomePai = ident.nome_pai || dados.nome_pai || 'NÃO DECLARADO';
+      const sexoDesc = ident.sexo === 'M' || dados.sexo === 'M' ? 'MASCULINO' : (ident.sexo === 'F' || dados.sexo === 'F' ? 'FEMININO' : (ident.sexo || dados.sexo || '-'));
+      const nacionalidade = ident.nacionalidade || dados.nacionalidade || 'BRASILEIRA';
+      const ehEstrangeiro = ident.estrangeiro === 'True' || ident.estrangeiro === true || dados.estrangeiro === true;
+
+      // Foto Oficial / Biometria
+      const rawFoto = dados.foto_base64 || cont.fotos?.[0] || dados.fotos?.[0] || dados.foto;
+      const fotoSrc = rawFoto ? (String(rawFoto).startsWith('data:image') ? String(rawFoto) : `data:image/jpeg;base64,${rawFoto}`) : null;
+
+      // Receita Federal & Situação Cadastral
+      const sitCadastral = docs.situacao_cadastral || dados.situacao_cadastral || 'REGULAR';
+      const isRegular = sitCadastral === 'REGULAR' || sitCadastral === '2' || sitCadastral === '0';
+      const dtSitCadastral = formatDateBR(docs.data_situacao_cadastral || dados.data_situacao_cadastral || dados.dt_sit_cad);
+      const dtInscricao = formatDateBR(docs.data_inscricao || dados.data_inscricao || dados.dt_informacao);
+      const cidadeOrigem = docs.municipio || dados.municipio_origem;
+      const ufOrigem = docs.uf || dados.uf_origem;
+      const obitoConsta = docs.obito?.consta || !!(docs.obito?.data || docs.obito?.ano);
+
+      // Documentos Oficiais
+      const rgObj = docs.rg || dados.rg;
+      const numRg = typeof rgObj === 'object' ? (rgObj?.numero || '-') : (rgObj || '-');
+      const orgaoRg = typeof rgObj === 'object' ? (rgObj?.orgao_emissor ? `${rgObj.orgao_emissor}${rgObj.uf ? `/${rgObj.uf}` : ''}` : '-') : '-';
+      
+      const tituloObj = docs.titulo_eleitor || dados.titulo_eleitor;
+      const numTitulo = typeof tituloObj === 'object' ? (tituloObj?.numero || '-') : (tituloObj || '-');
+      const zonaSecao = typeof tituloObj === 'object' && (tituloObj?.zona || tituloObj?.secao)
+        ? `Zona ${tituloObj.zona || '-'} • Seção ${tituloObj.secao || '-'}`
+        : (dados.zona || dados.secao ? `Zona ${dados.zona || '-'} • Seção ${dados.secao || '-'}` : null);
+
+      // CNH Oficial
+      const cnh = docs.cnh || dados.cnh;
+      const hasCnh = !!(cnh && (cnh.numero || cnh.categoria || cnh.renach));
+      const cnhVencida = cnh?.validade_vencida === true;
+
+      // Score CSBA
+      const rawScore = fin.score || dados.score;
+      const scoreCsba = typeof rawScore === 'object' 
+        ? (rawScore?.csba ?? rawScore?.CSBA ?? null) 
+        : (typeof rawScore === 'number' ? rawScore : null);
+      const scoreFaixa = typeof rawScore === 'object'
+        ? (rawScore?.csba_faixa || rawScore?.CSBA_FAIXA)
+        : (scoreCsba ? (scoreCsba >= 750 ? 'BAIXÍSSIMO RISCO' : scoreCsba >= 550 ? 'BAIXO RISCO' : scoreCsba >= 300 ? 'MÉDIO RISCO' : 'ALTO RISCO') : null);
+
+      // Ocupação & Renda
+      const cbo = ocup.cbo || dados.cbo || '-';
+      const mosaic = ocup.mosaic || dados.mosaic || dados.cd_mosaic;
+      const profissao = ocup.profissao || dados.profissao || '-';
+      const rendaEstimada = fin.renda || dados.renda || dados.renda_estimada;
+
+      // Contatos
+      const telefones: string[] = Array.isArray(cont.telefones) ? cont.telefones : (Array.isArray(dados.telefones) ? dados.telefones : []);
+      const emails: string[] = Array.isArray(cont.emails) ? cont.emails : (Array.isArray(dados.emails) ? dados.emails : []);
+
+      // Endereços
+      const enderecos: any[] = Array.isArray(dados.enderecos) ? dados.enderecos : (Array.isArray(ident.enderecos) ? ident.enderecos : []);
+
+      // Parentes
+      const parentes: any[] = Array.isArray(dados.parentes) ? dados.parentes : (Array.isArray(cont.parentes) ? cont.parentes : []);
+
+      // Jurídico & Segurança
+      const totalProcessos = jur.processos?.total ?? dados.juridico?.total_processos ?? 0;
+      const vazamentosEncontrados = seg.vazamentos?.encontrado ?? dados.seguranca?.vazamentos_encontrados ?? false;
+
       return (
-        <div className="border border-slate-200 rounded-lg p-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            <div><span className="text-slate-400 block font-medium">Nome Civil:</span> <span className="font-bold text-slate-900 text-sm">{dados.nome}</span></div>
-            <div><span className="text-slate-400 block font-medium">CPF:</span> <span className="font-mono text-slate-800 font-semibold">{dados.cpf}</span></div>
-            <div><span className="text-slate-400 block font-medium">Data de Nascimento:</span> <span className="font-mono text-slate-800">{dados.data_nascimento || '-'}</span></div>
-            <div><span className="text-slate-400 block font-medium">Nome da Mãe:</span> <span className="text-slate-800">{dados.nome_mae || '-'}</span></div>
-            <div><span className="text-slate-400 block font-medium">Sexo:</span> <span className="text-slate-800">{dados.sexo || '-'}</span></div>
-            <div><span className="text-slate-400 block font-medium">RG:</span> <span className="font-mono text-slate-800">{dados.rg || '-'}</span></div>
-          </div>
-          {dados.score && (
-            <div className="pt-3 border-t border-slate-100 flex items-center space-x-3 text-xs">
-              <span className="text-slate-500 font-medium">Pontuação de Crédito / Score:</span>
-              <span className="px-2.5 py-0.5 rounded font-mono font-bold bg-blue-100 text-blue-900">
-                {dados.score}
+        <div className="space-y-6">
+          {/* Card 1: Perfil Cadastral Civil & Biometria Fotográfica */}
+          <div className="border border-slate-200 rounded-xl p-5 md:p-6 bg-white shadow-xs">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+              <div className="flex items-center space-x-2">
+                <User className="w-4 h-4 text-slate-700" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Dossiê Cadastral & Identificação Civil
+                </span>
+              </div>
+              <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold border ${isRegular ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                Receita Federal: {isRegular ? 'REGULAR' : sitCadastral}
               </span>
             </div>
+
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Foto 3x4 Oficial com Tratamento Impeccable */}
+              <div className="flex flex-col items-center shrink-0">
+                <div className="w-32 h-40 md:w-36 md:h-44 rounded-xl overflow-hidden border border-slate-300 shadow-xs bg-slate-100 relative group flex items-center justify-center">
+                  {fotoSrc ? (
+                    <img
+                      src={fotoSrc}
+                      alt={nomeCivil}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center p-4">
+                      <User className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                      <span className="text-[10px] text-slate-400 font-medium block">Sem Foto</span>
+                    </div>
+                  )}
+                  {fotoSrc && (
+                    <div className="absolute bottom-0 inset-x-0 bg-slate-900/80 backdrop-blur-xs py-1 px-1.5 text-center">
+                      <span className="text-[9px] font-bold text-slate-200 uppercase tracking-wider block">
+                        Biometria Oficial
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <span className="text-[10px] text-slate-400 mt-2 font-mono">
+                  {fotoSrc ? 'Registro Fotográfico' : 'Imagem Indisponível'}
+                </span>
+              </div>
+
+              {/* Informações Civis */}
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-3.5 gap-x-4 text-xs">
+                <div className="md:col-span-2 lg:col-span-3 pb-2 border-b border-slate-100">
+                  <span className="text-[10px] text-slate-400 font-medium uppercase block">Nome Civil Completo</span>
+                  <span className="text-base font-bold text-slate-900 block mt-0.5">{nomeCivil}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase block">CPF do Titular</span>
+                  <span className="text-sm font-mono font-bold text-slate-800 block mt-0.5">{cpfFormatado}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase block">Data de Nascimento</span>
+                  <span className="font-mono text-slate-800 font-semibold block mt-0.5">{dataNasc}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase block">Sexo Biológico</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5">{sexoDesc}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase block">Nome da Mãe</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5">{nomeMae}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase block">Nome do Pai</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5">{nomePai}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase block">Nacionalidade</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5">
+                    {nacionalidade} {ehEstrangeiro ? '(Estrangeiro)' : '(Brasileiro Nato)'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase block">Município / UF de Origem</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5">
+                    {cidadeOrigem || '-'} {ufOrigem ? `/ ${ufOrigem}` : ''}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase block">Inscrição no CPF</span>
+                  <span className="font-mono text-slate-800 block mt-0.5">{dtInscricao}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase block">Status de Sobrevivência</span>
+                  <span className={`inline-flex items-center space-x-1 font-bold mt-0.5 ${obitoConsta ? 'text-rose-600' : 'text-emerald-700'}`}>
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>{obitoConsta ? 'Consta Óbito' : 'Sem Registro de Óbito (Vivo)'}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid: Documentos Oficiais + Score CSBA */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Card Documentos Oficiais */}
+            <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4 text-slate-700" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Documentos Oficiais & Identificação
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                  Cartorial / Civil
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">Registro Geral (RG):</span>
+                  <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">{numRg}</span>
+                  <span className="text-[11px] text-slate-500 font-medium block mt-0.5">Órgão/UF: {orgaoRg}</span>
+                </div>
+
+                <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">Título de Eleitor:</span>
+                  <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">{numTitulo}</span>
+                  <span className="text-[11px] text-emerald-700 font-medium block mt-0.5">
+                    {zonaSecao ? `${zonaSecao} • Regular` : 'Justiça Eleitoral: Regular'}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">Ocupação / CBO:</span>
+                  <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">
+                    {cbo} {mosaic ? `(Mosaic: ${mosaic})` : ''}
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium block mt-0.5">{profissao !== '-' ? profissao : 'Atividade Cadastrada'}</span>
+                </div>
+
+                <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">Renda Presumida:</span>
+                  <span className="font-bold text-slate-900 text-sm block mt-0.5">
+                    {rendaEstimada ? `R$ ${Number(rendaEstimada).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'Não declarada'}
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium block mt-0.5">Base Estatística</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card Score de Crédito CSBA */}
+            <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <Award className="w-4 h-4 text-emerald-700" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Score de Crédito & Risco Financeiro
+                  </span>
+                </div>
+                {scoreFaixa && (
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    {scoreFaixa}
+                  </span>
+                )}
+              </div>
+
+              {scoreCsba !== null ? (
+                <div className="space-y-3">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <span className="text-3xl font-extrabold font-mono text-slate-900">{scoreCsba}</span>
+                      <span className="text-xs text-slate-400 ml-1 font-mono">/ 1000 pontos</span>
+                    </div>
+                    <span className="text-xs font-bold text-emerald-800 bg-emerald-100/70 px-2.5 py-1 rounded-md">
+                      {scoreFaixa || 'Excelente Pontuação'}
+                    </span>
+                  </div>
+
+                  {/* Barra visual de pontuação */}
+                  <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(0, (scoreCsba / 1000) * 100))}%` }}
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-slate-500">
+                    A pontuação CSBA reflete a probabilidade de cumprimento de compromissos financeiros nos próximos 12 meses segundo os bureaus analíticos de crédito.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 text-center text-xs text-slate-500 bg-slate-50 rounded-lg">
+                  Sem pontuação de score calculada nesta consulta.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Card CNH Oficial e Exame Toxicológico */}
+          {hasCnh && (
+            <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <CreditCard className="w-4 h-4 text-slate-700" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Carteira Nacional de Habilitação (CNH) • Base Senatran
+                  </span>
+                </div>
+                <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold border ${cnhVencida ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                  {cnhVencida ? 'CNH Vencida' : 'CNH Válida e Regular'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">Nº de Registro:</span>
+                  <span className="font-mono font-bold text-slate-900 block mt-0.5">{cnh.numero || '-'}</span>
+                </div>
+
+                <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">Categoria CNH:</span>
+                  <span className="font-mono font-extrabold text-blue-700 text-sm block mt-0.5">{cnh.categoria || '-'}</span>
+                </div>
+
+                <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">Data de Emissão:</span>
+                  <span className="font-mono font-semibold text-slate-800 block mt-0.5">{formatDateBR(cnh.emissao)}</span>
+                </div>
+
+                <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">Data de Validade:</span>
+                  <span className={`font-mono font-bold block mt-0.5 ${cnhVencida ? 'text-rose-700' : 'text-slate-900'}`}>
+                    {formatDateBR(cnh.validade)}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">Formulário RENACH:</span>
+                  <span className="font-mono text-slate-800 font-semibold block mt-0.5">{cnh.renach || '-'}</span>
+                </div>
+
+                <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">UF de Habilitação:</span>
+                  <span className="font-bold text-slate-900 block mt-0.5">{cnh.uf || '-'}</span>
+                </div>
+
+                <div className="col-span-2 p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-medium block">Exame Toxicológico:</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5">
+                    {cnh.exame_toxicologico?.mensagem || 'Não há pendências de exame toxicológico registradas'}
+                  </span>
+                </div>
+              </div>
+            </div>
           )}
+
+          {/* Card Canais de Contato Mapeados (Telefones & E-mails) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Telefones */}
+            <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-3">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <Phone className="w-4 h-4 text-slate-700" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Telefones Localizados ({telefones.length})
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">Contato Direto</span>
+              </div>
+
+              {telefones.length === 0 ? (
+                <p className="text-xs text-slate-400 p-2 text-center">Nenhum telefone localizado.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {telefones.map((tel: string, idx: number) => (
+                    <div key={idx} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center space-x-2">
+                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="font-mono font-semibold text-slate-800">{tel}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* E-mails */}
+            <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-3">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <Mail className="w-4 h-4 text-slate-700" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    E-mails Mapeados ({emails.length})
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">Contato Eletrônico</span>
+              </div>
+
+              {emails.length === 0 ? (
+                <p className="text-xs text-slate-400 p-2 text-center">Nenhum e-mail localizado.</p>
+              ) : (
+                <div className="space-y-2 text-xs">
+                  {emails.map((mail: string, idx: number) => (
+                    <div key={idx} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center space-x-2">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="font-mono text-slate-800 font-medium truncate" title={mail}>{mail}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Card Histórico de Endereços */}
+          <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <MapPin className="w-4 h-4 text-slate-700" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Histórico de Endereços Vinculados ({enderecos.length})
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono">Base Cartorial e Cadastral</span>
+            </div>
+
+            {enderecos.length === 0 ? (
+              <p className="text-xs text-slate-400 p-4 text-center">Nenhum endereço localizado para este CPF.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-600 font-semibold">
+                      <th className="py-2.5 px-3">Logradouro / Número</th>
+                      <th className="py-2.5 px-3">Bairro</th>
+                      <th className="py-2.5 px-3">Município / UF</th>
+                      <th className="py-2.5 px-3">CEP</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {enderecos.map((end: any, idx: number) => {
+                      const logradouroComp = [end.logradouro, end.numero ? `nº ${end.numero}` : '', end.complemento].filter(Boolean).join(', ');
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/80 transition">
+                          <td className="py-2.5 px-3 font-medium text-slate-900">{logradouroComp || '-'}</td>
+                          <td className="py-2.5 px-3 text-slate-700">{end.bairro && end.bairro !== 'NULL' ? end.bairro : '-'}</td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-800">{end.cidade || end.municipio || '-'}{end.uf ? ` / ${end.uf}` : ''}</td>
+                          <td className="py-2.5 px-3 font-mono text-slate-700">{formatCEP(end.cep)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Card Vínculos Familiares / Parentesco */}
+          <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <Users className="w-4 h-4 text-slate-700" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Vínculos Familiares & Árvore de Parentesco ({parentes.length})
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono">Consanguinidade e Afinidade</span>
+            </div>
+
+            {parentes.length === 0 ? (
+              <p className="text-xs text-slate-400 p-4 text-center">Nenhum vínculo familiar identificado na base.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-600 font-semibold">
+                      <th className="py-2.5 px-3 w-36">Grau de Parentesco</th>
+                      <th className="py-2.5 px-3">Nome Completo do Familiar</th>
+                      <th className="py-2.5 px-3 w-44">CPF do Vinculado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {parentes.map((p: any, idx: number) => {
+                      const vinculo = String(p.vinculo || p.grau_parentesco || 'FAMILIAR').toUpperCase();
+                      const isMae = vinculo.includes('MAE') || vinculo.includes('MÃE');
+                      const isPai = vinculo.includes('PAI');
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/80 transition">
+                          <td className="py-2.5 px-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                              isMae ? 'bg-purple-50 text-purple-800 border-purple-200' :
+                              isPai ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                              'bg-slate-100 text-slate-800 border-slate-200'
+                            }`}>
+                              {vinculo}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 font-bold text-slate-900">{p.nome || '-'}</td>
+                          <td className="py-2.5 px-3 font-mono font-semibold text-slate-800">{formatCPF(p.cpf)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Card Processos Judiciais & Segurança da Informação */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Processos */}
+            <div className="border border-slate-200 rounded-xl p-4 bg-white shadow-xs flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className={`p-2.5 rounded-lg ${totalProcessos > 0 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-50 text-emerald-800'}`}>
+                  <Scale className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">Apontamentos Jurídicos / Processos</span>
+                  <span className="text-[11px] text-slate-500 block">
+                    {totalProcessos > 0 ? `${totalProcessos} processos em andamento` : 'Nada Consta na Base Jurídica Nacional'}
+                  </span>
+                </div>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${totalProcessos > 0 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'}`}>
+                {totalProcessos > 0 ? `${totalProcessos} Ações` : '0 Processos'}
+              </span>
+            </div>
+
+            {/* Vazamentos */}
+            <div className="border border-slate-200 rounded-xl p-4 bg-white shadow-xs flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className={`p-2.5 rounded-lg ${vazamentosEncontrados ? 'bg-rose-100 text-rose-900' : 'bg-emerald-50 text-emerald-800'}`}>
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">Segurança de Credenciais</span>
+                  <span className="text-[11px] text-slate-500 block">
+                    {vazamentosEncontrados ? 'Alerta de Exposição de Credenciais' : 'Nenhum vazamento identificado • Seguro'}
+                  </span>
+                </div>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${vazamentosEncontrados ? 'bg-rose-100 text-rose-900' : 'bg-emerald-100 text-emerald-900'}`}>
+                {vazamentosEncontrados ? 'Exposto' : 'Protegido'}
+              </span>
+            </div>
+          </div>
         </div>
       );
     }
 
     // E14: SNG Gravames Financeiros
     case 'E14': {
-      const grav = dados.gravame || {};
-      const hasGravame = grav.ativo !== false && !!grav.agente_financeiro;
+      const v = dados.veiculo || dados;
+      const rawGravames = Array.isArray(dados.gravames) 
+        ? dados.gravames 
+        : (dados.gravame ? [dados.gravame] : (Array.isArray(v.gravames) ? v.gravames : []));
+      
+      const placa = v.placa || dados.placa || identifier;
+      const renavam = v.renavam || dados.renavam || '-';
+      const chassi = v.chassi || dados.chassi || '-';
+      const remarcacao = v.remarcacao_descricao || v.remarcacao || dados.remarcacao || 'Normal';
+      const anoFab = v.ano_fab || v.ano_fabricacao || dados.ano_fabricacao || '-';
+      const anoMod = v.ano_modelo || v.ano_mod || dados.ano_modelo || '-';
+      const ufPlaca = v.uf_placa || v.uf || dados.uf || '-';
+      const ufLicenc = v.uf_licenciamento || dados.uf_licenciamento || ufPlaca;
+      const statusVeic = v.status_veiculo_descricao || dados.status_veiculo || dados.situacao_geral || 'Consulta realizada no Sistema Nacional de Gravames';
+
+      // Avaliação de Gravame Ativo vs Baixado
+      const temGravameAtivo = rawGravames.some((g: any) => {
+        const desc = (g.status_veiculo_descricao || g.status_descricao || g.status || '').toLowerCase();
+        const isBaixado = desc.includes('baixad') || desc.includes('desalienad') || desc.includes('cancelad') || desc.includes('liberad');
+        return !isBaixado && (g.ativo !== false || g.situacao === 'ATIVO');
+      });
+
+      const todosBaixados = rawGravames.length > 0 && !temGravameAtivo;
+
       return (
-        <div className="border border-slate-200 rounded-lg p-5 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Situação do Gravame Financeiro</span>
-            <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${hasGravame ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'}`}>
-              {hasGravame ? 'Gravame Ativo / Alienação Fiduciária' : 'Sem Gravame Ativo'}
-            </span>
+        <div className="space-y-6">
+          {/* Card 1: Identificação Veicular e Parecer Geral SNG */}
+          <div className="border border-slate-200 rounded-xl p-5 md:p-6 bg-white shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-5 gap-3">
+              <div className="flex items-center space-x-2">
+                <Car className="w-5 h-5 text-slate-700" />
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800 block">
+                    Certidão do Sistema Nacional de Gravames (SNG)
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Base Oficial de Alienações, Penhores e Reservas de Domínio
+                  </span>
+                </div>
+              </div>
+              <span className={`px-3 py-1 rounded-md text-xs font-bold border shrink-0 text-center ${
+                temGravameAtivo 
+                  ? 'bg-amber-50 text-amber-900 border-amber-300' 
+                  : todosBaixados
+                    ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                    : 'bg-slate-100 text-slate-800 border-slate-200'
+              }`}>
+                {temGravameAtivo 
+                  ? 'Gravame Ativo / Alienação Fiduciária' 
+                  : todosBaixados 
+                    ? 'Gravame Baixado / Desalienado (Livre)' 
+                    : 'Sem Gravame Ativo Registrado'}
+              </span>
+            </div>
+
+            {/* Grid Veículo */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 font-medium block">Placa:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">{formatDocumento(placa)}</span>
+                <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">UF: {ufPlaca}</span>
+              </div>
+
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 font-medium block">Código RENAVAM:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">{renavam}</span>
+              </div>
+
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 font-medium block">Número do Chassi:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5 truncate" title={chassi}>{chassi}</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Remarcação: {remarcacao}</span>
+              </div>
+
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 font-medium block">Ano Fab. / Modelo:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">{anoFab} / {anoMod}</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Licenciamento: {ufLicenc}</span>
+              </div>
+
+              <div className="col-span-2 md:col-span-4 p-3 bg-slate-50/70 rounded-lg border border-slate-200 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium block">Parecer do Órgão de Trânsito:</span>
+                  <span className="font-semibold text-slate-800 text-xs block mt-0.5">{statusVeic}</span>
+                </div>
+                <div className="text-right font-mono text-[11px] text-slate-500">
+                  Total de Registros SNG: <strong>{rawGravames.length}</strong>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-2">
-              <p><span className="text-slate-400 font-medium">Agente Financeiro:</span> <span className="font-bold text-slate-900 block">{grav.agente_financeiro || 'Não consta'}</span></p>
-              <p><span className="text-slate-400 font-medium">Número do Contrato:</span> <span className="font-mono text-slate-800 font-semibold">{grav.numero_contrato || '-'}</span></p>
-              <p><span className="text-slate-400 font-medium">Data de Inclusão:</span> <span className="font-mono text-slate-800">{grav.data_inclusao || '-'}</span></p>
+
+          {/* Card 2: Histórico Completo de Gravames Financeiros */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Histórico de Contratos e Restrições Financeiras ({rawGravames.length})
+              </span>
+              <span className="text-[11px] text-slate-400 font-mono">
+                SNG • Certificação Digital
+              </span>
             </div>
-            <div className="space-y-2">
-              <p><span className="text-slate-400 font-medium">Placa:</span> <span className="font-mono font-bold text-slate-900">{dados.placa || identifier}</span></p>
-              <p><span className="text-slate-400 font-medium">Renavam:</span> <span className="font-mono text-slate-800">{dados.renavam || '-'}</span></p>
-              <p><span className="text-slate-400 font-medium">Chassi:</span> <span className="font-mono text-slate-800">{dados.chassi || '-'}</span></p>
-              <p><span className="text-slate-400 font-medium">Remarcação:</span> <span className="text-slate-700">{dados.remarcacao || 'Normal'}</span></p>
-            </div>
+
+            {rawGravames.length === 0 ? (
+              <div className="border border-slate-200 rounded-xl p-8 text-center bg-white shadow-xs">
+                <ShieldCheck className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-800">Veículo sem Gravames Cadastrados</p>
+                <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                  A auditoria no Sistema Nacional de Gravames não localizou nenhum contrato de alienação fiduciária, penhor ou reserva de domínio para os identificadores consultados.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {rawGravames.map((g: any, idx: number) => {
+                  const statusDesc = g.status_veiculo_descricao || g.status_descricao || g.status || 'Gravame';
+                  const isBaixado = /baixad|desalienad|cancelad|liberad/i.test(statusDesc);
+                  const dtContrato = formatDateBR(g.data_contrato);
+                  const dtStatus = formatDateBR(g.data_status);
+                  const horaStatus = g.hora_status || g.hora_status_iso || '';
+
+                  return (
+                    <div key={idx} className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-3">
+                      {/* Topo do Contrato */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                        <div>
+                          <span className="font-bold text-slate-900 text-sm block">
+                            {g.nome_agente || g.agente_financeiro || 'AGENTE FINANCEIRO NÃO INFORMADO'}
+                          </span>
+                          {g.cnpj_agente && (
+                            <span className="font-mono text-slate-500 text-[11px] block mt-0.5">
+                              CNPJ do Agente: {formatDocumento(g.cnpj_agente)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2 shrink-0">
+                          {g.numero_restricao && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                              Restrição #{g.numero_restricao}
+                            </span>
+                          )}
+                          <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold border ${
+                            isBaixado 
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                              : 'bg-amber-50 text-amber-900 border-amber-200'
+                          }`}>
+                            {isBaixado ? 'Gravame Baixado' : 'Gravame Ativo'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Dados do Contrato e Financiamento */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-medium uppercase block">Número do Contrato:</span>
+                          <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                            {g.numero_contrato || '-'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-medium uppercase block">Data do Contrato:</span>
+                          <span className="font-mono text-slate-800 font-semibold block mt-0.5">
+                            {dtContrato}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-medium uppercase block">Informante da Restrição:</span>
+                          <span className="font-medium text-slate-800 block mt-0.5">
+                            {g.informante_restricao || g.informante_restricao_descricao || 'Agente financeiro'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-medium uppercase block">Nome do Financiado (Devedor):</span>
+                          <span className="font-bold text-slate-900 block mt-0.5">
+                            {g.nome_financiado || '-'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-medium uppercase block">Documento Financiado (CPF/CNPJ):</span>
+                          <span className="font-mono font-bold text-slate-800 block mt-0.5">
+                            {formatDocumento(g.documento_financiado)}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-medium uppercase block">Data / Hora da Baixa ou Status:</span>
+                          <span className="font-mono text-slate-800 font-medium block mt-0.5">
+                            {dtStatus !== '-' ? `${dtStatus} ${horaStatus ? `às ${horaStatus}` : ''}` : '-'}
+                          </span>
+                        </div>
+
+                        <div className="sm:col-span-2 md:col-span-3 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between text-[11px] text-slate-500 gap-2">
+                          <div>
+                            <span className="font-medium">Registro Contratual: </span>
+                            <span>{g.registro_contrato || g.indicativo_registro_contrato_descricao || 'Não existe registro de contrato eletrônico'}</span>
+                          </div>
+                          {g.assinatura_eletronica && (
+                            <div className="font-mono text-[10px] text-slate-400 truncate max-w-xs" title={g.assinatura_eletronica}>
+                              Autenticação: {g.assinatura_eletronica}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       );
@@ -1291,33 +2206,101 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
     // E16: Busca por RG
     case 'E16': {
-      const registros = dados.registros || [];
+      const list = Array.isArray(dados.registros) 
+        ? dados.registros 
+        : (Array.isArray(dados.data) ? dados.data : (Array.isArray(dados) ? dados : []));
+      const rgPesquisado = dados.rg_pesquisado || identifier;
+      const totalLocalizados = typeof dados.total_localizados === 'number' ? dados.total_localizados : list.length;
+
       return (
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
-            <span className="font-semibold text-slate-800">
-              Registros Vinculados ao RG ({registros.length})
-            </span>
-            <span className="font-mono text-slate-500">RG: {dados.rg_pesquisado || identifier}</span>
+        <div className="space-y-4">
+          {/* Card Resumo do RG Pesquisado */}
+          <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+              <div className="flex items-center space-x-2">
+                <FileText className="w-4 h-4 text-slate-700" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Dossiê de Identificação por Cédula de Identidade (RG)
+                </span>
+              </div>
+              <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold border ${
+                list.length > 0 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200'
+              }`}>
+                {list.length > 0 ? `${list.length} ${list.length === 1 ? 'Titular Localizado' : 'Titulares Localizados'}` : 'Nada Consta'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs mt-3">
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 font-medium block">Documento Pesquisado:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">RG: {rgPesquisado}</span>
+              </div>
+
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 font-medium block">Total de Correspondências:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">
+                  {totalLocalizados} {totalLocalizados === 1 ? 'registro civil' : 'registros civis'}
+                </span>
+              </div>
+
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 font-medium block">Autenticidade & Base:</span>
+                <span className="font-semibold text-emerald-700 text-sm block mt-0.5">Certificado Oficial</span>
+              </div>
+            </div>
           </div>
-          {registros.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-400">
-              Nenhum registro localizado para este RG.
+
+          {/* Lista de Registros Vinculados ao RG */}
+          {list.length === 0 ? (
+            <div className="border border-slate-200 rounded-xl p-8 text-center bg-white shadow-xs">
+              <ShieldCheck className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-800">Nenhum Registro Localizado para este RG</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                A varredura nas bases estaduais de identificação civil não retornou titulares cadastrados para o número de RG informado.
+              </p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
-              {registros.map((r: any, idx: number) => (
-                <div key={idx} className="p-3.5 flex flex-wrap items-center justify-between hover:bg-slate-50 text-xs gap-2">
-                  <div>
-                    <span className="font-bold text-slate-900 block">{r.nome}</span>
-                    <span className="text-slate-400 font-mono text-[11px]">Nascimento: {r.data_nascimento || '-'}</span>
+            <div className="space-y-3">
+              {list.map((r: any, idx: number) => {
+                const cpfFormatado = formatCPF(r.cpf);
+                const dataNasc = formatDateBR(r.data_nascimento);
+
+                return (
+                  <div key={idx} className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 text-slate-700" />
+                        <span className="font-bold text-slate-900 text-sm">{r.nome || 'NOME NÃO INFORMADO'}</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 font-mono">
+                        UF Expedição: {r.uf || 'NÃO CONSTA'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-medium block">CPF do Titular:</span>
+                        <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">{cpfFormatado}</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-medium block">Cédula de Identidade (RG):</span>
+                        <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">{r.rg || rgPesquisado}</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-medium block">Data de Nascimento:</span>
+                        <span className="font-mono font-semibold text-slate-800 block mt-0.5">{dataNasc}</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-medium block">Estado Emissor (UF):</span>
+                        <span className="font-bold text-slate-900 block mt-0.5">{r.uf || '-'}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-3 font-mono">
-                    <span className="text-slate-600">CPF: <strong className="text-slate-900">{formatDocumento(r.cpf || '')}</strong></span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">UF: {r.uf || '-'}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
