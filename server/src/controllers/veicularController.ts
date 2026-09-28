@@ -173,6 +173,22 @@ export const consultarVeicularApiV1 = async (req: any, res: Response) => {
 
   const cleanPlaca = validation.cleaned;
 
+  // 0. Checar se produto E2 está contratado pela empresa ou autorizado na chave de API
+  const companyAllowed: string[] = company?.allowedProducts || ['ALL'];
+  const keyAllowed: string[] = apiKey?.allowedProducts || ['ALL'];
+  const allowedByCompany = companyAllowed.includes('ALL') || companyAllowed.includes('E2');
+  const allowedByKey = keyAllowed.includes('ALL') || keyAllowed.includes('E2');
+
+  if (!allowedByCompany || !allowedByKey) {
+    return res.status(403).json({
+      type: 'https://renacred.com.br/errors/product-not-allowed',
+      title: 'Produto Não Contratado',
+      status: 403,
+      detail: 'A sua organização ou chave de API não possui permissão para consumir o produto E2 (Histórico de Proprietários Veiculares). Entre em contato com seu gestor para liberação.',
+      code: 'PRODUCT_NOT_ALLOWED'
+    });
+  }
+
   // 1. Checar elegibilidade de faturamento
   const eligibility = await billingService.checkEligibility(company.id, company);
   if (!eligibility.allowed) {

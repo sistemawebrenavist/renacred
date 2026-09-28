@@ -15,8 +15,38 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
-import ConfirmModal from '../../components/ui/ConfirmModal';
-import { PRODUCTS_CATALOG } from '../../config/productsCatalog';
+import { PRODUCTS_CATALOG, getProductByCode } from '../../config/productsCatalog';
+
+export function getClientApiEndpoint(allowedProducts: string[] | undefined, token: string) {
+  const isAll = !allowedProducts || allowedProducts.includes('ALL') || allowedProducts.length === PRODUCTS_CATALOG.length;
+  if (isAll) {
+    return {
+      url: `https://api.renacred.com.br/v1/{codigo}?token=${token}&query={parametro}`,
+      singleProduct: null,
+      label: 'Todos os 16 Produtos (/v1/:codigo)',
+    };
+  }
+
+  if (allowedProducts.length === 1) {
+    const prod = getProductByCode(allowedProducts[0]);
+    const code = prod ? prod.code.toLowerCase() : allowedProducts[0].toLowerCase();
+    const paramName = prod?.inputType === 'placa' ? 'PLACA' : prod?.inputType === 'rg' ? 'RG' : 'DOCUMENTO';
+    return {
+      url: `https://api.renacred.com.br/v1/${code}?token=${token}&query=${paramName}`,
+      singleProduct: prod,
+      label: `${prod?.code || allowedProducts[0]} - ${prod?.name || ''}`,
+    };
+  }
+
+  const firstProd = getProductByCode(allowedProducts[0]);
+  const firstCode = firstProd ? firstProd.code.toLowerCase() : allowedProducts[0].toLowerCase();
+  const firstParam = firstProd?.inputType === 'placa' ? 'PLACA' : firstProd?.inputType === 'rg' ? 'RG' : 'DOCUMENTO';
+  return {
+    url: `https://api.renacred.com.br/v1/${firstCode}?token=${token}&query=${firstParam}`,
+    singleProduct: firstProd,
+    label: `${allowedProducts.length} produtos liberados (ex: /v1/${firstCode})`,
+  };
+}
 
 export default function GerenciarClientes() {
   const [companies, setCompanies] = useState<any[]>([]);
@@ -423,7 +453,8 @@ export default function GerenciarClientes() {
                         (() => {
                           const activeKeyObj = c.apiKeys.find((k: any) => k.isActive) || c.apiKeys[0];
                           const activeKey = activeKeyObj?.key || '';
-                          const prodUrl = `https://api.renacred.com.br/v1/imobiliario/historico?token=${activeKey}&query=DOCUMENTO`;
+                          const apiInfo = getClientApiEndpoint(c.allowedProducts, activeKey);
+                          const prodUrl = apiInfo.url;
                           return (
                             <div className="space-y-1.5">
                               {/* Token */}
@@ -803,19 +834,23 @@ export default function GerenciarClientes() {
                   <input
                     type="text"
                     readOnly
-                    value={`https://api.renacred.com.br/v1/imobiliario/historico?token=${createdCompanyDetails.apiKey}&query=DOCUMENTO`}
+                    value={getClientApiEndpoint(createdCompanyDetails.allowedProducts, createdCompanyDetails.apiKey).url}
                     className="flex-1 bg-white border border-blue-200 rounded-xl px-3 py-2 font-mono text-[11px] text-blue-950 select-all"
                   />
                   <button
                     type="button"
-                    onClick={() => copyKeyToClipboard(`https://api.renacred.com.br/v1/imobiliario/historico?token=${createdCompanyDetails.apiKey}&query=DOCUMENTO`, 'created-url')}
+                    onClick={() => copyKeyToClipboard(getClientApiEndpoint(createdCompanyDetails.allowedProducts, createdCompanyDetails.apiKey).url, 'created-url')}
                     className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition cursor-pointer shrink-0"
                     title="Copiar Link Completo"
                   >
                     {copiedKeyId === 'created-url' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-blue-600">Substitua DOCUMENTO pelo CPF ou CNPJ que o cliente desejar pesquisar.</p>
+                <p className="text-[11px] text-blue-600">
+                  {getClientApiEndpoint(createdCompanyDetails.allowedProducts, createdCompanyDetails.apiKey).singleProduct?.inputType === 'placa'
+                    ? 'Substitua PLACA pela placa do veículo que o cliente desejar pesquisar.'
+                    : 'Substitua o parâmetro pelo dado a ser consultado (ex: Placa, CPF ou CNPJ).'}
+                </p>
               </div>
 
               {/* Credenciais de Acesso ao Portal do Assinante */}
@@ -836,7 +871,8 @@ export default function GerenciarClientes() {
               <button
                 type="button"
                 onClick={() => {
-                  const payload = `*DADOS DE ACESSO RENACRED*\nEmpresa: ${createdCompanyDetails.razaoSocial}\n\n*Acesso ao Portal do Assinante:*\nLink: https://renacred.com.br/login\nLogin: ${createdCompanyDetails.adminEmail}\nSenha: ${createdCompanyDetails.adminPassword}\n\n*Acesso via API / Sistema:*\nToken: ${createdCompanyDetails.apiKey}\nEndpoint de Consulta:\nhttps://api.renacred.com.br/v1/imobiliario/historico?token=${createdCompanyDetails.apiKey}&query=DOCUMENTO`;
+                  const apiInfo = getClientApiEndpoint(createdCompanyDetails.allowedProducts, createdCompanyDetails.apiKey);
+                  const payload = `*DADOS DE ACESSO RENACRED*\nEmpresa: ${createdCompanyDetails.razaoSocial}\n\n*Acesso ao Portal do Assinante:*\nLink: https://renacred.com.br/login\nLogin: ${createdCompanyDetails.adminEmail}\nSenha: ${createdCompanyDetails.adminPassword}\n\n*Acesso via API / Sistema:*\nToken: ${createdCompanyDetails.apiKey}\nEndpoint de Consulta (${apiInfo.label}):\n${apiInfo.url}\n\nDocumentação Completa da API: https://renacred.com.br/docs`;
                   navigator.clipboard.writeText(payload);
                   toast.success('Todos os dados de acesso foram copiados para a área de transferência!');
                 }}
@@ -1295,19 +1331,24 @@ export default function GerenciarClientes() {
                       </div>
 
                       {/* Link em Produção Completo com a Chave */}
-                      <div className="flex items-center space-x-1.5 bg-blue-50/70 border border-blue-200/70 rounded-xl px-2.5 py-1.5 text-[10.5px]">
-                        <span className="text-blue-700 font-mono truncate select-all flex-1" title={`https://api.renacred.com.br/v1/imobiliario/historico?token=${k.key}&query=DOCUMENTO`}>
-                          https://api.renacred.com.br/v1/imobiliario/historico?token={k.key}&query=DOCUMENTO
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => copyKeyToClipboard(`https://api.renacred.com.br/v1/imobiliario/historico?token=${k.key}&query=DOCUMENTO`, `modal-url-${k.id}`)}
-                          className="p-1 hover:text-blue-900 text-blue-600 transition shrink-0 cursor-pointer"
-                          title="Copiar Link de Produção Completo"
-                        >
-                          {copiedKeyId === `modal-url-${k.id}` ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
+                      {(() => {
+                        const apiInfo = getClientApiEndpoint(apiKeyModalCompany?.allowedProducts, k.key);
+                        return (
+                          <div className="flex items-center space-x-1.5 bg-blue-50/70 border border-blue-200/70 rounded-xl px-2.5 py-1.5 text-[10.5px]">
+                            <span className="text-blue-700 font-mono truncate select-all flex-1" title={apiInfo.url}>
+                              {apiInfo.url}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => copyKeyToClipboard(apiInfo.url, `modal-url-${k.id}`)}
+                              className="p-1 hover:text-blue-900 text-blue-600 transition shrink-0 cursor-pointer"
+                              title="Copiar Link de Produção Completo"
+                            >
+                              {copiedKeyId === `modal-url-${k.id}` ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        );
+                      })()}
 
                       <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
                         <span>Chamadas: <strong className="text-slate-900 font-mono">{k.totalCalls || 0}</strong></span>

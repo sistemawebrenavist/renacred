@@ -4,8 +4,29 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import { useAuth } from '../../contexts/AuthContext';
+import { PRODUCTS_CATALOG, getProductByCode, ProductDefinition } from '../../config/productsCatalog';
 
 export default function GerenciarApi() {
+  const { user } = useAuth();
+  const allowedProducts: string[] = user?.company?.allowedProducts || ['ALL'];
+  const isSuperAdmin = !!user?.isSuperAdmin;
+
+  const availableProducts = React.useMemo(() => {
+    if (isSuperAdmin || allowedProducts.includes('ALL')) {
+      return PRODUCTS_CATALOG;
+    }
+    return PRODUCTS_CATALOG.filter((p) => allowedProducts.includes(p.code));
+  }, [allowedProducts, isSuperAdmin]);
+
+  const [selectedProductCode, setSelectedProductCode] = useState<string>(() => {
+    return availableProducts[0]?.code || 'E1';
+  });
+
+  const activeProduct: ProductDefinition = React.useMemo(() => {
+    return getProductByCode(selectedProductCode) || availableProducts[0] || PRODUCTS_CATALOG[0];
+  }, [selectedProductCode, availableProducts]);
+
   const [keys, setKeys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -19,10 +40,25 @@ export default function GerenciarApi() {
   const [revoking, setRevoking] = useState(false);
 
   const [selectedKeyForTest, setSelectedKeyForTest] = useState<string>('');
-  const [testDocument, setTestDocument] = useState('01036115925');
+  const [testDocument, setTestDocument] = useState<string>(() => {
+    return activeProduct?.inputType === 'placa' ? 'TJM9D75' : activeProduct?.inputType === 'rg' ? '123456789' : '01036115925';
+  });
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [testApiResult, setTestApiResult] = useState<any | null>(null);
   const [testingApi, setTestingApi] = useState(false);
+
+  const handleProductChange = (newCode: string) => {
+    setSelectedProductCode(newCode);
+    const prod = getProductByCode(newCode);
+    if (prod?.inputType === 'placa') {
+      setTestDocument('TJM9D75');
+    } else if (prod?.inputType === 'rg') {
+      setTestDocument('123456789');
+    } else {
+      setTestDocument('01036115925');
+    }
+    setTestApiResult(null);
+  };
 
   const fetchKeys = async () => {
     try {
@@ -95,9 +131,16 @@ export default function GerenciarApi() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const cleanTestDoc = testDocument.replace(/\D/g, '');
-  const apiUrlBase = 'https://api.renacred.com.br/v1/imobiliario/historico';
-  const generatedUrl = `${apiUrlBase}?token=${selectedKeyForTest || 'SEU_TOKEN'}&query=${cleanTestDoc || '00000000000'}`;
+  const cleanTestQuery = activeProduct.inputType === 'placa'
+    ? testDocument.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+    : activeProduct.inputType === 'rg'
+    ? testDocument.trim().toUpperCase()
+    : testDocument.replace(/\D/g, '');
+
+  const productEndpointCode = activeProduct.code.toLowerCase();
+  const apiUrlBase = `https://api.renacred.com.br/v1/${productEndpointCode}`;
+  const sampleFallback = activeProduct.inputType === 'placa' ? 'ABC1D23' : activeProduct.inputType === 'rg' ? '123456789' : '00000000000';
+  const generatedUrl = `${apiUrlBase}?token=${selectedKeyForTest || 'SEU_TOKEN'}&query=${cleanTestQuery || sampleFallback}`;
 
   const copyGeneratedUrl = () => {
     navigator.clipboard.writeText(generatedUrl);
@@ -111,21 +154,21 @@ export default function GerenciarApi() {
       toast.error('Selecione ou crie uma chave de acesso ativa primeiro.');
       return;
     }
-    if (!cleanTestDoc) {
-      toast.error('Informe um CPF ou CNPJ válido para teste.');
+    if (!cleanTestQuery) {
+      toast.error(`Informe um(a) ${activeProduct.inputLabel} para teste.`);
       return;
     }
 
     setTestingApi(true);
     setTestApiResult(null);
     try {
-      const res = await api.get(`/v1/imobiliario/historico?token=${selectedKeyForTest}&query=${cleanTestDoc}`);
+      const res = await api.get(`/v1/${productEndpointCode}?token=${selectedKeyForTest}&query=${encodeURIComponent(cleanTestQuery)}`);
       setTestApiResult(res.data);
       toast.success('Consulta via API executada com sucesso!');
     } catch (err: any) {
       const errData = err.response?.data || { message: err.message };
       setTestApiResult(errData);
-      toast.error(errData.message || 'Erro ao executar teste de API.');
+      toast.error(errData.message || errData.detail || 'Erro ao executar teste de API.');
     } finally {
       setTestingApi(false);
     }
@@ -166,31 +209,53 @@ export default function GerenciarApi() {
       <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
           <div>
-            <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[10px] font-extrabold uppercase tracking-wider">
-              Padrão Direto GET / URL Pronta
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[10px] font-extrabold uppercase tracking-wider">
+                Padrão Direto GET / URL Pronta
+              </span>
+              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold">
+                {activeProduct.code} - {activeProduct.shortName || activeProduct.name}
+              </span>
+            </div>
             <h3 className="text-lg font-bold text-slate-900 mt-2">
-              Gerador de Link de Integração (Igual ao Padrão de Mercado)
+              Gerador de Link de Integração (Padrão de Mercado)
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Informe o documento e veja a URL completa da Renacred pronta para copiar, abrir no navegador ou testar.
+              Escolha o produto contratado e informe o parâmetro para testar ou gerar o link direto da requisição.
             </p>
           </div>
 
-          {keys.filter(k => k.isActive).length > 1 && (
-            <div className="flex items-center space-x-2 text-xs">
-              <span className="text-slate-600 font-semibold">Chave de Teste:</span>
-              <select
-                value={selectedKeyForTest}
-                onChange={(e) => setSelectedKeyForTest(e.target.value)}
-                className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-mono text-slate-800 focus:outline-none focus:border-blue-600"
-              >
-                {keys.filter(k => k.isActive).map(k => (
-                  <option key={k.id} value={k.key}>{k.name} ({k.key.substring(0, 16)}...)</option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            {availableProducts.length > 1 && (
+              <div className="flex items-center space-x-2 text-xs">
+                <span className="text-slate-600 font-semibold">Produto:</span>
+                <select
+                  value={selectedProductCode}
+                  onChange={(e) => handleProductChange(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-medium text-slate-800 focus:outline-none focus:border-blue-600 text-xs"
+                >
+                  {availableProducts.map(p => (
+                    <option key={p.code} value={p.code}>{p.code} - {p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {keys.filter(k => k.isActive).length > 1 && (
+              <div className="flex items-center space-x-2 text-xs">
+                <span className="text-slate-600 font-semibold">Chave de Teste:</span>
+                <select
+                  value={selectedKeyForTest}
+                  onChange={(e) => setSelectedKeyForTest(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-mono text-slate-800 focus:outline-none focus:border-blue-600 text-xs"
+                >
+                  {keys.filter(k => k.isActive).map(k => (
+                    <option key={k.id} value={k.key}>{k.name} ({k.key.substring(0, 16)}...)</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -202,12 +267,14 @@ export default function GerenciarApi() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Documento para Consulta (CPF ou CNPJ)</label>
+            <label className="text-xs font-bold text-slate-700">
+              {activeProduct.inputLabel}
+            </label>
             <input
               type="text"
               value={testDocument}
               onChange={(e) => setTestDocument(e.target.value)}
-              placeholder="Digite o CPF ou CNPJ"
+              placeholder={activeProduct.placeholder}
               className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
             />
           </div>

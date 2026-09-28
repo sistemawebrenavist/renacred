@@ -7,11 +7,20 @@ export interface ApiKeyRequest extends Request {
     id: string;
     razaoSocial: string;
     accountType: string;
+    isActive: boolean;
+    rateLimitPerMinute: number;
+    creditsBalance?: any;
+    creditLimit?: any;
+    billingDueDate?: number;
+    customQueryPrice?: any;
+    allowedProducts?: string[];
+    customPrices?: any;
   };
   apiKey?: {
     id: string;
     key: string;
     rateLimitMin: number;
+    allowedProducts?: string[];
   };
 }
 
@@ -49,6 +58,12 @@ export const authenticateApiKey = async (req: ApiKeyRequest, res: Response, next
             accountType: true,
             isActive: true,
             rateLimitPerMinute: true,
+            creditsBalance: true,
+            creditLimit: true,
+            billingDueDate: true,
+            customQueryPrice: true,
+            allowedProducts: true,
+            customPrices: true,
           }
         }
       }
@@ -116,6 +131,7 @@ export const authenticateApiKey = async (req: ApiKeyRequest, res: Response, next
       id: apiKey.id,
       key: apiKey.key,
       rateLimitMin: apiKey.rateLimitMin,
+      allowedProducts: apiKey.allowedProducts || ['ALL'],
     };
 
     next();

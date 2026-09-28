@@ -153,6 +153,22 @@ export const consultarApiV1 = async (req: any, res: Response) => {
 
   const cleanDoc = validation.cleaned;
 
+  // 0. Checar se produto E1 está contratado pela empresa ou autorizado na chave de API
+  const companyAllowed: string[] = company?.allowedProducts || ['ALL'];
+  const keyAllowed: string[] = apiKey?.allowedProducts || ['ALL'];
+  const allowedByCompany = companyAllowed.includes('ALL') || companyAllowed.includes('E1');
+  const allowedByKey = keyAllowed.includes('ALL') || keyAllowed.includes('E1');
+
+  if (!allowedByCompany || !allowedByKey) {
+    return res.status(403).json({
+      type: 'https://renacred.com.br/errors/product-not-allowed',
+      title: 'Produto Não Contratado',
+      status: 403,
+      detail: 'A sua organização ou chave de API não possui permissão para consumir o produto E1 (Histórico Imobiliário & Cartórios). Verifique os produtos contratados ou utilize o endpoint do produto liberado (ex: /v1/e8 para multas).',
+      code: 'PRODUCT_NOT_ALLOWED'
+    });
+  }
+
   // 1. Checar elegibilidade de faturamento reutilizando a empresa já autenticada
   const eligibility = await billingService.checkEligibility(company.id, company);
   if (!eligibility.allowed) {
