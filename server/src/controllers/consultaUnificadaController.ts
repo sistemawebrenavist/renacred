@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { prisma } from '../config/database';
 import { fetchbrasilService } from '../services/fetchbrasil.service';
+import { syncVeicularToInfosinistros } from '../services/syncToInfosinistrosService';
 import { billingService, BillingCheckResult } from '../services/billing.service';
 import { findServerProduct, ServerProductConfig } from '../config/productsCatalog';
 import { validateIdentifier, sanitizeCpfCnpj } from '../utils/cpfCnpjValidator';
@@ -200,6 +201,15 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       await billingService.chargeQuery(companyId, queryRecord.id, finalCost);
     }
 
+    // Sincronização em tempo real para a InfoSinistros caso seja Produto E2
+    if (product.code === 'E2' && hasData) {
+      setImmediate(() => {
+        syncVeicularToInfosinistros(cleanQuery, result).catch(e =>
+          logger.error(`[SYNC INFOSINISTROS] Erro assíncrono E2 Web: ${e.message}`)
+        );
+      });
+    }
+
     return res.json({
       success: true,
       queryId: queryRecord.id,
@@ -357,6 +367,15 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
     // Debitar créditos se houver dados
     if (finalCost > 0) {
       await billingService.chargeQuery(company.id, queryRecord.id, finalCost);
+    }
+
+    // Sincronização em tempo real para a InfoSinistros caso seja Produto E2
+    if (product.code === 'E2' && hasData) {
+      setImmediate(() => {
+        syncVeicularToInfosinistros(cleanQuery, result).catch(e =>
+          logger.error(`[SYNC INFOSINISTROS] Erro assíncrono E2 API: ${e.message}`)
+        );
+      });
     }
 
     // Gravação assíncrona do log de API (sem bloquear o retorno)

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { fetchbrasilService } from '../services/fetchbrasil.service';
+import { syncVeicularToInfosinistros } from '../services/syncToInfosinistrosService';
 import { billingService, BillingCheckResult } from '../services/billing.service';
 import { logger } from '../utils/logger';
 import { QuerySource, QueryStatus } from '../types/database';
@@ -92,6 +93,15 @@ export const consultarVeicularWeb = async (req: any, res: Response) => {
     // 4. Executar débito financeiro apenas quando houver dados e para clientes regulares
     if (finalCost > 0) {
       await billingService.chargeQuery(companyId, queryRecord.id, finalCost);
+    }
+
+    // 5. Sincronização em tempo real para o banco da InfoSinistros (sem bloquear resposta)
+    if (hasData) {
+      setImmediate(() => {
+        syncVeicularToInfosinistros(cleanPlaca, result).catch(e =>
+          logger.error(`[SYNC INFOSINISTROS] Erro assíncrono: ${e.message}`)
+        );
+      });
     }
 
     return res.json({
@@ -293,6 +303,13 @@ export const consultarVeicularApiV1 = async (req: any, res: Response) => {
 
     // Débito financeiro
     await billingService.chargeQuery(company.id, queryRecord.id, queryCost);
+
+    // Sincronização em tempo real para o banco da InfoSinistros (sem bloquear resposta)
+    setImmediate(() => {
+      syncVeicularToInfosinistros(cleanPlaca, result).catch(e =>
+        logger.error(`[SYNC INFOSINISTROS] Erro assíncrono API V1: ${e.message}`)
+      );
+    });
 
     // Gravação de apiLog assíncrona
     setImmediate(() => {
