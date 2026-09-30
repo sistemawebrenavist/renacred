@@ -552,20 +552,134 @@ export function normalizeE12(raw: any): NormalizedResult {
     }
   }
 
-  // Tratamento de restrições da BIN
-  const rawRestricoes = [
-    extra.restricao_1,
-    extra.restricao_2,
-    extra.restricao_3,
-    extra.restricao_4
-  ].filter((r: any) => r && typeof r === 'string' && r.trim() !== '' && !r.toUpperCase().includes('SEM RESTRICAO'));
+  // Funções auxiliares para tratamento pericial de restrições veiculares da BIN
+  const formatBinRestricao = (rawDesc: any): string => {
+    if (!rawDesc || typeof rawDesc !== 'string') return 'SEM RESTRIÇÃO';
+    let str = rawDesc.trim();
+    if (!str) return 'SEM RESTRIÇÃO';
 
-  const listaRestricoes = [
-    { label: 'Restrição 1', valor: extra.restricao_1 || 'SEM RESTRIÇÃO' },
-    { label: 'Restrição 2', valor: extra.restricao_2 || 'SEM RESTRIÇÃO' },
-    { label: 'Restrição 3', valor: extra.restricao_3 || 'SEM RESTRIÇÃO' },
-    { label: 'Restrição 4', valor: extra.restricao_4 || 'SEM RESTRIÇÃO' }
+    const norm = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    if (
+      norm === '0' ||
+      norm === '00' ||
+      norm === '-' ||
+      norm.includes('SEM RESTRICAO') ||
+      norm.includes('INEXISTENTE') ||
+      norm.includes('NADA CONSTA') ||
+      norm.includes('NENHUMA') ||
+      norm.includes('NAO CONSTA')
+    ) {
+      return 'SEM RESTRIÇÃO';
+    }
+
+    const mapDesc: Record<string, string> = {
+      'ALIENACAO_FIDUCIARIA_FILE_VEICULOS': 'Alienação Fiduciária',
+      'ALIENACAO_FIDUCIARIA': 'Alienação Fiduciária',
+      'RESTRICAO_ADMINISTRATIVA_FILE_VEICULOS': 'Restrição Administrativa',
+      'RESTRICAO_ADMINISTRATIVA': 'Restrição Administrativa',
+      'RESTRICAO_TRIBUTARIA_FILE_VEICULOS': 'Restrição Tributária',
+      'RESTRICAO_TRIBUTARIA': 'Restrição Tributária',
+      'RESTRICAO_JUDICIAL_FILE_VEICULOS': 'Restrição Judicial (RENAJUD)',
+      'RESTRICAO_JUDICIAL': 'Restrição Judicial (RENAJUD)',
+      'RESTRICAO_GUINCHO_FILE_VEICULOS': 'Restrição de Guincho',
+      'RESTRICAO_GUINCHO': 'Restrição de Guincho',
+      'RESTRICAO_ROUBO_FURTO_FILE_VEICULOS': 'Restrição de Roubo/Furto',
+      'RESTRICAO_ROUBO_FURTO': 'Restrição de Roubo/Furto',
+      'ARRENDAMENTO_MERCANTIL_FILE_VEICULOS': 'Arrendamento Mercantil',
+      'ARRENDAMENTO_MERCANTIL': 'Arrendamento Mercantil',
+      'RESERVA_DE_DOMINIO_FILE_VEICULOS': 'Reserva de Domínio',
+      'RESERVA_DE_DOMINIO': 'Reserva de Domínio',
+      'PENHOR_FILE_VEICULOS': 'Penhor',
+      'PENHOR': 'Penhor',
+      'COMUNICACAO_DE_VENDA': 'Comunicação de Venda'
+    };
+
+    if (mapDesc[norm]) {
+      return mapDesc[norm];
+    }
+
+    if (str.includes('\n')) {
+      return str.split('\n').map((s: string) => s.trim()).filter(Boolean).join(' / ');
+    }
+
+    str = str.replace(/_FILE_VEICULOS/gi, '');
+    if (str.includes('_')) {
+      str = str.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    }
+
+    return str;
+  };
+
+  const isBinRestricaoAtiva = (valor: any): boolean => {
+    if (!valor || typeof valor !== 'string') return false;
+    const norm = valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    if (
+      norm === '' ||
+      norm === '0' ||
+      norm === '00' ||
+      norm === '-' ||
+      norm.includes('SEM RESTRICAO') ||
+      norm.includes('NADA CONSTA') ||
+      norm.includes('INEXISTENTE') ||
+      norm.includes('NAO CONSTA') ||
+      norm.includes('NENHUMA') ||
+      norm === 'NORMAL' ||
+      norm === 'REGULAR'
+    ) {
+      return false;
+    }
+    return true;
+  };
+
+  // Tratamento de restrições da BIN (Serpro, Senatran e contingências)
+  const r1Raw = raw.descricaoRestricao1 || veic.descricaoRestricao1 || raw.restricao1 || veic.restricao1 || extra.restricao_1 || raw.restricao_1;
+  const r2Raw = raw.descricaoRestricao2 || veic.descricaoRestricao2 || raw.restricao2 || veic.restricao2 || extra.restricao_2 || raw.restricao_2;
+  const r3Raw = raw.descricaoRestricao3 || veic.descricaoRestricao3 || raw.restricao3 || veic.restricao3 || extra.restricao_3 || raw.restricao_3;
+  const r4Raw = raw.descricaoRestricao4 || veic.descricaoRestricao4 || raw.restricao4 || veic.restricao4 || extra.restricao_4 || raw.restricao_4;
+
+  const listaRestricoes: Array<{ label: string; valor: string }> = [
+    { label: 'Restrição 1', valor: formatBinRestricao(r1Raw) },
+    { label: 'Restrição 2', valor: formatBinRestricao(r2Raw) },
+    { label: 'Restrição 3', valor: formatBinRestricao(r3Raw) },
+    { label: 'Restrição 4', valor: formatBinRestricao(r4Raw) }
   ];
+
+  // Adicionar restrições adicionais específicas se constarem ativas no Serpro / Senatran
+  if (raw.indicadorRestricaoRenajud === true || veic.possuiRestricaoJudicial === true) {
+    const alreadyListed = listaRestricoes.some(r => isBinRestricaoAtiva(r.valor) && (r.valor.toUpperCase().includes('JUDICIAL') || r.valor.toUpperCase().includes('RENAJUD')));
+    if (!alreadyListed) {
+      listaRestricoes.push({ label: 'Restrição RENAJUD', valor: 'Consta Bloqueio Judicial (RENAJUD)' });
+    }
+  }
+
+  if (raw.indicadorRouboFurto === true || veic.possuiOcorrenciaRouboFurto === true) {
+    const alreadyListed = listaRestricoes.some(r => isBinRestricaoAtiva(r.valor) && (r.valor.toUpperCase().includes('ROUBO') || r.valor.toUpperCase().includes('FURTO')));
+    if (!alreadyListed) {
+      listaRestricoes.push({ label: 'Alerta Roubo/Furto', valor: 'Consta Alerta Ativo de Roubo/Furto' });
+    }
+  }
+
+  if (raw.indicadorComunicacaoVenda === true) {
+    const alreadyListed = listaRestricoes.some(r => isBinRestricaoAtiva(r.valor) && r.valor.toUpperCase().includes('COMUNICACAO'));
+    if (!alreadyListed) {
+      listaRestricoes.push({ label: 'Comunicação de Venda', valor: 'Consta Comunicação de Venda Ativa' });
+    }
+  }
+
+  if (raw.descricaoRestricaoRfb && !['INEXISTENTE', '0', '00', 'SEM RESTRICAO'].includes(String(raw.descricaoRestricaoRfb).toUpperCase())) {
+    listaRestricoes.push({ label: 'Restrição RFB', valor: String(raw.descricaoRestricaoRfb) });
+  }
+
+  // Se houver indicador de restrição de Renavam sem descrição mapeada
+  const hasSomeActive = listaRestricoes.some(r => isBinRestricaoAtiva(r.valor));
+  if ((raw.indicadorRestricaoRenvm === 'S' || veic.indicadorRestricaoRenvm === 'S') && !hasSomeActive) {
+    listaRestricoes.push({
+      label: 'Restrição Renavam',
+      valor: raw.descricaoRestricaoRenavam || veic.descricaoRestricaoRenavam || 'Consta Restrição Ativa no Órgão de Trânsito'
+    });
+  }
+
+  const temRestricaoAtiva = listaRestricoes.some(r => isBinRestricaoAtiva(r.valor));
 
   return {
     totalRegistros: hasData ? 1 : 0,
@@ -620,7 +734,7 @@ export function normalizeE12(raw: any): NormalizedResult {
       situacao_veiculo: raw.situacaoVeiculo ? (raw.situacaoVeiculo === 'EM_CIRCULACAO' ? 'Em Circulação (Regular)' : raw.situacaoVeiculo) : (extra.situacao_veiculo === 'S' ? 'Em Circulação (Regular)' : (extra.situacao_veiculo || raw.situacao || 'Regular')),
       situacao_chassi: extra.situacao_chassi === 'N' ? 'Normal (Não Remarcado)' : (extra.situacao_chassi || 'Normal'),
       limite_restricao_trib: extra.limite_restricao_trib,
-      tem_restricao: rawRestricoes.length > 0 || raw.indicadorRestricaoRenvm === 'S',
+      tem_restricao: temRestricaoAtiva,
       restricoes: listaRestricoes,
       data_registro_base: raw.data
     }) || null
@@ -743,12 +857,15 @@ export function normalizeE13(raw: any): NormalizedResult {
       cbo_formatado: cboInfo?.formatado,
       mosaic: mosaicInfo?.codigo || rawMosaic,
       mosaic_descricao: mosaicInfo?.descricaoCompleta,
+      mosaic_texto: mosaicInfo?.descricaoTexto,
       perfil_socioeconomico: mosaicInfo?.descricaoCompleta || rawMosaic,
       perfil_socioeconomico_info: mosaicInfo ? {
         codigo: mosaicInfo.codigo,
         grupo: mosaicInfo.grupoNome,
+        grupo_descricao: mosaicInfo.grupoDescricao,
         segmento: mosaicInfo.segmento,
-        descricao: mosaicInfo.descricaoCompleta
+        descricao: mosaicInfo.descricaoCompleta,
+        texto: mosaicInfo.descricaoTexto
       } : undefined,
       renda: d.RENDA || d.renda,
       rg: rgNumero ? {

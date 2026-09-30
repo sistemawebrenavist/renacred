@@ -1356,7 +1356,25 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
     // E12: BIN Online
     case 'E12': {
       const restricoes = Array.isArray(dados.restricoes) ? dados.restricoes : [];
-      const hasRestricaoAtiva = dados.tem_restricao || restricoes.some((r: any) => r.valor && !r.valor.toUpperCase().includes('SEM RESTRICAO'));
+      const isCleanRestricao = (valor: any) => {
+        if (!valor) return true;
+        const norm = String(valor).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        return (
+          norm === '' ||
+          norm === '0' ||
+          norm === '00' ||
+          norm === '-' ||
+          norm.includes('SEM RESTRICAO') ||
+          norm.includes('NADA CONSTA') ||
+          norm.includes('INEXISTENTE') ||
+          norm.includes('NAO CONSTA') ||
+          norm.includes('NENHUMA') ||
+          norm === 'NORMAL' ||
+          norm === 'REGULAR'
+        );
+      };
+      const activeRestricoes = restricoes.filter((r: any) => !isCleanRestricao(r.valor));
+      const hasRestricaoAtiva = activeRestricoes.length > 0;
 
       return (
         <div className="space-y-4">
@@ -1610,11 +1628,20 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
               {restricoes.map((r: any, idx: number) => {
-                const isClean = !r.valor || r.valor.toUpperCase().includes('SEM RESTRICAO');
+                const isClean = isCleanRestricao(r.valor);
                 return (
-                  <div key={idx} className="p-3 rounded-lg border bg-slate-50/70 border-slate-200">
-                    <span className="text-[10px] text-slate-400 font-medium block uppercase tracking-wider">{r.label}:</span>
-                    <span className={`font-semibold block mt-1 ${isClean ? 'text-slate-700' : 'text-rose-700 font-bold'}`}>
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-lg border transition-all ${
+                      isClean
+                        ? 'bg-slate-50/70 border-slate-200'
+                        : 'bg-rose-50/80 border-rose-300 shadow-xs ring-1 ring-rose-200/50'
+                    }`}
+                  >
+                    <span className={`text-[10px] font-medium block uppercase tracking-wider ${isClean ? 'text-slate-400' : 'text-rose-600 font-bold'}`}>
+                      {r.label}:
+                    </span>
+                    <span className={`font-semibold block mt-1 ${isClean ? 'text-slate-700' : 'text-rose-800 font-extrabold'}`}>
                       {r.valor || 'SEM RESTRIÇÃO'}
                     </span>
                   </div>
@@ -1856,12 +1883,12 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                 </div>
 
                 <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
-                  <span className="text-[10px] text-slate-400 font-medium block">Ocupação / CBO:</span>
-                  <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">
-                    {cboDisplay}
+                  <span className="text-[10px] text-slate-400 font-medium block">Profissão / Cargo:</span>
+                  <span className="font-bold text-slate-900 text-sm block mt-0.5 truncate" title={cboTitulo || profissao}>
+                    {cboTitulo || (profissao !== '-' ? profissao : 'Não declarada')}
                   </span>
-                  <span className="text-[11px] text-slate-600 font-medium block mt-0.5 truncate" title={cboTitulo || profissao}>
-                    {cboTitulo || (profissao !== '-' ? profissao : 'Atividade Cadastrada')}
+                  <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
+                    {cboTitulo || (profissao !== '-' && profissao !== 'Não declarada') ? 'Ocupação Declarada' : 'Base Cadastral'}
                   </span>
                 </div>
 
@@ -1874,15 +1901,30 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                 </div>
 
                 {perfilSocioeconomicoDisplay && (
-                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200 col-span-2">
-                    <span className="text-[10px] text-slate-400 font-medium block">Perfil Socioeconômico:</span>
-                    <span className="font-bold text-slate-900 text-sm block mt-0.5">
-                      {mosaicInfo ? `${mosaicInfo.codigo} • ${mosaicInfo.segmento}` : perfilSocioeconomicoDisplay}
-                    </span>
-                    {mosaicInfo?.grupoNome && (
-                      <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
-                        Grupo: {mosaicInfo.grupoNome}
+                  <div className="p-4 bg-slate-50/70 rounded-lg border border-slate-200 col-span-2 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                      <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">
+                        Perfil Socioeconômico:
                       </span>
+                      {mosaicInfo?.grupoNome && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                          {mosaicInfo.grupoCodigo ? `Grupo ${mosaicInfo.grupoCodigo}: ` : ''}{mosaicInfo.grupoNome}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="font-bold text-slate-900 text-sm block">
+                        {mosaicInfo ? `${mosaicInfo.codigo} • ${mosaicInfo.segmento}` : perfilSocioeconomicoDisplay}
+                      </span>
+                    </div>
+
+                    {(mosaicInfo?.descricaoTexto || dados.mosaic_texto || dados.perfil_socioeconomico_info?.texto) && (
+                      <div className="pt-2 border-t border-slate-200/80">
+                        <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                          {mosaicInfo?.descricaoTexto || dados.mosaic_texto || dados.perfil_socioeconomico_info?.texto}
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}
