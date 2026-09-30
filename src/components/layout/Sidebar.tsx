@@ -49,7 +49,7 @@ export const Sidebar: React.FC = () => {
   const sectionTitle = isSuperAdmin ? 'Portal de Gestão' : 'Portal do Assinante';
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 select-none shadow-xs">
+    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 select-none shadow-xs print:hidden">
       {/* Brand Header com Logo Oficial */}
       <div className="px-5 py-6 border-b border-slate-100 flex items-center justify-center">
         <RenacredLogo size="md" badge={false} />

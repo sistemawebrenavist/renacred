@@ -9,6 +9,7 @@ import { DeclaracaoCard } from '../imobiliario/DeclaracaoCard';
 import { ExportPdfButton } from '../imobiliario/ExportPdfButton';
 import { ExportExcelButton } from '../imobiliario/ExportExcelButton';
 import { translateCBO, translateMosaic } from '../../utils/cboMosaicUtils';
+import { RenacredLogo } from '../ui/RenacredLogo';
 
 // Formatação universal de CPF com 11 dígitos garantidos (preenchimento com zero à esquerda)
 const formatCPF = (doc?: string | number | null): string => {
@@ -114,9 +115,32 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-6">
+    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-6 print:border-none print:shadow-none print:p-0 print:m-0 print:w-full print:space-y-4">
+      {/* Cabeçalho Institucional de Fé Pública Exclusivo para Impressão / PDF Oficial */}
+      <div className="hidden print:flex items-center justify-between border-b-2 border-slate-900 pb-3 mb-4">
+        <div className="flex items-center gap-3">
+          <RenacredLogo size="md" badge={false} />
+          <div>
+            <div className="text-[12px] font-bold tracking-wider text-slate-900 uppercase">
+              Rede Nacional de Proteção ao Crédito & Informações Cartorárias
+            </div>
+            <div className="text-[10px] text-slate-500 font-mono">
+              Certidão Pericial Oficial • Emissão Eletrônica • renacred.com.br
+            </div>
+          </div>
+        </div>
+        <div className="text-right">
+          <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold font-mono border ${produto.badgeColor.bg} ${produto.badgeColor.text} ${produto.badgeColor.border}`}>
+            {produto.code} • {produto.categoryLabel}
+          </span>
+          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+            Emissão: {dataFormatada}
+          </div>
+        </div>
+      </div>
+
       {/* Topo do Laudo Pericial */}
-      <div className="border-b border-slate-100 pb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="border-b border-slate-100 pb-5 flex flex-col md:flex-row md:items-center justify-between gap-4 print:pb-2 print:border-slate-200">
         <div>
           <div className="flex items-center space-x-2">
             <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${produto.badgeColor.bg} ${produto.badgeColor.text} ${produto.badgeColor.border}`}>
@@ -126,15 +150,15 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
               Certidão Pericial Oficial • Renacred Bureau
             </span>
           </div>
-          <h2 className="text-lg font-bold text-slate-900 mt-1">
+          <h2 className="text-lg font-bold text-slate-900 mt-1 print:text-base">
             {produto.name}
           </h2>
         </div>
 
-        <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex items-center space-x-2 shrink-0 print:hidden">
           <button
             onClick={handleImprimir}
-            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition"
+            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition cursor-pointer"
           >
             Imprimir / Salvar PDF
           </button>
@@ -251,7 +275,7 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
               )}
             </div>
             {declaracoes.length > 0 && (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 print:hidden">
                 <ExportExcelButton documento={identifier} declaracoes={declaracoes} />
                 <ExportPdfButton
                   documento={identifier}
@@ -299,7 +323,7 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
             </div>
 
             {historicoComPosse.length > 0 && (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 print:hidden">
                 <ExportExcelVeicularButton
                   placa={dados.placa || identifier}
                   renavam={dados.renavam}

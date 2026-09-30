@@ -303,9 +303,9 @@ export default function HubConsulta() {
   }, [user, currentProduct]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto print:space-y-0 print:max-w-none print:w-full print:m-0 print:p-0">
       {/* Barra Superior de Identificação do Produto */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs print:hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start md:items-center space-x-3">
             <span
@@ -351,7 +351,7 @@ export default function HubConsulta() {
       </div>
 
       {/* Formulário de Busca */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs print:hidden">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -458,7 +458,7 @@ export default function HubConsulta() {
 
       {/* Exibição do Laudo Pericial Oficial */}
       {result && (
-        <div className="animate-in fade-in duration-200">
+        <div className="animate-in fade-in duration-200 print:w-full print:m-0 print:p-0">
           <LaudoPericialUniversal
             produto={currentProduct}
             identifier={result.identifier}
@@ -473,7 +473,7 @@ export default function HubConsulta() {
       )}
 
       {/* Histórico Recente do Produto Ativo */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs print:hidden">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
           <div>
             <h2 className="text-sm font-bold text-slate-900">

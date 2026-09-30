@@ -81,3 +81,84 @@ input:-webkit-autofill:active {
   box-shadow: 0 0 0px 1000px #0F172A inset !important;
   transition: background-color 5000s ease-in-out 0s;
 }
+
+/* ==========================================================================
+   REGRAS GLOBAIS DE IMPRESSÃO & GERAÇÃO DE PDF (SEM SIDEBAR E SEM FORMULÁRIOS)
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 10mm 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 1. Esconder Sidebar, Header do Painel, Menus e Formulários */
+  aside,
+  nav,
+  header,
+  .sidebar,
+  .print-hidden,
+  .no-print,
+  [data-print="hidden"] {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 2. Reset estrutural de containers para ocupar 100% da folha */
+  #root,
+  .app-layout,
+  main {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+
+  /* 3. Remover sombras e bordas cinzas pesadas em impressão */
+  .shadow-xs,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
+
+  /* 4. Evitar quebras de página desfavoráveis dentro de cards periciais */
+  .grid,
+  .card,
+  table,
+  tr,
+  .break-inside-avoid,
+  .rounded-xl,
+  .rounded-2xl {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* 5. Tabelas periciais ocupando 100% com alta nitidez */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+}
+

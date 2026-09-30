@@ -12,7 +12,7 @@ export const Header: React.FC<{ title?: string }> = ({ title }) => {
   const balance = company?.creditsBalance || 0;
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+    <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs print:hidden">
       <div>
         <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
           {title || (isSuperAdmin ? 'Painel de Gestão Renacred' : 'Painel Renacred')}
