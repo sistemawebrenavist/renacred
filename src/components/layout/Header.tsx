@@ -20,7 +20,7 @@ export const Header: React.FC<{ title?: string }> = ({ title }) => {
       </div>
 
       <div className="flex items-center space-x-3">
-        {/* Badge Financeiro Exclusivo do Assinante Pré-pago */}
+        {/* Badge Financeiro do Assinante Pré-pago */}
         {!isSuperAdmin && isPrePaid && (
           <div className="flex items-center space-x-3 bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-xs">
             <div className="flex items-center text-xs font-medium text-slate-600">
@@ -38,6 +38,21 @@ export const Header: React.FC<{ title?: string }> = ({ title }) => {
               Recarregar
             </Link>
           </div>
+        )}
+
+        {/* Badge Financeiro do Assinante Pós-pago */}
+        {!isSuperAdmin && !isPrePaid && company && (
+          <Link
+            to="/minha-assinatura"
+            className="flex items-center space-x-2 bg-blue-50/70 hover:bg-blue-100/70 border border-blue-200 px-3.5 py-1.5 rounded-xl shadow-xs transition"
+            title="Acessar faturamento mensal e consumo do ciclo"
+          >
+            <Wallet className="w-3.5 h-3.5 text-blue-600" />
+            <span className="text-xs font-semibold text-blue-900">Pós-pago</span>
+            <span className="text-[10px] text-blue-700 font-bold bg-blue-100 px-1.5 py-0.5 rounded">
+              Venc. dia {company?.billingDueDate || 10}
+            </span>
+          </Link>
         )}
 
         {/* Identificador do Administrador Wellington */}

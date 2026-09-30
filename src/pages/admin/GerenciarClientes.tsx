@@ -12,7 +12,10 @@ import {
   KeyRound,
   Copy,
   Layers,
-  ChevronDown
+  ChevronDown,
+  Building2,
+  ShieldCheck,
+  Receipt
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -122,9 +125,24 @@ export default function GerenciarClientes() {
 
   // Modal de Ajuste de Saldo Manual
   const [creditModalCompany, setCreditModalCompany] = useState<any | null>(null);
+  const [adjustType, setAdjustType] = useState<'BALANCE' | 'LIMIT'>('BALANCE');
   const [manualAmount, setManualAmount] = useState<string>('');
   const [manualDescription, setManualDescription] = useState<string>('');
   const [adjusting, setAdjusting] = useState(false);
+
+  const openAdjustModal = (c: any) => {
+    setActiveActionsMenu(null);
+    setCreditModalCompany(c);
+    if (c.accountType === 'POST_PAID') {
+      setAdjustType('LIMIT');
+      setManualAmount(String(c.creditLimit || ''));
+      setManualDescription('Ajuste de limite de consumo operacional');
+    } else {
+      setAdjustType('BALANCE');
+      setManualAmount('');
+      setManualDescription('Ajuste manual ou bonificação de saldo');
+    }
+  };
 
   const fetchCompanies = async () => {
     try {
@@ -305,6 +323,7 @@ export default function GerenciarClientes() {
       const res = await api.post(`/api/admin/companies/${creditModalCompany.id}/credits`, {
         amount: parseFloat(manualAmount),
         description: manualDescription,
+        targetField: adjustType === 'LIMIT' ? 'creditLimit' : 'creditsBalance',
       });
 
       if (res.data?.success) {
@@ -418,7 +437,7 @@ export default function GerenciarClientes() {
                   <th className="py-3 px-3.5">Empresa / Documento</th>
                   <th className="py-3 px-3">Plano / Venc.</th>
                   <th className="py-3 px-3">Produtos & Tarifas</th>
-                  <th className="py-3 px-3">Saldo ou Limite</th>
+                  <th className="py-3 px-3">Saldo / Fatura</th>
                   <th className="py-3 px-3">Acesso API</th>
                   <th className="py-3 px-3 text-center">Status</th>
                   <th className="py-3 px-3.5 text-right whitespace-nowrap">Ações</th>
@@ -469,9 +488,30 @@ export default function GerenciarClientes() {
                     </td>
                     <td className="py-3 px-3 font-mono whitespace-nowrap">
                       {c.accountType === 'PRE_PAID' ? (
-                        <span className="text-emerald-700 font-bold">R$ {Number(c.creditsBalance || 0).toFixed(2)}</span>
+                        <div>
+                          <span className="text-emerald-700 font-bold block text-xs">
+                            R$ {Number(c.creditsBalance || 0).toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-sans block mt-0.5">
+                            Saldo em créditos
+                          </span>
+                        </div>
                       ) : (
-                        <span className="text-blue-700 font-bold">Limite: R$ {Number(c.creditLimit || 0).toFixed(2)}</span>
+                        <div>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="text-blue-700 font-bold text-xs">
+                              Fatura: R$ {Number(c.invoices?.[0]?.totalAmount || 0).toFixed(2)}
+                            </span>
+                            {c.invoices?.[0]?.totalQueries > 0 && (
+                              <span className="text-[9.5px] bg-blue-50 text-blue-700 border border-blue-200 px-1 py-0.2 rounded font-sans">
+                                {c.invoices[0].totalQueries} cons.
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10.5px] text-slate-500 font-sans block mt-0.5">
+                            Limite: {Number(c.creditLimit) > 0 && Number(c.creditLimit) < 999999 ? `R$ ${Number(c.creditLimit).toFixed(2)}` : 'Ilimitado'}
+                          </span>
+                        </div>
                       )}
                     </td>
                     <td className="py-3 px-3">
@@ -594,10 +634,7 @@ export default function GerenciarClientes() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setActiveActionsMenu(null);
-                                  setCreditModalCompany(c);
-                                }}
+                                onClick={() => openAdjustModal(c)}
                                 className="w-full text-left px-3.5 py-2 hover:bg-blue-50/60 flex items-center gap-2.5 text-blue-700 transition cursor-pointer"
                               >
                                 <Wallet className="w-4 h-4 text-blue-600 shrink-0" />
@@ -631,113 +668,125 @@ export default function GerenciarClientes() {
 
       {/* Modal de Cadastro de Novo Cliente (Create) */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-2xl w-full shadow-xl space-y-6 my-8">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl space-y-4 my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Cadastrar Novo Cliente</h3>
-                <p className="text-xs text-slate-500">Cadastre os dados da empresa e crie o usuário de acesso inicial</p>
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 leading-tight">Cadastrar Novo Cliente</h3>
+                  <p className="text-[11px] text-slate-500">Cadastre os dados da empresa e crie o usuário de acesso inicial</p>
+                </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateCompany} className="space-y-6 text-xs">
+            <form onSubmit={handleCreateCompany} className="space-y-4 text-xs">
               {/* Seção 1: Dados da Empresa */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-blue-700 uppercase tracking-wider">1. Dados da Empresa</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">CNPJ ou CPF *</label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-1.5 text-xs font-bold text-blue-700 uppercase tracking-wider">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>1. Dados da Empresa</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <div className="col-span-1">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">CNPJ ou CPF *</label>
                     <input
                       type="text"
                       required
                       placeholder="00.000.000/0000-00"
                       value={newCompany.cnpjCpf}
                       onChange={(e) => setNewCompany({ ...newCompany, cnpjCpf: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
                     />
                   </div>
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Razão Social / Nome *</label>
+                  <div className="col-span-1 sm:col-span-1 lg:col-span-2">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Razão Social / Nome *</label>
                     <input
                       type="text"
                       required
                       placeholder="Nome Empresarial Ltda"
                       value={newCompany.razaoSocial}
                       onChange={(e) => setNewCompany({ ...newCompany, razaoSocial: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
                     />
                   </div>
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Nome Fantasia</label>
+                  <div className="col-span-1">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Nome Fantasia</label>
                     <input
                       type="text"
                       placeholder="Marca ou Fantasia"
                       value={newCompany.nomeFantasia}
                       onChange={(e) => setNewCompany({ ...newCompany, nomeFantasia: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
                     />
                   </div>
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">E-mail Corporativo *</label>
+                  <div className="col-span-1 sm:col-span-1 lg:col-span-2">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">E-mail Corporativo *</label>
                     <input
                       type="email"
                       required
                       placeholder="contato@empresa.com.br"
                       value={newCompany.email}
                       onChange={(e) => setNewCompany({ ...newCompany, email: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-slate-700 font-semibold mb-1">Telefone / WhatsApp</label>
+                  <div className="col-span-1 sm:col-span-1 lg:col-span-2">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Telefone / WhatsApp</label>
                     <input
                       type="text"
                       placeholder="(11) 99999-9999"
                       value={newCompany.telefone}
                       onChange={(e) => setNewCompany({ ...newCompany, telefone: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Seção 2: Parâmetros Comerciais */}
-              <div className="space-y-3 pt-2 border-t border-slate-100">
-                <h4 className="text-xs font-bold text-blue-700 uppercase tracking-wider">2. Parâmetros Comerciais</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Modalidade</label>
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center space-x-1.5 text-xs font-bold text-blue-700 uppercase tracking-wider">
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>2. Parâmetros Comerciais</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <div className="col-span-1">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Modalidade</label>
                     <select
                       value={newCompany.accountType}
                       onChange={(e) => setNewCompany({ ...newCompany, accountType: e.target.value as any })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-semibold"
                     >
                       <option value="PRE_PAID">Pré-pago (Créditos)</option>
                       <option value="POST_PAID">Pós-pago (Fatura Mensal)</option>
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Dia de Vencimento</label>
+                  <div className="col-span-1">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Dia de Vencimento</label>
                     <input
                       type="number"
                       min="1"
                       max="31"
                       value={newCompany.billingDueDate}
                       onChange={(e) => setNewCompany({ ...newCompany, billingDueDate: parseInt(e.target.value, 10) || 10 })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
                     />
                   </div>
 
                   {newCompany.accountType === 'PRE_PAID' ? (
-                    <div>
-                      <label className="block text-slate-700 font-semibold mb-1">Saldo Inicial Bonificado (R$)</label>
+                    <div className="col-span-1">
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Saldo Bonificado (R$)</label>
                       <input
                         type="number"
                         step="10"
@@ -745,12 +794,12 @@ export default function GerenciarClientes() {
                         placeholder="Ex: 50.00"
                         value={newCompany.initialBalance}
                         onChange={(e) => setNewCompany({ ...newCompany, initialBalance: e.target.value })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
                       />
                     </div>
                   ) : (
-                    <div>
-                      <label className="block text-slate-700 font-semibold mb-1">Limite de Crédito Pós-pago (R$)</label>
+                    <div className="col-span-1">
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Limite de Consumo (R$)</label>
                       <input
                         type="number"
                         step="100"
@@ -758,72 +807,82 @@ export default function GerenciarClientes() {
                         placeholder="Ex: 2000.00"
                         value={newCompany.creditLimit}
                         onChange={(e) => setNewCompany({ ...newCompany, creditLimit: e.target.value })}
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
                       />
                     </div>
                   )}
 
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Tarifa Customizada (R$) (Opcional)</label>
+                  <div className="col-span-1">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Tarifa Customizada (R$)</label>
                     <input
                       type="number"
                       step="0.10"
                       min="0"
-                      placeholder="Deixe vazio para padrão (R$ 5,00)"
+                      placeholder="Padrão (R$ 5,00)"
                       value={newCompany.customQueryPrice}
                       onChange={(e) => setNewCompany({ ...newCompany, customQueryPrice: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Seção 3: Administrador de Acesso Inicial */}
-              <div className="space-y-3 pt-2 border-t border-slate-100">
-                <h4 className="text-xs font-bold text-blue-700 uppercase tracking-wider">3. Acesso do Administrador</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Nome do Administrador</label>
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center space-x-1.5 text-xs font-bold text-blue-700 uppercase tracking-wider">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>3. Acesso do Administrador</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <div className="col-span-1 sm:col-span-2 lg:col-span-2">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Nome do Administrador</label>
                     <input
                       type="text"
                       placeholder="Ex: João da Silva"
                       value={newCompany.adminName}
                       onChange={(e) => setNewCompany({ ...newCompany, adminName: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">E-mail de Login *</label>
+                  <div className="col-span-1">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">E-mail de Login *</label>
                     <input
                       type="email"
                       required
                       placeholder="admin@empresa.com.br"
                       value={newCompany.adminEmail}
                       onChange={(e) => setNewCompany({ ...newCompany, adminEmail: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="block text-slate-700 font-semibold mb-1">Senha Inicial de Acesso *</label>
+                  <div className="col-span-1">
+                    <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Senha Inicial *</label>
                     <input
                       type="password"
                       required
-                      placeholder="Defina uma senha segura"
+                      placeholder="Defina a senha"
                       value={newCompany.adminPassword}
                       onChange={(e) => setNewCompany({ ...newCompany, adminPassword: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-3">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold rounded-lg text-xs transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
                 <button
                   type="submit"
                   disabled={creating}
-                  className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 rounded-xl text-xs transition shadow-xs disabled:opacity-50"
+                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-5 py-2 rounded-lg text-xs transition shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {creating ? 'Salvando...' : 'Salvar Cliente'}
                 </button>
@@ -1130,96 +1189,109 @@ export default function GerenciarClientes() {
               {/* ABA 2: Faturamento & Limites Comerciais */}
               {modalTab === 'billing' && (
                 <div className="space-y-4 flex-1 overflow-y-auto pr-1">
-                  {/* Modalidade */}
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1.5">Plano de Pagamento</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setAccountType('PRE_PAID')}
-                        className={`py-2.5 rounded-xl border font-bold transition cursor-pointer ${
-                          accountType === 'PRE_PAID'
-                            ? 'bg-emerald-50 border-emerald-600 text-emerald-700 shadow-xs'
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        Pré-pago (Recarga)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAccountType('POST_PAID')}
-                        className={`py-2.5 rounded-xl border font-bold transition cursor-pointer ${
-                          accountType === 'POST_PAID'
-                            ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-xs'
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        Pós-pago (Fatura Mensal)
-                      </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    {/* Plano de Pagamento */}
+                    <div className="col-span-1 sm:col-span-2">
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Plano de Pagamento</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAccountType('PRE_PAID')}
+                          className={`py-1.5 rounded-lg border font-bold text-xs transition cursor-pointer ${
+                            accountType === 'PRE_PAID'
+                              ? 'bg-emerald-50 border-emerald-600 text-emerald-700 shadow-2xs'
+                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          Pré-pago (Recarga)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAccountType('POST_PAID')}
+                          className={`py-1.5 rounded-lg border font-bold text-xs transition cursor-pointer ${
+                            accountType === 'POST_PAID'
+                              ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-2xs'
+                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          Pós-pago (Fatura Mensal)
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Dia de Vencimento */}
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Dia de Vencimento da Fatura (1 a 31)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="31"
-                      value={billingDueDate}
-                      onChange={(e) => setBillingDueDate(parseInt(e.target.value, 10))}
-                      required
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
-                    />
-                  </div>
-
-                  {/* Tarifa Global Fallback */}
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">
-                      Tarifa Padrão Global da Empresa (R$) — Fallback Opcional
-                    </label>
-                    <input
-                      type="number"
-                      step="0.10"
-                      min="0"
-                      value={customQueryPrice}
-                      onChange={(e) => setCustomQueryPrice(e.target.value)}
-                      placeholder="Deixe vazio para usar os preços individuais dos produtos"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
-                    />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Se preenchido, substitui o preço padrão dos produtos que não possuírem preço customizado na aba anterior.
-                    </p>
-                  </div>
-
-                  {/* Limite de Crédito (para Pós-pago) */}
-                  {accountType === 'POST_PAID' && (
-                    <div>
-                      <label className="block text-slate-700 font-semibold mb-1">Limite Máximo de Consumo Pós-pago (R$)</label>
+                    {/* Dia de Vencimento */}
+                    <div className="col-span-1">
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Dia de Vencimento (1 a 31)</label>
                       <input
                         type="number"
-                        step="50"
-                        min="0"
-                        value={creditLimit}
-                        onChange={(e) => setCreditLimit(e.target.value)}
-                        placeholder="Ex: 2000.00"
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                        min="1"
+                        max="31"
+                        value={billingDueDate}
+                        onChange={(e) => setBillingDueDate(parseInt(e.target.value, 10))}
+                        required
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
                       />
                     </div>
-                  )}
 
-                  {/* Ativo / Bloqueado */}
-                  <div className="flex items-center space-x-2 pt-2">
-                    <input
-                      type="checkbox"
-                      id="isActive"
-                      checked={isActive}
-                      onChange={(e) => setIsActive(e.target.checked)}
-                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <label htmlFor="isActive" className="text-slate-700 font-semibold cursor-pointer">
-                      Empresa Ativa e Liberada para Consultas
-                    </label>
+                    {/* Limite de Crédito ou Saldo Informativo */}
+                    <div className="col-span-1">
+                      {accountType === 'POST_PAID' ? (
+                        <>
+                          <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Limite de Consumo (R$)</label>
+                          <input
+                            type="number"
+                            step="50"
+                            min="0"
+                            value={creditLimit}
+                            onChange={(e) => setCreditLimit(e.target.value)}
+                            placeholder="Ex: 2000.00"
+                            className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Saldo em Conta</label>
+                          <div className="w-full bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 text-xs text-emerald-800 font-mono font-bold flex items-center justify-between">
+                            <span>R$ {Number(editingCompany.creditsBalance || 0).toFixed(2)}</span>
+                            <span className="text-[10px] text-emerald-600 bg-emerald-100/60 px-1 rounded font-sans font-semibold">Créditos</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Tarifa Global Fallback */}
+                    <div className="col-span-1 sm:col-span-3">
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">
+                        Tarifa Padrão Global da Empresa (R$) — Fallback Opcional
+                      </label>
+                      <input
+                        type="number"
+                        step="0.10"
+                        min="0"
+                        value={customQueryPrice}
+                        onChange={(e) => setCustomQueryPrice(e.target.value)}
+                        placeholder="Deixe vazio para usar os preços individuais dos produtos"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                      />
+                      <p className="text-[10.5px] text-slate-400 mt-1">
+                        Se preenchido, substitui o preço padrão dos produtos que não possuírem preço customizado na aba anterior.
+                      </p>
+                    </div>
+
+                    {/* Ativo / Bloqueado */}
+                    <div className="col-span-1 flex flex-col justify-start">
+                      <label className="text-slate-700 font-semibold mb-1 text-[11px] block">Status de Acesso</label>
+                      <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition">
+                        <input
+                          type="checkbox"
+                          id="isActive"
+                          checked={isActive}
+                          onChange={(e) => setIsActive(e.target.checked)}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4"
+                        />
+                        <span className="text-[11px]">{isActive ? 'Empresa Ativa' : 'Bloqueada'}</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1251,57 +1323,144 @@ export default function GerenciarClientes() {
         </div>
       )}
 
-      {/* Modal de Ajuste de Saldo */}
+      {/* Modal de Ajuste de Saldo / Limite */}
       {creditModalCompany && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-md w-full shadow-xl space-y-4 text-xs">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 text-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Ajustar Saldo do Cliente</h3>
-                <p className="text-slate-500">{creditModalCompany.razaoSocial}</p>
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+                  <Wallet className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {creditModalCompany.accountType === 'POST_PAID' ? 'Ajustar Limite de Crédito' : 'Ajustar Saldo de Créditos'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 truncate max-w-[240px]">{creditModalCompany.razaoSocial}</p>
+                </div>
               </div>
-              <button onClick={() => setCreditModalCompany(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+              <button 
+                type="button"
+                onClick={() => setCreditModalCompany(null)} 
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <p className="text-slate-600">
-              Saldo Atual: <span className="font-bold text-emerald-700 font-mono">R$ {Number(creditModalCompany.creditsBalance).toFixed(2)}</span>
-            </p>
+            {/* Quadro Informativo de Posição Financeira */}
+            <div className={`p-3 rounded-xl border ${
+              creditModalCompany.accountType === 'POST_PAID'
+                ? 'bg-blue-50/60 border-blue-200 text-blue-950'
+                : 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
+            }`}>
+              {creditModalCompany.accountType === 'POST_PAID' ? (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-slate-600">Limite de Consumo Atual:</span>
+                    <strong className="font-mono text-sm text-blue-700">
+                      R$ {Number(creditModalCompany.creditLimit || 0).toFixed(2)}
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-blue-100">
+                    <span>Fatura Aberta do Ciclo:</span>
+                    <span className="font-mono font-bold text-slate-800">
+                      R$ {Number(creditModalCompany.invoices?.[0]?.totalAmount || 0).toFixed(2)}
+                      {creditModalCompany.invoices?.[0]?.totalQueries > 0 && ` (${creditModalCompany.invoices[0].totalQueries} cons.)`}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-slate-600">Saldo Atual em Conta:</span>
+                  <strong className="font-mono text-sm text-emerald-700">
+                    R$ {Number(creditModalCompany.creditsBalance || 0).toFixed(2)}
+                  </strong>
+                </div>
+              )}
+            </div>
 
-            <form onSubmit={handleAdjustCredits} className="space-y-4">
+            {/* Alternador de tipo se for pós-pago (pode ajustar limite ou bonificar créditos) */}
+            {creditModalCompany.accountType === 'POST_PAID' && (
+              <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-[11px] font-semibold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdjustType('LIMIT');
+                    setManualAmount(String(creditModalCompany.creditLimit || ''));
+                  }}
+                  className={`py-1.5 rounded-lg transition cursor-pointer ${
+                    adjustType === 'LIMIT'
+                      ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Novo Limite (R$)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdjustType('BALANCE');
+                    setManualAmount('');
+                  }}
+                  className={`py-1.5 rounded-lg transition cursor-pointer ${
+                    adjustType === 'BALANCE'
+                      ? 'bg-white text-emerald-700 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Ajustar Saldo
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={handleAdjustCredits} className="space-y-3.5">
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">
-                  Valor (R$) • Positivo para adicionar, negativo para retirar
+                <label className="block text-slate-700 font-semibold mb-1 text-[11px]">
+                  {adjustType === 'LIMIT'
+                    ? 'Novo Valor de Limite de Crédito (R$)'
+                    : 'Valor (R$) • Positivo para adicionar, negativo para retirar'}
                 </label>
                 <input
                   type="number"
-                  step="1"
+                  step={adjustType === 'LIMIT' ? '100' : '1'}
+                  min={adjustType === 'LIMIT' ? '0' : undefined}
                   required
                   value={manualAmount}
                   onChange={(e) => setManualAmount(e.target.value)}
-                  placeholder="Ex: 50.00 ou -20.00"
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                  placeholder={adjustType === 'LIMIT' ? 'Ex: 2500.00' : 'Ex: 50.00 ou -20.00'}
+                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Motivo ou Observação</label>
+                <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Motivo ou Observação</label>
                 <input
                   type="text"
                   required
                   value={manualDescription}
                   onChange={(e) => setManualDescription(e.target.value)}
-                  placeholder="Ex: Bonificação ou recarga manual"
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
+                  placeholder="Ex: Ampliação de limite ou bonificação"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={adjusting}
-                className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 rounded-xl text-xs transition shadow-xs disabled:opacity-50"
-              >
-                {adjusting ? 'Processando...' : 'Confirmar Saldo'}
-              </button>
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setCreditModalCompany(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold rounded-lg text-xs transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={adjusting}
+                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-5 py-2 rounded-lg text-xs transition shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {adjusting ? 'Processando...' : 'Confirmar Alteração'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

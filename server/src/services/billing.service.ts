@@ -198,16 +198,30 @@ export class BillingService {
       logger.info(`[BILLING] Debitado R$ ${price.toFixed(2)} da empresa ${companyId} (Pré-pago)`);
     } else if (company.accountType === 'POST_PAID') {
       // Pós-pago: acumula na fatura ativa do ciclo
+      const now = new Date();
       const { cycleStart, cycleEnd, dueDate } = getBillingCycleDates(company.billingDueDate);
 
-      const invoice = await prisma.invoice.findFirst({
+      // 1. Procura fatura ABERTA para a empresa no ciclo vigente
+      let invoice = await prisma.invoice.findFirst({
         where: {
           companyId,
           status: InvoiceStatus.OPEN,
-          cycleStart: { gte: cycleStart },
-          cycleEnd: { lte: cycleEnd }
-        }
+          cycleStart: { lte: now },
+          cycleEnd: { gte: now }
+        },
+        orderBy: { createdAt: 'desc' }
       });
+
+      // 2. Fallback: se houver qualquer fatura com status OPEN para a empresa
+      if (!invoice) {
+        invoice = await prisma.invoice.findFirst({
+          where: {
+            companyId,
+            status: InvoiceStatus.OPEN
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+      }
 
       if (invoice) {
         await prisma.invoice.update({
@@ -217,8 +231,9 @@ export class BillingService {
             totalAmount: { increment: price }
           }
         });
+        logger.info(`[BILLING] Incrementado R$ ${price.toFixed(2)} na fatura ${invoice.id} da empresa ${companyId} (Total: R$ ${(Number(invoice.totalAmount) + price).toFixed(2)})`);
       } else {
-        await prisma.invoice.create({
+        const newInvoice = await prisma.invoice.create({
           data: {
             companyId,
             cycleStart,
@@ -229,8 +244,8 @@ export class BillingService {
             status: InvoiceStatus.OPEN
           }
         });
+        logger.info(`[BILLING] Nova fatura ${newInvoice.id} criada e iniciada com R$ ${price.toFixed(2)} para a empresa ${companyId}`);
       }
-      logger.info(`[BILLING] Acumulado R$ ${price.toFixed(2)} na fatura pós-paga da empresa ${companyId}`);
     }
   }
 }

@@ -320,6 +320,20 @@ export const listCompanies = async (req: Request, res: Response) => {
             createdAt: true,
           },
           orderBy: { createdAt: 'desc' }
+        },
+        invoices: {
+          where: { status: 'OPEN' },
+          select: {
+            id: true,
+            totalAmount: true,
+            totalQueries: true,
+            cycleStart: true,
+            cycleEnd: true,
+            dueDate: true,
+            status: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1
         }
       }
     });
@@ -431,7 +445,7 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
 export const adjustCreditsManual = async (req: any, res: Response) => {
   try {
     const { id } = req.params;
-    const { amount, description } = req.body;
+    const { amount, description, targetField } = req.body;
 
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount === 0) {
@@ -441,6 +455,23 @@ export const adjustCreditsManual = async (req: any, res: Response) => {
     const company = await prisma.company.findUnique({ where: { id } });
     if (!company) {
       return res.status(404).json({ success: false, message: 'Empresa não encontrada.' });
+    }
+
+    // Se a alteração for no Limite de Crédito (típico de Pós-pago)
+    if (targetField === 'creditLimit') {
+      const newLimit = Math.max(0, numAmount);
+      await prisma.company.update({
+        where: { id },
+        data: { creditLimit: newLimit }
+      });
+
+      logger.info(`[ADMIN] Limite de crédito da empresa ${company.razaoSocial} ajustado para R$ ${newLimit.toFixed(2)}`);
+
+      return res.json({
+        success: true,
+        message: `Limite de crédito pós-pago atualizado para R$ ${newLimit.toFixed(2)}.`,
+        data: { previousLimit: Number(company.creditLimit || 0), newLimit }
+      });
     }
 
     const currentBalance = Number(company.creditsBalance);
