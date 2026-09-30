@@ -11,7 +11,8 @@ import {
   SlidersHorizontal,
   KeyRound,
   Copy,
-  Layers
+  Layers,
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -62,6 +63,23 @@ export default function GerenciarClientes() {
   const [apiKeyModalCompany, setApiKeyModalCompany] = useState<any | null>(null);
   const [generatingKey, setGeneratingKey] = useState(false);
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+
+  // Menu Dropdown de Ações por Cliente
+  const [activeActionsMenu, setActiveActionsMenu] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.actions-dropdown-container')) {
+        setActiveActionsMenu(null);
+      }
+    };
+    if (activeActionsMenu) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [activeActionsMenu]);
 
   // Modal de Exclusão de Assinante (Delete)
   const [companyToDelete, setCompanyToDelete] = useState<any | null>(null);
@@ -397,28 +415,27 @@ export default function GerenciarClientes() {
             <table className="w-full text-left text-xs">
               <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
                 <tr>
-                  <th className="py-3 px-4">Empresa / Documento</th>
-                  <th className="py-3 px-4">Plano</th>
-                  <th className="py-3 px-4">Vencimento</th>
-                  <th className="py-3 px-4">Produtos & Tarifas</th>
-                  <th className="py-3 px-4">Saldo ou Limite</th>
-                  <th className="py-3 px-4 min-w-[280px]">Acesso API</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right min-w-[165px] whitespace-nowrap">Ações</th>
+                  <th className="py-3 px-3.5">Empresa / Documento</th>
+                  <th className="py-3 px-3">Plano / Venc.</th>
+                  <th className="py-3 px-3">Produtos & Tarifas</th>
+                  <th className="py-3 px-3">Saldo ou Limite</th>
+                  <th className="py-3 px-3">Acesso API</th>
+                  <th className="py-3 px-3 text-center">Status</th>
+                  <th className="py-3 px-3.5 text-right whitespace-nowrap">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {(Array.isArray(companies) ? companies : []).map((c) => (
+                {(Array.isArray(companies) ? companies : []).map((c, idx) => (
                   <tr key={c.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-3 px-4">
-                      <div>
-                        <p className="font-bold text-slate-900">{c.razaoSocial}</p>
+                    <td className="py-3 px-3.5">
+                      <div className="max-w-[220px]">
+                        <p className="font-bold text-slate-900 truncate" title={c.razaoSocial}>{c.razaoSocial}</p>
                         <p className="text-[11px] text-slate-500 font-mono">{c.cnpjCpf}</p>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3 whitespace-nowrap">
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
                           c.accountType === 'POST_PAID'
                             ? 'bg-blue-50 text-blue-700 border border-blue-200'
                             : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -426,18 +443,18 @@ export default function GerenciarClientes() {
                       >
                         {c.accountType === 'POST_PAID' ? 'Pós-pago' : 'Pré-pago'}
                       </span>
+                      <span className="block text-[11px] text-slate-500 font-medium mt-0.5">
+                        Dia {c.billingDueDate || 10}
+                      </span>
                     </td>
-                    <td className="py-3 px-4 font-bold text-slate-800">
-                      Dia {c.billingDueDate || 10}
-                    </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3">
                       {Array.isArray(c.allowedProducts) && c.allowedProducts.length > 0 && !c.allowedProducts.includes('ALL') ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                           {c.allowedProducts.length} de {PRODUCTS_CATALOG.length} produtos
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Todos (16 produtos)
+                          Todos ({PRODUCTS_CATALOG.length} produtos)
                         </span>
                       )}
                       {c.customPrices && typeof c.customPrices === 'object' && Object.keys(c.customPrices).length > 0 ? (
@@ -450,14 +467,14 @@ export default function GerenciarClientes() {
                         </span>
                       ) : null}
                     </td>
-                    <td className="py-3 px-4 font-mono">
+                    <td className="py-3 px-3 font-mono whitespace-nowrap">
                       {c.accountType === 'PRE_PAID' ? (
                         <span className="text-emerald-700 font-bold">R$ {Number(c.creditsBalance || 0).toFixed(2)}</span>
                       ) : (
                         <span className="text-blue-700 font-bold">Limite: R$ {Number(c.creditLimit || 0).toFixed(2)}</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 min-w-[280px]">
+                    <td className="py-3 px-3">
                       {Array.isArray(c.apiKeys) && c.apiKeys.length > 0 ? (
                         (() => {
                           const activeKeyObj = c.apiKeys.find((k: any) => k?.isActive) || c.apiKeys[0];
@@ -465,9 +482,9 @@ export default function GerenciarClientes() {
                           const apiInfo = getClientApiEndpoint(c.allowedProducts, activeKey);
                           const prodUrl = apiInfo.url;
                           return (
-                            <div className="space-y-1.5">
+                            <div className="space-y-1">
                               {/* Token */}
-                              <div className="flex items-center space-x-1.5">
+                              <div className="flex items-center space-x-1">
                                 <button
                                   type="button"
                                   onClick={() => setApiKeyModalCompany(c)}
@@ -475,7 +492,7 @@ export default function GerenciarClientes() {
                                   title="Ver/Gerenciar todas as chaves deste cliente"
                                 >
                                   <KeyRound className="w-3 h-3 mr-1 text-purple-600 shrink-0" />
-                                  <span className="truncate max-w-[150px]">{activeKey}</span>
+                                  <span className="truncate max-w-[120px]">{activeKey}</span>
                                 </button>
                                 <button
                                   type="button"
@@ -497,20 +514,16 @@ export default function GerenciarClientes() {
                                 )}
                               </div>
 
-                              {/* Link em Produção Abaixo */}
-                              <div className="flex items-center space-x-1 bg-slate-50 border border-slate-200/80 rounded-lg px-2 py-1 max-w-[300px] group hover:border-blue-300 transition">
-                                <span className="text-[10px] text-blue-700 font-mono truncate select-all flex-1" title={prodUrl}>
-                                  {prodUrl}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => copyKeyToClipboard(prodUrl, `url-${c.id}`)}
-                                  className="p-0.5 hover:text-blue-700 text-slate-400 transition shrink-0 cursor-pointer"
-                                  title="Copiar Link de Produção Completo"
-                                >
-                                  {copiedKeyId === `url-${c.id}` ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
+                              {/* Link de Endpoint de Produção Compacto */}
+                              <button
+                                type="button"
+                                onClick={() => copyKeyToClipboard(prodUrl, `url-${c.id}`)}
+                                className="text-[10.5px] text-blue-600 hover:text-blue-800 flex items-center gap-1 font-mono transition cursor-pointer hover:underline"
+                                title={prodUrl}
+                              >
+                                <Copy className="w-2.5 h-2.5 shrink-0" />
+                                <span>{copiedKeyId === `url-${c.id}` ? 'Endpoint copiado!' : 'Copiar Endpoint'}</span>
+                              </button>
                             </div>
                           );
                         })()
@@ -524,9 +537,9 @@ export default function GerenciarClientes() {
                         </button>
                       )}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3 text-center">
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
                           c.isActive
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             : 'bg-rose-50 text-rose-700 border border-rose-200'
@@ -535,40 +548,77 @@ export default function GerenciarClientes() {
                         {c.isActive ? 'Ativo' : 'Bloqueado'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right whitespace-nowrap min-w-[165px]">
-                      <div className="inline-flex items-center justify-end gap-1.5 flex-nowrap">
+                    <td className="py-3 px-3.5 text-right whitespace-nowrap">
+                      <div className="relative inline-block text-left actions-dropdown-container">
                         <button
                           type="button"
-                          onClick={() => setApiKeyModalCompany(c)}
-                          title="Chaves de API"
-                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl transition cursor-pointer"
+                          onClick={() => setActiveActionsMenu(activeActionsMenu === c.id ? null : c.id)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer shadow-2xs ${
+                            activeActionsMenu === c.id
+                              ? 'bg-slate-900 text-white border-slate-900'
+                              : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
                         >
-                          <KeyRound className="w-3.5 h-3.5" />
+                          <span>Ações</span>
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${activeActionsMenu === c.id ? 'rotate-180 text-white' : 'text-slate-400'}`} />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(c)}
-                          title="Configurar Plano"
-                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer"
-                        >
-                          <SlidersHorizontal className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCreditModalCompany(c)}
-                          title="Ajustar Saldo"
-                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition cursor-pointer"
-                        >
-                          <Wallet className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCompany(c)}
-                          title="Excluir Cliente"
-                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+
+                        {activeActionsMenu === c.id && (
+                          <div
+                            className={`absolute right-0 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 text-xs divide-y divide-slate-100 animate-in fade-in-50 zoom-in-95 duration-100 ${
+                              idx >= companies.length - 2 && companies.length > 2 ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+                            }`}
+                          >
+                            <div className="py-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveActionsMenu(null);
+                                  openEditModal(c);
+                                }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 transition cursor-pointer"
+                              >
+                                <SlidersHorizontal className="w-4 h-4 text-slate-500 shrink-0" />
+                                <span>Configurar Plano & Tarifas</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveActionsMenu(null);
+                                  setApiKeyModalCompany(c);
+                                }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-purple-50/60 flex items-center gap-2.5 text-purple-700 transition cursor-pointer"
+                              >
+                                <KeyRound className="w-4 h-4 text-purple-600 shrink-0" />
+                                <span>Chaves & Endpoints API</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveActionsMenu(null);
+                                  setCreditModalCompany(c);
+                                }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-blue-50/60 flex items-center gap-2.5 text-blue-700 transition cursor-pointer"
+                              >
+                                <Wallet className="w-4 h-4 text-blue-600 shrink-0" />
+                                <span>Ajustar Saldo / Limite</span>
+                              </button>
+                            </div>
+                            <div className="py-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveActionsMenu(null);
+                                  handleDeleteCompany(c);
+                                }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-rose-50 flex items-center gap-2.5 text-rose-600 font-medium transition cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4 text-rose-500 shrink-0" />
+                                <span>Excluir Assinante</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
