@@ -6,6 +6,7 @@ import {
   adjustCreditsManual,
   superAdminQuery,
   listApiLogs,
+  getLogQueryResponse,
   createCompany,
   deleteCompany,
   createApiKeyForCompany,
@@ -28,6 +29,7 @@ router.post('/companies/:id/credits', adjustCreditsManual);
 router.post('/companies/:id/keys', createApiKeyForCompany);
 router.delete('/companies/keys/:keyId', revokeApiKeyAdmin);
 router.post('/consulta-superadmin', superAdminQuery);
+router.get('/logs/response', getLogQueryResponse);
 router.get('/logs', listApiLogs);
 
 export default router;

@@ -564,6 +564,87 @@ export const listApiLogs = async (req: Request, res: Response) => {
 };
 
 /**
+ * Recupera o laudo e a resposta exata da consulta vinculada a um log de API
+ */
+export const getLogQueryResponse = async (req: Request, res: Response) => {
+  try {
+    const { logId, identifier, companyId } = req.query as {
+      logId?: string;
+      identifier?: string;
+      companyId?: string;
+    };
+
+    let targetIdentifier = identifier ? String(identifier).trim() : '';
+    let targetCompanyId = companyId;
+
+    if (logId) {
+      const log = await prisma.apiLog.findUnique({
+        where: { id: logId }
+      });
+      if (log) {
+        if (!targetCompanyId) targetCompanyId = log.companyId;
+        if (!targetIdentifier) {
+          const match = log.endpoint.match(/[?&](?:query|q|documento|parametro|doc|placa)=([^&]+)/i);
+          if (match) targetIdentifier = decodeURIComponent(match[1]);
+        }
+      }
+    }
+
+    if (!targetIdentifier) {
+      return res.status(400).json({ success: false, message: 'Identificador / Query não encontrado neste log.' });
+    }
+
+    const cleanIdentifier = targetIdentifier.replace(/[^a-zA-Z0-9]/g, '');
+
+    // Buscar a query gravada no banco para este identificador
+    let queryRecord = await prisma.query.findFirst({
+      where: {
+        identifier: cleanIdentifier,
+        ...(targetCompanyId ? { companyId: targetCompanyId } : {})
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!queryRecord) {
+      queryRecord = await prisma.query.findFirst({
+        where: { identifier: cleanIdentifier },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+
+    if (queryRecord) {
+      return res.json({
+        success: true,
+        found: true,
+        query: {
+          id: queryRecord.id,
+          identifier: queryRecord.identifier,
+          source: queryRecord.source,
+          status: queryRecord.status,
+          cost: Number(queryRecord.cost),
+          totalDeclaracoes: queryRecord.totalDeclaracoes,
+          processingTimeMs: queryRecord.processingTimeMs,
+          createdAt: queryRecord.createdAt,
+          resultData: queryRecord.resultData,
+          requestData: queryRecord.requestData
+        }
+      });
+    }
+
+    return res.json({
+      success: true,
+      found: false,
+      identifier: targetIdentifier,
+      cleanIdentifier,
+      message: 'Nenhum resultado previamente armazenado no banco para esta consulta. Você pode executá-la ao vivo pelo Hub Oficial.'
+    });
+  } catch (error: any) {
+    logger.error(`[ADMIN] Erro ao recuperar resposta do log: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao recuperar resposta da consulta.' });
+  }
+};
+
+/**
  * Gerar nova chave de API para uma empresa (Admin)
  */
 export const createApiKeyForCompany = async (req: Request, res: Response) => {

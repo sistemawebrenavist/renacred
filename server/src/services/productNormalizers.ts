@@ -3,6 +3,7 @@
  * Garante que dados de contingência resultem exatamente no mesmo layout pericial,
  * remove códigos duplicados (ex: código numérico do município) e expurga campos nulos/vazios.
  */
+import { translateCBO, translateMosaic } from '../utils/cboMosaicUtils';
 
 export interface NormalizedResult {
   totalRegistros: number;
@@ -53,6 +54,17 @@ export function cleanObject(obj: any): any {
   }
 
   return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+}
+
+/**
+ * Higieniza tipos de documento para a convenção moderna: 'CGC' -> 'CNPJ'
+ */
+export function sanitizeTipoDocumento(tipo?: string | null): string {
+  if (!tipo) return 'CNPJ';
+  const trimmed = String(tipo).trim().toUpperCase();
+  if (trimmed === 'CGC' || trimmed === '2') return 'CNPJ';
+  if (trimmed === '1') return 'CPF';
+  return trimmed;
 }
 
 /**
@@ -150,7 +162,7 @@ export function normalizeE4(raw: any): NormalizedResult {
       proprietario: {
         nome: prop.nome,
         documento: prop.num_documento || prop.documento,
-        tipo_documento: prop.tipo_documento_descricao || prop.tipo_documento,
+        tipo_documento: sanitizeTipoDocumento(prop.tipo_documento_descricao || prop.tipo_documento),
         origem_endereco: prop.origem_endereco_descricao || prop.origem_endereco,
         data_atualizacao_endereco: prop.data_atualizacao_endereco_iso || prop.data_atualizacao_endereco,
         logradouro: end.logradouro || prop.logradouro,
@@ -248,32 +260,112 @@ export function normalizeE6(raw: any): NormalizedResult {
  * Normalizador E7: CNH sem Imagem (com Contingência PWN/Renach)
  */
 export function normalizeE7(raw: any): NormalizedResult {
+  const cond = raw?.condutor || {};
   const data = raw?.data || raw?.condutor || raw;
-  const hasData = !!(data?.name || data?.nome || data?.cpf);
-  const cnhObj = typeof data?.cnh === 'object' && data?.cnh !== null ? data.cnh : {};
-  const rgObj = typeof data?.rg === 'object' && data?.rg !== null ? data.rg : {};
+  const cnhObj = (typeof raw?.cnh === 'object' && raw?.cnh !== null)
+    ? raw.cnh
+    : (typeof data?.cnh === 'object' && data?.cnh !== null ? data.cnh : {});
+  const docObj = (typeof raw?.documento === 'object' && raw?.documento !== null)
+    ? raw.documento
+    : (typeof data?.rg === 'object' && data?.rg !== null ? data.rg : {});
+  const endObj = (typeof raw?.address === 'object' && raw?.address !== null)
+    ? raw.address
+    : (typeof raw?.endereco === 'object' && raw?.endereco !== null)
+      ? raw.endereco
+      : (typeof data?.address === 'object' && data?.address !== null)
+        ? data.address
+        : (typeof data?.endereco === 'object' && data?.endereco !== null)
+          ? data.endereco
+          : (typeof cond?.address === 'object' && cond?.address !== null)
+            ? cond.address
+            : (typeof cond?.endereco === 'object' && cond?.endereco !== null)
+              ? cond.endereco
+              : {};
   const pointsObj = typeof data?.points === 'object' && data?.points !== null ? data.points : {};
+
+  // Extração exaustiva do endereço residencial/cadastral (suporta chaves em inglês e português)
+  const streetVal = endObj.street || endObj.logradouro || endObj.rua || raw?.street || raw?.logradouro || raw?.rua || data?.street || data?.logradouro;
+  const numberVal = endObj.number || endObj.numero || raw?.number || raw?.numero || data?.number || data?.numero;
+  const complementVal = endObj.complement || endObj.complemento || raw?.complement || raw?.complemento || data?.complement || data?.complemento;
+  const neighborhoodVal = endObj.neighborhood || endObj.bairro || raw?.neighborhood || raw?.bairro || data?.neighborhood || data?.bairro;
+  const cityVal = endObj.city || endObj.municipio || endObj.cidade || raw?.city || raw?.municipio || raw?.cidade || data?.city || data?.municipio || data?.cidade;
+  const stateVal = endObj.state || endObj.uf || endObj.estado || raw?.state || raw?.uf || raw?.estado || data?.state || data?.uf || data?.estado;
+  const postalCodeVal = endObj.postalCode || endObj.cep || raw?.postalCode || raw?.cep || data?.postalCode || data?.cep;
+
+  const hasEndereco = !!(streetVal || neighborhoodVal || cityVal || postalCodeVal || numberVal);
+
+  const enderecoNormalizado = hasEndereco ? cleanObject({
+    logradouro: streetVal ? String(streetVal).trim() : undefined,
+    numero: numberVal !== undefined && numberVal !== null ? String(numberVal).trim() : undefined,
+    complemento: complementVal ? String(complementVal).trim() : undefined,
+    bairro: neighborhoodVal ? String(neighborhoodVal).trim() : undefined,
+    municipio: cityVal ? String(cityVal).trim() : undefined,
+    uf: stateVal ? String(stateVal).trim().toUpperCase() : undefined,
+    cep: postalCodeVal ? String(postalCodeVal).replace(/\D/g, '') : undefined,
+    street: streetVal ? String(streetVal).trim() : undefined,
+    number: numberVal !== undefined && numberVal !== null ? String(numberVal).trim() : undefined,
+    complement: complementVal ? String(complementVal).trim() : undefined,
+    neighborhood: neighborhoodVal ? String(neighborhoodVal).trim() : undefined,
+    city: cityVal ? String(cityVal).trim() : undefined,
+    state: stateVal ? String(stateVal).trim().toUpperCase() : undefined,
+    postalCode: postalCodeVal ? String(postalCodeVal).replace(/\D/g, '') : undefined
+  }) : undefined;
+
+  const hasData = !!(data?.name || data?.nome || cond.nome || data?.cpf || docObj.cpf || raw?.numero || hasEndereco);
+
+  let sexoFormatado = cond.cod_sexo_descricao || data.gender || data.sexo;
+  if (!sexoFormatado && cond.cod_sexo) {
+    sexoFormatado = cond.cod_sexo === '1' ? 'MASCULINO' : cond.cod_sexo === '2' ? 'FEMININO' : cond.cod_sexo;
+  }
+
+  const dataNasc = cond.data_nascimento_iso || data.birthday || cond.data_nascimento || data.data_nascimento;
+  const renachVal = cond.num_renach || data.renach || data.num_renach || data.formCnh || raw?.formCnh;
+  const rgNumero = docObj.numero || docObj.number || (typeof data.rg === 'string' ? data.rg : undefined);
+  const rgOrgao = docObj.orgao_expedidor || docObj.dispatcher;
+  const rgUf = docObj.uf;
+
+  const categoria = cnhObj.categoria || cnhObj.category || data.category || data.categoria;
+  const dataValidade = cnhObj.validade_iso || cnhObj.dueDate || cnhObj.validade || data.validade || data.data_validade;
+  const numRegistro = cond.num_registro || cnhObj.number || cnhObj.num_cnh || cond.num_cnh || (typeof data.cnh === 'string' ? data.cnh : undefined) || data.num_registro || data.numeroRegistro;
+  const cidadeNasc = data.birthCity || endObj.cod_municipio_descricao || data.municipio_nascimento;
+  const ufNasc = cond.uf || cnhObj.state || cnhObj.uf_cnh || data.uf || data.birthState || endObj.uf;
 
   return {
     totalRegistros: hasData ? 1 : 0,
     dados: cleanObject({
-      nome: data.name || data.nome,
-      cpf: data.cpf,
-      data_nascimento: data.birthday || data.data_nascimento,
-      sexo: data.gender || data.sexo,
-      nome_mae: data.mother || data.nome_mae,
-      renach: data.renach || data.num_renach || data.formCnh,
-      numero_registro: cnhObj.number || (typeof data.cnh === 'string' ? data.cnh : undefined) || data.num_registro || data.numeroRegistro,
-      categoria: cnhObj.category || data.category || data.categoria,
-      data_validade: cnhObj.dueDate || data.validade || data.data_validade,
-      uf: cnhObj.state || data.uf || data.birthState,
-      cidade_nascimento: data.birthCity || data.municipio_nascimento,
-      rg_numero: rgObj.number || (typeof data.rg === 'string' ? data.rg : undefined),
-      rg_orgao: rgObj.dispatcher,
-      rg_uf: rgObj.uf,
+      nome: cond.nome || data.name || data.nome,
+      cpf: data.cpf || docObj.cpf || raw?.numero,
+      data_nascimento: dataNasc,
+      sexo: sexoFormatado,
+      nome_mae: cond.nome_mae || data.mother || data.nome_mae,
+      nome_pai: cond.nome_pai || data.father || data.nome_pai,
+      renach: renachVal,
+      numero_registro: numRegistro,
+      categoria: categoria,
+      data_validade: dataValidade,
+      uf: ufNasc,
+      cidade_nascimento: cidadeNasc,
+      rg_numero: rgNumero,
+      rg_orgao: rgOrgao,
+      rg_uf: rgUf,
       pontos_cnh: typeof pointsObj.total === 'number' ? pointsObj.total : undefined,
-      impedimento: data.block || data.num_lista_impedimento,
-      observacoes: data.observation || data.observacoes
+      impedimento: cond.num_lista_impedimento || data.block || data.num_lista_impedimento,
+      observacoes: data.observation || data.observacoes,
+      // Endereço Residencial do Condutor
+      endereco: enderecoNormalizado,
+      street: streetVal ? String(streetVal).trim() : undefined,
+      number: numberVal !== undefined && numberVal !== null ? String(numberVal).trim() : undefined,
+      complement: complementVal ? String(complementVal).trim() : undefined,
+      neighborhood: neighborhoodVal ? String(neighborhoodVal).trim() : undefined,
+      city: cityVal ? String(cityVal).trim() : undefined,
+      state: stateVal ? String(stateVal).trim().toUpperCase() : undefined,
+      postalCode: postalCodeVal ? String(postalCodeVal).replace(/\D/g, '') : undefined,
+      logradouro: streetVal ? String(streetVal).trim() : undefined,
+      numero_endereco: numberVal !== undefined && numberVal !== null ? String(numberVal).trim() : undefined,
+      complemento: complementVal ? String(complementVal).trim() : undefined,
+      bairro: neighborhoodVal ? String(neighborhoodVal).trim() : undefined,
+      municipio: cityVal ? String(cityVal).trim() : undefined,
+      cep: postalCodeVal ? String(postalCodeVal).replace(/\D/g, '') : undefined
     }) || null
   };
 }
@@ -357,6 +449,11 @@ export function normalizeE10(raw: any): NormalizedResult {
   const enderecoRoot = raw?.endereco_comprador || {};
   const controle = raw?.dados_controle || {};
 
+  const nomeVendedor = cartorio.nome_proprietario_crv || 
+                       raw?.veiculo_detalhes?.nomeProprietario || 
+                       raw?.proprietario?.nome || 
+                       raw?.nome_proprietario;
+
   return {
     totalRegistros: ocorrencias.length,
     dados: cleanObject({
@@ -365,8 +462,8 @@ export function normalizeE10(raw: any): NormalizedResult {
       total_comunicados: ocorrencias.length,
       proprietario_crv: cleanObject({
         documento: cartorio.numero_documento_proprietario_crv,
-        tipo_documento: cartorio.tipo_documento_proprietario_crv_descricao,
-        nome: cartorio.nome_proprietario_crv,
+        tipo_documento: sanitizeTipoDocumento(cartorio.tipo_documento_proprietario_crv_descricao),
+        nome: nomeVendedor,
         numero_crv: cartorio.numero_crv && cartorio.numero_crv !== '000000000000' ? cartorio.numero_crv : undefined
       }),
       comunicados: ocorrencias.map((o: any) => {
@@ -382,7 +479,7 @@ export function normalizeE10(raw: any): NormalizedResult {
         }
 
         return cleanObject({
-          tipo_documento_comprador: o.tipo_documento_comprador_descricao || compradorRoot.tipo_documento_descricao,
+          tipo_documento_comprador: sanitizeTipoDocumento(o.tipo_documento_comprador_descricao || compradorRoot.tipo_documento_descricao),
           documento_comprador: o.numero_documento_comprador || compradorRoot.documento,
           nome_comprador: o.nome_comprador || compradorRoot.nome,
           logradouro_comprador: o.logradouro_comprador || enderecoRoot.logradouro,
@@ -435,6 +532,26 @@ export function normalizeE12(raw: any): NormalizedResult {
   const extra = raw?.extra || veic?.extra || {};
   const hasData = !!(veic.chassi || raw.chassi || veic.placa || raw.placa || extra.chassi || extra.placa);
 
+  // Extração inteligente de Marca e Modelo se vier na string única (ex: "I/MMC PAJERO HPE 3.2 D" ou "VW/GOL 1.0")
+  let marca = raw.MARCA || extra.marca || veic.marca;
+  let modelo = raw.MODELO || extra.modelo || veic.modelo;
+  const marcaModeloFull = raw.descricaoMarcaModelo || veic.marcaModelo || veic.marca_modelo || extra.modelo || '';
+
+  if (!marca && marcaModeloFull) {
+    if (marcaModeloFull.includes('/')) {
+      const slashParts = marcaModeloFull.split('/');
+      if (slashParts[0] === 'I' || slashParts[0] === 'IMP') {
+        const afterI = slashParts[1].trim();
+        const spaceIdx = afterI.indexOf(' ');
+        marca = spaceIdx > -1 ? afterI.slice(0, spaceIdx) : afterI;
+        if (!modelo) modelo = spaceIdx > -1 ? afterI.slice(spaceIdx + 1) : marcaModeloFull;
+      } else {
+        marca = slashParts[0].trim();
+        if (!modelo) modelo = slashParts.slice(1).join('/').trim();
+      }
+    }
+  }
+
   // Tratamento de restrições da BIN
   const rawRestricoes = [
     extra.restricao_1,
@@ -458,25 +575,26 @@ export function normalizeE12(raw: any): NormalizedResult {
       placa_modelo_novo: extra.placa_modelo_novo,
       renavam: raw.codigoRenavam || extra.renavam || veic.renavam || raw.renavam,
       chassi: raw.chassi || extra.chassi || veic.chassi,
-      marca: raw.MARCA || extra.marca,
-      modelo: raw.MODELO || extra.modelo,
+      marca: marca,
+      modelo: modelo || marcaModeloFull,
       submodelo: raw.SUBMODELO || extra.grupo,
       versao: raw.VERSAO,
-      marca_modelo: raw.MARCA && raw.MODELO ? `${raw.MARCA}/${raw.MODELO}` : (raw.descricaoMarcaModelo || veic.marcaModelo || veic.marca_modelo || extra.modelo),
+      marca_modelo: marcaModeloFull || (marca && modelo ? `${marca}/${modelo}` : undefined),
       ano_fabricacao: raw.ano || extra.ano_fabricacao || raw.anoFabricacao || veic.anoFabricacao || veic.ano_fabricacao,
       ano_modelo: raw.anoModelo || extra.ano_modelo || veic.anoModelo || veic.ano_modelo,
       cor: raw.cor || extra.cor || raw.descricaoCor || veic.cor,
       combustivel: extra.combustivel || raw.descricaoCombustivel || veic.combustivel,
       tipo_veiculo: extra.tipo_veiculo || raw.descricaoTipoVeiculo || veic.tipo,
-      especie: extra.especie || extra['s.especie'],
+      especie: extra.especie || extra['s.especie'] || raw.descricaoEspecieVeiculo,
       segmento: extra.segmento,
       sub_segmento: extra.sub_segmento,
       nacionalidade: extra.nacionalidade,
       municipio: extra.municipio || raw.descricaoMunicipioEmplacamento || veic.municipio,
       uf: extra.uf || extra.uf_placa || raw.ufJurisdicao || veic.uf,
+
       // Dados de motor e mecânica
-      motor: extra.motor,
-      carroceria: extra.carroceria,
+      motor: raw.numeroMotor || veic.numeroMotor || extra.motor || raw.motor,
+      carroceria: raw.descricaoTipoCarroceria || extra.carroceria,
       caixa_cambio: extra.caixa_cambio,
       cilindradas: extra.cilindradas && extra.cilindradas !== '0' ? extra.cilindradas : undefined,
       eixos: extra.eixos && extra.eixos !== '0' ? extra.eixos : undefined,
@@ -484,18 +602,25 @@ export function normalizeE12(raw: any): NormalizedResult {
       peso_bruto_total: extra.peso_bruto_total && extra.peso_bruto_total !== '0' ? extra.peso_bruto_total : undefined,
       quantidade_passageiro: extra.quantidade_passageiro && extra.quantidade_passageiro !== '0' ? extra.quantidade_passageiro : undefined,
       tipo_montagem: extra.tipo_montagem,
+
+      // Proprietário Registrado (BIN / DETRAN)
+      proprietario_nome: raw.nomeProprietario || veic.nomeProprietario || raw.proprietario_nome || extra.proprietario || raw.proprietario || extra.nome_proprietario,
+      proprietario_documento: raw.numeroIdentificacaoProprietario || veic.niProprietario || veic.documentoProprietario || raw.documento_proprietario || extra.documento_proprietario || extra.cpf_cnpj_proprietario,
+      tipo_doc_prop: raw.descricaoTipoProprietario || extra.tipo_doc_prop || raw.tipo_doc_prop,
+      data_emissao_crv: raw.dataEmissaoCrv || raw.data_emissao_crv || extra.data_emissao_crv,
+
       // Dados Fiscais e Faturamento
-      faturado_documento: extra.faturado,
-      tipo_doc_faturado: extra.tipo_doc_faturado,
-      uf_faturado: extra.uf_faturado,
-      tipo_doc_prop: extra.tipo_doc_prop,
+      faturado_documento: raw.numeroIdFaturamento || raw.faturado_documento || extra.faturado || extra.faturado_documento || raw.faturado,
+      tipo_doc_faturado: raw.tipoDocFaturado || raw.tipo_doc_faturado || extra.tipo_doc_faturado,
+      uf_faturado: raw.ufFaturado || raw.uf_faturado || extra.uf_faturado,
       di: extra.di && extra.di !== '0' ? extra.di : undefined,
       registro_di: extra.registro_di,
+
       // Restrições e Situação
-      situacao_veiculo: extra.situacao_veiculo === 'S' ? 'Em Circulação (Regular)' : (extra.situacao_veiculo || raw.situacao || 'Regular'),
+      situacao_veiculo: raw.situacaoVeiculo ? (raw.situacaoVeiculo === 'EM_CIRCULACAO' ? 'Em Circulação (Regular)' : raw.situacaoVeiculo) : (extra.situacao_veiculo === 'S' ? 'Em Circulação (Regular)' : (extra.situacao_veiculo || raw.situacao || 'Regular')),
       situacao_chassi: extra.situacao_chassi === 'N' ? 'Normal (Não Remarcado)' : (extra.situacao_chassi || 'Normal'),
       limite_restricao_trib: extra.limite_restricao_trib,
-      tem_restricao: rawRestricoes.length > 0,
+      tem_restricao: rawRestricoes.length > 0 || raw.indicadorRestricaoRenvm === 'S',
       restricoes: listaRestricoes,
       data_registro_base: raw.data
     }) || null
@@ -517,27 +642,57 @@ export function normalizeE13(raw: any): NormalizedResult {
   // Telefones
   const rawTels = Array.isArray(d?.TELEFONES) ? d.TELEFONES : (Array.isArray(d?.telefones) ? d.telefones : []);
   const telefonesFormatados = rawTels.map((t: any) => {
-    if (typeof t === 'string') return t;
+    if (typeof t === 'string') {
+      return cleanObject({
+        numero: t,
+        data_atualizacao: undefined
+      });
+    }
     const ddd = t.DDD || t.ddd;
     const tel = t.TELEFONE || t.telefone || t.numero;
+    let strTelFormatado = '';
     if (ddd && tel) {
       const strTel = String(tel).trim();
       if (strTel.length === 9) {
-        return `(${ddd}) ${strTel.substring(0, 5)}-${strTel.substring(5)}`;
+        strTelFormatado = `(${ddd}) ${strTel.substring(0, 5)}-${strTel.substring(5)}`;
       } else if (strTel.length === 8) {
-        return `(${ddd}) ${strTel.substring(0, 4)}-${strTel.substring(4)}`;
+        strTelFormatado = `(${ddd}) ${strTel.substring(0, 4)}-${strTel.substring(4)}`;
+      } else {
+        strTelFormatado = `(${ddd}) ${strTel}`;
       }
-      return `(${ddd}) ${strTel}`;
+    } else {
+      strTelFormatado = String(t.TELEFONE || t.telefone || t.numero || t);
     }
-    return t.TELEFONE || t.telefone || String(t);
-  }).filter(Boolean);
+
+    const dt = t.DT_INCLUSAO || t.DT_INFORMACAO || t.data_atualizacao || t.dt_inclusao || t.dt_informacao || t.data;
+
+    return cleanObject({
+      numero: strTelFormatado,
+      data_atualizacao: dt,
+      tipo: t.TIPO_TELEFONE === 1 ? 'Fixo' : (t.TIPO_TELEFONE === 2 ? 'Móvel' : undefined),
+      classificacao: t.CLASSIFICACAO
+    });
+  }).filter((item: any) => item && item.numero);
 
   // E-mails
   const rawEmails = Array.isArray(d?.EMAILS) ? d.EMAILS : (Array.isArray(d?.emails) ? d.emails : []);
   const emailsFormatados = rawEmails.map((e: any) => {
-    if (typeof e === 'string') return e;
-    return e.EMAIL || e.email;
-  }).filter(Boolean);
+    if (typeof e === 'string') {
+      return cleanObject({
+        email: e,
+        data_atualizacao: undefined
+      });
+    }
+    const emailVal = e.EMAIL || e.email;
+    const dt = e.DT_INCLUSAO || e.DT_INFORMACAO || e.data_atualizacao || e.dt_inclusao || e.dt_informacao || e.data;
+
+    return cleanObject({
+      email: emailVal,
+      data_atualizacao: dt,
+      score: e.EMAIL_SCORE,
+      status: e.STATUS_VT
+    });
+  }).filter((item: any) => item && item.email);
 
   // Endereços
   const rawEnds = Array.isArray(d?.ENDERECOS) ? d.ENDERECOS : (Array.isArray(d?.enderecos) ? d.enderecos : []);
@@ -566,6 +721,12 @@ export function normalizeE13(raw: any): NormalizedResult {
   const zona = d.ZONA || d.zona;
   const secao = d.SECAO || d.secao;
 
+  // CBO & Perfil Socioeconômico (antigo Mosaic)
+  const rawCbo = d.CBO || d.cbo;
+  const cboInfo = translateCBO(rawCbo);
+  const rawMosaic = d.CD_MOSAIC || d.cd_mosaic || d.MOSAIC || d.mosaic;
+  const mosaicInfo = translateMosaic(rawMosaic);
+
   return {
     totalRegistros: hasData ? 1 : 0,
     dados: cleanObject({
@@ -577,8 +738,18 @@ export function normalizeE13(raw: any): NormalizedResult {
       nome_pai: d.NOME_PAI || d.nome_pai,
       estado_civil: d.ESTCIV || d.estado_civil,
       nacionalidade: d.NACIONALID || d.nacionalidade || 'Brasileira',
-      cbo: d.CBO || d.cbo,
-      mosaic: d.CD_MOSAIC || d.cd_mosaic,
+      cbo: cboInfo?.codigo || rawCbo,
+      cbo_titulo: cboInfo?.titulo,
+      cbo_formatado: cboInfo?.formatado,
+      mosaic: mosaicInfo?.codigo || rawMosaic,
+      mosaic_descricao: mosaicInfo?.descricaoCompleta,
+      perfil_socioeconomico: mosaicInfo?.descricaoCompleta || rawMosaic,
+      perfil_socioeconomico_info: mosaicInfo ? {
+        codigo: mosaicInfo.codigo,
+        grupo: mosaicInfo.grupoNome,
+        segmento: mosaicInfo.segmento,
+        descricao: mosaicInfo.descricaoCompleta
+      } : undefined,
       renda: d.RENDA || d.renda,
       rg: rgNumero ? {
         numero: rgNumero,
@@ -766,6 +937,12 @@ export function normalizeE15(raw: any): NormalizedResult {
   const rgObj = docs.rg || pessoa.rg || raw.rg;
   const scoreObj = fin.score || pessoa.score || raw.score;
 
+  // CBO & Perfil Socioeconômico
+  const rawCbo = ocup.cbo || raw.cbo;
+  const cboInfo = translateCBO(rawCbo);
+  const rawMosaic = ocup.mosaic || raw.mosaic || raw.cd_mosaic || ocup.cd_mosaic || raw.CD_MOSAIC || ocup.CD_MOSAIC;
+  const mosaicInfo = translateMosaic(rawMosaic);
+
   return {
     totalRegistros: hasData ? 1 : 0,
     dados: cleanObject({
@@ -824,10 +1001,21 @@ export function normalizeE15(raw: any): NormalizedResult {
       },
       renda_estimada: fin.renda || raw.renda_presumida || raw.renda,
 
-      // Ocupação Profissional
+      // Ocupação Profissional & Perfil Socioeconômico
       ocupacao: {
-        cbo: ocup.cbo || raw.cbo,
-        profissao: ocup.profissao || raw.profissao
+        cbo: cboInfo?.codigo || rawCbo,
+        cbo_titulo: cboInfo?.titulo,
+        cbo_formatado: cboInfo?.formatado,
+        profissao: ocup.profissao || raw.profissao || cboInfo?.titulo,
+        mosaic: mosaicInfo?.codigo || rawMosaic,
+        mosaic_descricao: mosaicInfo?.descricaoCompleta,
+        perfil_socioeconomico: mosaicInfo?.descricaoCompleta || rawMosaic,
+        perfil_socioeconomico_info: mosaicInfo ? {
+          codigo: mosaicInfo.codigo,
+          grupo: mosaicInfo.grupoNome,
+          segmento: mosaicInfo.segmento,
+          descricao: mosaicInfo.descricaoCompleta
+        } : undefined
       },
 
       // Biometria Facial / Fotográfica

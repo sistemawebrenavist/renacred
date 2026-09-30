@@ -506,6 +506,70 @@ export class FetchBrasilService {
         throw new Error(`Falha em todas as fontes oficiais consultadas para o produto ${product.code}: ${lastError.response?.data?.mensagem || lastError.message}`);
       }
 
+      // Enriquecimento inteligente para E10 (Comunicação de Venda)
+      if (product.code === 'E10' && rawData) {
+        const cartorio = rawData.dados_veiculo_cartorio;
+        if (cartorio && !cartorio.nome_proprietario_crv) {
+          try {
+            logger.info(`[FETCHBRASIL] E10: Buscando Razão Social/Nome do proprietário no CRV para a placa ${cleanQuery} via Senatran...`);
+            const senaRes = await this.client.get('/', {
+              params: {
+                token: this.token,
+                api: 'placa_senatran',
+                query: cleanQuery
+              },
+              timeout: 10000
+            });
+            const senaVeic = senaRes?.data?.veiculo;
+            if (senaVeic?.nomeProprietario) {
+              cartorio.nome_proprietario_crv = senaVeic.nomeProprietario;
+              rawData.veiculo_detalhes = senaVeic;
+              logger.info(`[FETCHBRASIL] E10 enriquecido com sucesso: ${senaVeic.nomeProprietario}`);
+            }
+          } catch (err: any) {
+            logger.warn(`[FETCHBRASIL] Não foi possível enriquecer proprietário E10 via Senatran: ${err.message}`);
+          }
+        }
+      }
+
+      // Enriquecimento inteligente para E12 (BIN Online) se faltar proprietário
+      if (product.code === 'E12' && rawData) {
+        const hasOwner = !!(
+          rawData.nomeProprietario ||
+          rawData.veiculo?.nomeProprietario ||
+          rawData.proprietario_nome ||
+          rawData.extra?.proprietario
+        );
+        if (!hasOwner && cleanQuery) {
+          try {
+            logger.info(`[FETCHBRASIL] E12: Buscando dados de proprietário da placa ${cleanQuery} via Senatran...`);
+            const senaRes = await this.client.get('/', {
+              params: {
+                token: this.token,
+                api: 'placa_senatran',
+                query: cleanQuery
+              },
+              timeout: 10000
+            });
+            const senaVeic = senaRes?.data?.veiculo;
+            if (senaVeic) {
+              if (senaVeic.nomeProprietario && !rawData.nomeProprietario) {
+                rawData.nomeProprietario = senaVeic.nomeProprietario;
+              }
+              if (senaVeic.niProprietario && !rawData.numeroIdentificacaoProprietario) {
+                rawData.numeroIdentificacaoProprietario = senaVeic.niProprietario;
+              }
+              if (senaVeic.numeroMotor && !rawData.numeroMotor) {
+                rawData.numeroMotor = senaVeic.numeroMotor;
+              }
+              logger.info(`[FETCHBRASIL] E12 enriquecido com sucesso via Senatran: ${senaVeic.nomeProprietario || ''}`);
+            }
+          } catch (err: any) {
+            logger.warn(`[FETCHBRASIL] Não foi possível enriquecer proprietário E12 via Senatran: ${err.message}`);
+          }
+        }
+      }
+
       // Normalização pericial e higienização de dados
       const normalized = normalizeProductResult(product.code, rawData || {});
       const processingTimeMs = Date.now() - startTime;

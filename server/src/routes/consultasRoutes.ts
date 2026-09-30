@@ -118,8 +118,9 @@ router.get('/detalhes/:id', async (req: any, res) => {
     const { id } = req.params;
     const companyId = req.user.companyId;
 
+    const isSuperAdmin = req.user?.isSuperAdmin === true;
     const query = await prisma.query.findFirst({
-      where: { id, companyId }
+      where: isSuperAdmin ? { id } : { id, companyId }
     });
 
     if (!query) {

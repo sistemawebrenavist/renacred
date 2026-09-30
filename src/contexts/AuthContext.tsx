@@ -16,6 +16,8 @@ interface Company {
   estado?: string;
   cep?: string;
   customQueryPrice?: number;
+  allowedProducts?: string[];
+  customPrices?: Record<string, number>;
 }
 
 interface User {

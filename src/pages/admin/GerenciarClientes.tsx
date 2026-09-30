@@ -15,36 +15,41 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 import { PRODUCTS_CATALOG, getProductByCode } from '../../config/productsCatalog';
 
-export function getClientApiEndpoint(allowedProducts: string[] | undefined, token: string) {
-  const isAll = !allowedProducts || allowedProducts.includes('ALL') || allowedProducts.length === PRODUCTS_CATALOG.length;
+export function getClientApiEndpoint(allowedProducts: string[] | undefined | null, token: string) {
+  const safeToken = token || '{TOKEN}';
+  const safeAllowed = Array.isArray(allowedProducts)
+    ? allowedProducts.filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+    : [];
+
+  const isAll = safeAllowed.length === 0 || safeAllowed.includes('ALL') || safeAllowed.length >= PRODUCTS_CATALOG.length;
   if (isAll) {
     return {
-      url: `https://api.renacred.com.br/v1/{codigo}?token=${token}&query={parametro}`,
+      url: `https://api.renacred.com.br/v1/{codigo}?token=${safeToken}&query={parametro}`,
       singleProduct: null,
       label: 'Todos os 16 Produtos (/v1/:codigo)',
     };
   }
 
-  if (allowedProducts.length === 1) {
-    const prod = getProductByCode(allowedProducts[0]);
-    const code = prod ? prod.code.toLowerCase() : allowedProducts[0].toLowerCase();
-    const paramName = prod?.inputType === 'placa' ? 'PLACA' : prod?.inputType === 'rg' ? 'RG' : 'DOCUMENTO';
+  const firstCodeRaw = safeAllowed[0];
+  const prod = getProductByCode(firstCodeRaw);
+  const code = (prod?.code || firstCodeRaw || 'e1').toLowerCase();
+  const paramName = prod?.inputType === 'placa' ? 'PLACA' : prod?.inputType === 'rg' ? 'RG' : 'DOCUMENTO';
+
+  if (safeAllowed.length === 1) {
     return {
-      url: `https://api.renacred.com.br/v1/${code}?token=${token}&query=${paramName}`,
-      singleProduct: prod,
-      label: `${prod?.code || allowedProducts[0]} - ${prod?.name || ''}`,
+      url: `https://api.renacred.com.br/v1/${code}?token=${safeToken}&query=${paramName}`,
+      singleProduct: prod || null,
+      label: `${prod?.code || firstCodeRaw} - ${prod?.name || ''}`.trim(),
     };
   }
 
-  const firstProd = getProductByCode(allowedProducts[0]);
-  const firstCode = firstProd ? firstProd.code.toLowerCase() : allowedProducts[0].toLowerCase();
-  const firstParam = firstProd?.inputType === 'placa' ? 'PLACA' : firstProd?.inputType === 'rg' ? 'RG' : 'DOCUMENTO';
   return {
-    url: `https://api.renacred.com.br/v1/${firstCode}?token=${token}&query=${firstParam}`,
-    singleProduct: firstProd,
-    label: `${allowedProducts.length} produtos liberados (ex: /v1/${firstCode})`,
+    url: `https://api.renacred.com.br/v1/${code}?token=${safeToken}&query=${paramName}`,
+    singleProduct: prod || null,
+    label: `${safeAllowed.length} produtos liberados (ex: /v1/${code})`,
   };
 }
 
@@ -107,7 +112,11 @@ export default function GerenciarClientes() {
     try {
       setLoading(true);
       const res = await api.get(`/api/admin/companies?search=${encodeURIComponent(search)}`);
-      if (res.data?.success) setCompanies(res.data.data);
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setCompanies(res.data.data);
+      } else if (res.data?.success && Array.isArray(res.data.companies)) {
+        setCompanies(res.data.companies);
+      }
     } catch (err) {
       console.error('Erro ao buscar empresas:', err);
     } finally {
@@ -399,7 +408,7 @@ export default function GerenciarClientes() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {companies.map((c) => (
+                {(Array.isArray(companies) ? companies : []).map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/80 transition">
                     <td className="py-3 px-4">
                       <div>
@@ -422,7 +431,7 @@ export default function GerenciarClientes() {
                       Dia {c.billingDueDate || 10}
                     </td>
                     <td className="py-3 px-4">
-                      {c.allowedProducts && !c.allowedProducts.includes('ALL') ? (
+                      {Array.isArray(c.allowedProducts) && c.allowedProducts.length > 0 && !c.allowedProducts.includes('ALL') ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                           {c.allowedProducts.length} de {PRODUCTS_CATALOG.length} produtos
                         </span>
@@ -431,7 +440,7 @@ export default function GerenciarClientes() {
                           Todos (16 produtos)
                         </span>
                       )}
-                      {c.customPrices && Object.keys(c.customPrices).length > 0 ? (
+                      {c.customPrices && typeof c.customPrices === 'object' && Object.keys(c.customPrices).length > 0 ? (
                         <span className="block text-[10px] text-slate-500 mt-0.5 font-sans">
                           {Object.keys(c.customPrices).length} tarifas customizadas
                         </span>
@@ -443,15 +452,15 @@ export default function GerenciarClientes() {
                     </td>
                     <td className="py-3 px-4 font-mono">
                       {c.accountType === 'PRE_PAID' ? (
-                        <span className="text-emerald-700 font-bold">R$ {Number(c.creditsBalance).toFixed(2)}</span>
+                        <span className="text-emerald-700 font-bold">R$ {Number(c.creditsBalance || 0).toFixed(2)}</span>
                       ) : (
-                        <span className="text-blue-700 font-bold">Limite: R$ {Number(c.creditLimit).toFixed(2)}</span>
+                        <span className="text-blue-700 font-bold">Limite: R$ {Number(c.creditLimit || 0).toFixed(2)}</span>
                       )}
                     </td>
                     <td className="py-3 px-4 min-w-[280px]">
-                      {c.apiKeys && c.apiKeys.length > 0 ? (
+                      {Array.isArray(c.apiKeys) && c.apiKeys.length > 0 ? (
                         (() => {
-                          const activeKeyObj = c.apiKeys.find((k: any) => k.isActive) || c.apiKeys[0];
+                          const activeKeyObj = c.apiKeys.find((k: any) => k?.isActive) || c.apiKeys[0];
                           const activeKey = activeKeyObj?.key || '';
                           const apiInfo = getClientApiEndpoint(c.allowedProducts, activeKey);
                           const prodUrl = apiInfo.url;

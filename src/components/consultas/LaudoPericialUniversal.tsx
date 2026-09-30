@@ -8,6 +8,7 @@ import { ExportExcelVeicularButton } from '../veicular/ExportExcelVeicularButton
 import { DeclaracaoCard } from '../imobiliario/DeclaracaoCard';
 import { ExportPdfButton } from '../imobiliario/ExportPdfButton';
 import { ExportExcelButton } from '../imobiliario/ExportExcelButton';
+import { translateCBO, translateMosaic } from '../../utils/cboMosaicUtils';
 
 // Formatação universal de CPF com 11 dígitos garantidos (preenchimento com zero à esquerda)
 const formatCPF = (doc?: string | number | null): string => {
@@ -46,15 +47,26 @@ const formatCEP = (cep?: string | number | null): string => {
   return String(cep);
 };
 
+// Higienização universal de tipo de documento (CGC -> CNPJ)
+const sanitizeTipoDoc = (tipo?: string | null): string => {
+  if (!tipo) return 'CNPJ';
+  const upper = String(tipo).trim().toUpperCase();
+  if (upper === 'CGC' || upper === '2') return 'CNPJ';
+  if (upper === '1') return 'CPF';
+  return upper;
+};
+
 // Formatação universal de data brasileira (DD/MM/AAAA)
-const formatDateBR = (val?: string | null): string => {
-  if (!val || typeof val !== 'string') return '-';
-  const trimmed = val.trim();
+const formatDateBR = (val?: string | number | null): string => {
+  if (val === undefined || val === null || val === '') return '-';
+  const trimmed = String(val).trim();
+  if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined' || trimmed === '-') return '-';
   if (/^\d{2}\/\d{2}\/\d{4}/.test(trimmed)) {
     return trimmed;
   }
   if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-    const parts = trimmed.split('T')[0].split('-');
+    const dateOnly = trimmed.split(/[T\s]/)[0];
+    const parts = dateOnly.split('-');
     if (parts.length === 3) {
       return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
@@ -699,83 +711,184 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
     // E7: CNH sem Imagem (Dados Cadastrais Oficiais)
     case 'E7': {
+      const rawEnd = dados.endereco || dados.address || {};
+      const endLogradouro = rawEnd.logradouro || rawEnd.street || dados.street || dados.logradouro;
+      const endNumero = rawEnd.numero || rawEnd.number || dados.number || dados.numero || dados.numero_endereco;
+      const endComplemento = rawEnd.complemento || rawEnd.complement || dados.complement || dados.complemento;
+      const endBairro = rawEnd.bairro || rawEnd.neighborhood || dados.neighborhood || dados.bairro;
+      const endMunicipio = rawEnd.municipio || rawEnd.city || dados.city || dados.municipio;
+      const endUf = rawEnd.uf || rawEnd.state || dados.state || dados.uf_endereco;
+      const endCep = rawEnd.cep || rawEnd.postalCode || dados.postalCode || dados.cep;
+
+      const hasEndereco = !!(endLogradouro || endBairro || endMunicipio || endCep || endNumero);
+
       return (
-        <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Prontuário de Habilitação & Dados Civis
-            </span>
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
-              Base Nacional de Condutores
-            </span>
-          </div>
+        <div className="space-y-4">
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Prontuário de Habilitação & Dados Civis
+              </span>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                Base Nacional de Condutores
+              </span>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
-            <div>
-              <span className="text-[11px] text-slate-400 font-medium block">Nome Completo:</span>
-              <span className="font-bold text-slate-900 text-sm block mt-0.5">{String(dados.nome || '-')}</span>
-            </div>
-            <div>
-              <span className="text-[11px] text-slate-400 font-medium block">CPF:</span>
-              <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatDocumento(String(dados.cpf || ''))}</span>
-            </div>
-            <div>
-              <span className="text-[11px] text-slate-400 font-medium block">Registro CNH:</span>
-              <span className="font-mono font-bold text-slate-900 block mt-0.5">{String(dados.numero_registro || '-')}</span>
-            </div>
-            <div>
-              <span className="text-[11px] text-slate-400 font-medium block">Renach:</span>
-              <span className="font-mono text-slate-700 block mt-0.5">{String(dados.renach || '-')}</span>
-            </div>
-            <div>
-              <span className="text-[11px] text-slate-400 font-medium block">Categoria:</span>
-              <span className="font-mono font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded inline-block mt-0.5">
-                {String(dados.categoria || '-')}
-              </span>
-            </div>
-            <div>
-              <span className="text-[11px] text-slate-400 font-medium block">Data de Validade:</span>
-              <span className="font-mono font-bold text-slate-900 block mt-0.5">{formatDateBR(String(dados.data_validade || ''))}</span>
-            </div>
-            <div>
-              <span className="text-[11px] text-slate-400 font-medium block">Data de Nascimento:</span>
-              <span className="font-mono text-slate-700 block mt-0.5">{formatDateBR(String(dados.data_nascimento || ''))}</span>
-            </div>
-            <div>
-              <span className="text-[11px] text-slate-400 font-medium block">Sexo:</span>
-              <span className="text-slate-800 block mt-0.5">{String(dados.sexo || '-')}</span>
-            </div>
-            <div>
-              <span className="text-[11px] text-slate-400 font-medium block">Município / UF Nascimento:</span>
-              <span className="text-slate-800 font-medium block mt-0.5">
-                {dados.cidade_nascimento ? `${dados.cidade_nascimento}${dados.uf ? ` - ${dados.uf}` : ''}` : String(dados.uf || '-')}
-              </span>
-            </div>
-            <div>
-              <span className="text-[11px] text-slate-400 font-medium block">Nome da Mãe:</span>
-              <span className="text-slate-800 font-medium block mt-0.5">{String(dados.nome_mae || '-')}</span>
-            </div>
-            {dados.rg_numero && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
               <div>
-                <span className="text-[11px] text-slate-400 font-medium block">Registro Geral (RG):</span>
+                <span className="text-[11px] text-slate-400 font-medium block">Nome Completo:</span>
+                <span className="font-bold text-slate-900 text-sm block mt-0.5">
+                  {String(dados.nome || dados.condutor?.nome || '-')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">CPF:</span>
                 <span className="font-mono text-slate-800 font-semibold block mt-0.5">
-                  {String(dados.rg_numero)} {dados.rg_orgao ? `(${dados.rg_orgao}/${dados.rg_uf || ''})` : ''}
+                  {formatDocumento(String(dados.cpf || dados.documento?.cpf || dados.numero || identifier || ''))}
                 </span>
               </div>
-            )}
-            {typeof dados.pontos_cnh === 'number' && (
               <div>
-                <span className="text-[11px] text-slate-400 font-medium block">Pontos na CNH:</span>
-                <span className={`font-mono font-bold block mt-0.5 ${dados.pontos_cnh > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
-                  {dados.pontos_cnh} {dados.pontos_cnh === 1 ? 'ponto' : 'pontos'}
+                <span className="text-[11px] text-slate-400 font-medium block">Registro CNH:</span>
+                <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                  {String(dados.numero_registro || dados.condutor?.num_registro || dados.cnh?.number || dados.cnh?.num_cnh || '-')}
                 </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Renach:</span>
+                <span className="font-mono text-slate-700 block mt-0.5">
+                  {String(dados.renach || dados.num_renach || dados.condutor?.num_renach || '-')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Categoria:</span>
+                <span className="font-mono font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded inline-block mt-0.5">
+                  {String(dados.categoria || dados.cnh?.categoria || dados.cnh?.category || '-')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Data de Validade:</span>
+                <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                  {formatDateBR(dados.data_validade || dados.cnh?.validade_iso || dados.cnh?.dueDate || dados.cnh?.validade || '')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Data de Nascimento:</span>
+                <span className="font-mono text-slate-700 block mt-0.5">
+                  {formatDateBR(dados.data_nascimento || dados.data_nascimento_iso || dados.condutor?.data_nascimento_iso || dados.condutor?.data_nascimento || dados.birthday || '')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Sexo:</span>
+                <span className="text-slate-800 block mt-0.5">
+                  {String(dados.sexo || dados.cod_sexo_descricao || dados.condutor?.cod_sexo_descricao || dados.gender || '-')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Município / UF Nascimento:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">
+                  {dados.cidade_nascimento || dados.endereco?.cod_municipio_descricao
+                    ? `${dados.cidade_nascimento || dados.endereco?.cod_municipio_descricao}${dados.uf ? ` - ${dados.uf}` : ''}`
+                    : String(dados.uf || dados.condutor?.uf || '-')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nome da Mãe:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">
+                  {String(dados.nome_mae || dados.condutor?.nome_mae || dados.mother || '-')}
+                </span>
+              </div>
+              {(dados.nome_pai || dados.condutor?.nome_pai) && (
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Nome do Pai:</span>
+                  <span className="text-slate-800 font-medium block mt-0.5">
+                    {String(dados.nome_pai || dados.condutor?.nome_pai)}
+                  </span>
+                </div>
+              )}
+              {(dados.rg_numero || dados.documento?.numero) && (
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Registro Geral (RG):</span>
+                  <span className="font-mono text-slate-800 font-semibold block mt-0.5">
+                    {String(dados.rg_numero || dados.documento?.numero)} {(dados.rg_orgao || dados.documento?.orgao_expedidor) ? `(${dados.rg_orgao || dados.documento?.orgao_expedidor}/${dados.rg_uf || dados.documento?.uf || ''})` : ''}
+                  </span>
+                </div>
+              )}
+              {typeof dados.pontos_cnh === 'number' && (
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Pontos na CNH:</span>
+                  <span className={`font-mono font-bold block mt-0.5 ${dados.pontos_cnh > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                    {dados.pontos_cnh} {dados.pontos_cnh === 1 ? 'ponto' : 'pontos'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {dados.impedimento && (
+              <div className="pt-2 text-xs">
+                <span className="text-rose-700 font-semibold">Impedimento: {String(dados.impedimento)}</span>
               </div>
             )}
           </div>
 
-          {dados.impedimento && (
-            <div className="pt-2 text-xs">
-              <span className="text-rose-700 font-semibold">Impedimento: {String(dados.impedimento)}</span>
+          {/* Card de Endereço Residencial / Cadastral do Condutor */}
+          {hasEndereco && (
+            <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <MapPin className="w-4 h-4 text-slate-700" />
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Endereço Cadastral do Condutor
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  Registro Nacional RENACH
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
+                <div className="lg:col-span-2">
+                  <span className="text-[11px] text-slate-400 font-medium block">Logradouro / Rua:</span>
+                  <span className="font-bold text-slate-900 text-sm block mt-0.5">
+                    {String(endLogradouro || '-')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Número:</span>
+                  <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                    {String(endNumero || 'S/N')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Complemento:</span>
+                  <span className="text-slate-800 font-medium block mt-0.5">
+                    {String(endComplemento || '-')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Bairro:</span>
+                  <span className="font-semibold text-slate-900 block mt-0.5">
+                    {String(endBairro || '-')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Município / UF:</span>
+                  <span className="font-semibold text-slate-900 block mt-0.5">
+                    {String(endMunicipio || '-')} {endUf ? `/ ${endUf}` : ''}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">CEP:</span>
+                  <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                    {formatCEP(endCep)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">País / Jurisdição:</span>
+                  <span className="text-slate-800 font-medium block mt-0.5">
+                    Brasil (BR)
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -987,7 +1100,7 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                   Proprietário Registrado no CRV (Vendedor)
                 </span>
                 <span className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded">
-                  {propCRV.tipo_documento || 'Documento Oficial'}
+                  {sanitizeTipoDoc(propCRV.tipo_documento)}
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
@@ -997,12 +1110,12 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                     {formatDocumento(propCRV.documento)}
                   </span>
                 </div>
-                {propCRV.nome && (
-                  <div>
-                    <span className="text-slate-400 font-medium block">Nome / Razão Social:</span>
-                    <span className="font-bold text-slate-900 text-sm mt-0.5 block">{propCRV.nome}</span>
-                  </div>
-                )}
+                <div>
+                  <span className="text-slate-400 font-medium block">Nome / Razão Social:</span>
+                  <span className="font-bold text-slate-900 text-sm mt-0.5 block">
+                    {propCRV.nome || dados.proprietario_nome || dados.vendedor_nome || '-'}
+                  </span>
+                </div>
                 {propCRV.numero_crv && (
                   <div>
                     <span className="text-slate-400 font-medium block">Número do CRV:</span>
@@ -1059,7 +1172,7 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                             {formatDocumento(c.documento_comprador || '')}
                             {c.tipo_documento_comprador && (
                               <span className="ml-1.5 text-[10px] font-sans font-medium text-slate-500">
-                                ({c.tipo_documento_comprador})
+                                ({sanitizeTipoDoc(c.tipo_documento_comprador)})
                               </span>
                             )}
                           </strong>
@@ -1377,32 +1490,66 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
             </div>
           </div>
 
-          {/* Grid Inferior: Faturamento de Origem & Restrições na BIN */}
+          {/* Grid Intermediário: Proprietário Registrado & Faturamento Fiscal de Origem */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Bloco 3: Dados Fiscais e Faturamento */}
+            {/* Bloco 3: Proprietário Registrado */}
             <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block pb-2.5 border-b border-slate-100">
-                Faturamento & Registro Fiscal de Origem
-              </span>
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Proprietário Registrado (BIN / DETRAN)
+                </span>
+                <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                  {dados.tipo_doc_prop || (dados.proprietario_documento ? (String(dados.proprietario_documento).replace(/\D/g, '').length > 11 ? 'Pessoa Jurídica' : 'Pessoa Física') : 'Cadastral')}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="sm:col-span-2">
+                  <span className="text-slate-400 font-medium block">Nome do Proprietário:</span>
+                  <span className="font-bold text-slate-900 block mt-0.5 uppercase tracking-tight">
+                    {dados.proprietario_nome || dados.nome_proprietario || '-'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Documento (CPF / CNPJ):</span>
+                  <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                    {formatDocumento(dados.proprietario_documento || dados.documento_proprietario || '')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Data Emissão CRV:</span>
+                  <span className="font-mono font-semibold text-slate-800 block mt-0.5">
+                    {formatDateBR(dados.data_emissao_crv)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bloco 4: Dados Fiscais e Faturamento */}
+            <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Faturamento & Registro Fiscal de Origem
+                </span>
+                <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                  Registro Fiscal
+                </span>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span className="text-slate-400 font-medium block">CNPJ / CPF Faturado:</span>
+                  <span className="text-slate-400 font-medium block">CNPJ Faturado:</span>
                   <span className="font-mono font-bold text-slate-900 block mt-0.5">
                     {formatDocumento(dados.faturado_documento || '')}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-medium block">Tipo Doc Faturado:</span>
-                  <span className="font-medium text-slate-800 block mt-0.5">{dados.tipo_doc_faturado || 'Jurídica'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-medium block">UF Faturamento:</span>
+                  <span className="text-slate-400 font-medium block">UF Faturado:</span>
                   <span className="font-semibold text-slate-800 block mt-0.5">{dados.uf_faturado || '-'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-medium block">Tipo Doc Proprietário:</span>
-                  <span className="font-medium text-slate-800 block mt-0.5">{dados.tipo_doc_prop || 'Física'}</span>
+                  <span className="text-slate-400 font-medium block">Tipo Doc Faturado:</span>
+                  <span className="font-medium text-slate-800 block mt-0.5">{sanitizeTipoDoc(dados.tipo_doc_faturado) || 'Jurídica'}</span>
                 </div>
                 {dados.di && (
                   <div>
@@ -1410,46 +1557,52 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                     <span className="font-mono text-slate-800 block mt-0.5">{dados.di}</span>
                   </div>
                 )}
+                {dados.registro_di && (
+                  <div>
+                    <span className="text-slate-400 font-medium block">Registro DI:</span>
+                    <span className="font-mono text-slate-800 block mt-0.5">{dados.registro_di}</span>
+                  </div>
+                )}
               </div>
             </div>
+          </div>
 
-            {/* Bloco 4: Quadro Oficial de Restrições da BIN */}
-            <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
-              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Quadro de Restrições (BIN)
-                </span>
-                <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                    hasRestricaoAtiva
-                      ? 'bg-rose-50 text-rose-800 border-rose-200'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  }`}
-                >
-                  {hasRestricaoAtiva ? 'Consta Restrição' : 'Nada Consta'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {restricoes.map((r: any, idx: number) => {
-                  const isClean = !r.valor || r.valor.toUpperCase().includes('SEM RESTRICAO');
-                  return (
-                    <div key={idx} className="p-2.5 rounded-lg border bg-slate-50/70 border-slate-200">
-                      <span className="text-[10px] text-slate-400 font-medium block">{r.label}:</span>
-                      <span className={`font-semibold block mt-0.5 ${isClean ? 'text-slate-700' : 'text-rose-700 font-bold'}`}>
-                        {r.valor || 'SEM RESTRIÇÃO'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {dados.limite_restricao_trib && (
-                <div className="pt-2 text-[11px] text-slate-500">
-                  <span>Limite Restrição Tributária: {dados.limite_restricao_trib}</span>
-                </div>
-              )}
+          {/* Bloco 5: Quadro Oficial de Restrições da BIN */}
+          <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Quadro de Restrições (BIN)
+              </span>
+              <span
+                className={`px-2.5 py-0.5 rounded text-xs font-bold border ${
+                  hasRestricaoAtiva
+                    ? 'bg-rose-50 text-rose-800 border-rose-200'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                }`}
+              >
+                {hasRestricaoAtiva ? 'Consta Restrição' : 'Nada Consta'}
+              </span>
             </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              {restricoes.map((r: any, idx: number) => {
+                const isClean = !r.valor || r.valor.toUpperCase().includes('SEM RESTRICAO');
+                return (
+                  <div key={idx} className="p-3 rounded-lg border bg-slate-50/70 border-slate-200">
+                    <span className="text-[10px] text-slate-400 font-medium block uppercase tracking-wider">{r.label}:</span>
+                    <span className={`font-semibold block mt-1 ${isClean ? 'text-slate-700' : 'text-rose-700 font-bold'}`}>
+                      {r.valor || 'SEM RESTRIÇÃO'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {dados.limite_restricao_trib && (
+              <div className="pt-2 text-[11px] text-slate-500">
+                <span>Limite Restrição Tributária: {dados.limite_restricao_trib}</span>
+              </div>
+            )}
           </div>
         </div>
       );
@@ -1513,15 +1666,22 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
         ? (rawScore?.csba_faixa || rawScore?.CSBA_FAIXA)
         : (scoreCsba ? (scoreCsba >= 750 ? 'BAIXÍSSIMO RISCO' : scoreCsba >= 550 ? 'BAIXO RISCO' : scoreCsba >= 300 ? 'MÉDIO RISCO' : 'ALTO RISCO') : null);
 
-      // Ocupação & Renda
-      const cbo = ocup.cbo || dados.cbo || '-';
-      const mosaic = ocup.mosaic || dados.mosaic || dados.cd_mosaic;
-      const profissao = ocup.profissao || dados.profissao || '-';
+      // Ocupação & CBO
+      const rawCbo = ocup.cbo || dados.cbo;
+      const cboInfo = translateCBO(rawCbo);
+      const cboDisplay = cboInfo ? cboInfo.codigo : (rawCbo || '-');
+      const cboTitulo = cboInfo?.titulo;
+      const profissao = ocup.profissao || dados.profissao || cboTitulo || '-';
       const rendaEstimada = fin.renda || dados.renda || dados.renda_estimada;
 
+      // Perfil Socioeconômico (antigo Mosaic)
+      const rawMosaic = ocup.mosaic || dados.mosaic || dados.cd_mosaic || ocup.perfil_socioeconomico || dados.perfil_socioeconomico || ocup.CD_MOSAIC || dados.CD_MOSAIC;
+      const mosaicInfo = translateMosaic(rawMosaic);
+      const perfilSocioeconomicoDisplay = mosaicInfo ? mosaicInfo.descricaoCompleta : (rawMosaic || null);
+
       // Contatos
-      const telefones: string[] = Array.isArray(cont.telefones) ? cont.telefones : (Array.isArray(dados.telefones) ? dados.telefones : []);
-      const emails: string[] = Array.isArray(cont.emails) ? cont.emails : (Array.isArray(dados.emails) ? dados.emails : []);
+      const telefones: any[] = Array.isArray(cont.telefones) ? cont.telefones : (Array.isArray(dados.telefones) ? dados.telefones : []);
+      const emails: any[] = Array.isArray(cont.emails) ? cont.emails : (Array.isArray(dados.emails) ? dados.emails : []);
 
       // Endereços
       const enderecos: any[] = Array.isArray(dados.enderecos) ? dados.enderecos : (Array.isArray(ident.enderecos) ? ident.enderecos : []);
@@ -1674,9 +1834,11 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                 <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
                   <span className="text-[10px] text-slate-400 font-medium block">Ocupação / CBO:</span>
                   <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">
-                    {cbo} {mosaic ? `(Mosaic: ${mosaic})` : ''}
+                    {cboDisplay}
                   </span>
-                  <span className="text-[11px] text-slate-500 font-medium block mt-0.5">{profissao !== '-' ? profissao : 'Atividade Cadastrada'}</span>
+                  <span className="text-[11px] text-slate-600 font-medium block mt-0.5 truncate" title={cboTitulo || profissao}>
+                    {cboTitulo || (profissao !== '-' ? profissao : 'Atividade Cadastrada')}
+                  </span>
                 </div>
 
                 <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
@@ -1686,6 +1848,20 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                   </span>
                   <span className="text-[11px] text-slate-500 font-medium block mt-0.5">Base Estatística</span>
                 </div>
+
+                {perfilSocioeconomicoDisplay && (
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200 col-span-2">
+                    <span className="text-[10px] text-slate-400 font-medium block">Perfil Socioeconômico:</span>
+                    <span className="font-bold text-slate-900 text-sm block mt-0.5">
+                      {mosaicInfo ? `${mosaicInfo.codigo} • ${mosaicInfo.segmento}` : perfilSocioeconomicoDisplay}
+                    </span>
+                    {mosaicInfo?.grupoNome && (
+                      <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
+                        Grupo: {mosaicInfo.grupoNome}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1813,12 +1989,23 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                 <p className="text-xs text-slate-400 p-2 text-center">Nenhum telefone localizado.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  {telefones.map((tel: string, idx: number) => (
-                    <div key={idx} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center space-x-2">
-                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="font-mono font-semibold text-slate-800">{tel}</span>
-                    </div>
-                  ))}
+                  {telefones.map((tel: any, idx: number) => {
+                    const telNumero = typeof tel === 'string' ? tel : (tel?.numero || tel?.telefone || '-');
+                    const telData = typeof tel === 'object' ? (tel?.data_atualizacao || tel?.dt_inclusao || tel?.dt_informacao || tel?.data) : undefined;
+                    return (
+                      <div key={idx} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center justify-between gap-2">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="font-mono font-semibold text-slate-800">{telNumero}</span>
+                        </div>
+                        {telData && (
+                          <span className="text-[10px] text-slate-500 font-mono shrink-0 bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-2xs" title={`Atualizado em ${formatDateBR(telData)}`}>
+                            {formatDateBR(telData)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1839,13 +2026,25 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                 <p className="text-xs text-slate-400 p-2 text-center">Nenhum e-mail localizado.</p>
               ) : (
                 <div className="space-y-2 text-xs">
-                  {emails.map((mail: string, idx: number) => (
-                    <div key={idx} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center space-x-2">
-                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="font-mono text-slate-800 font-medium truncate" title={mail}>{mail}</span>
-                    </div>
-                  ))}
+                  {emails.map((mail: any, idx: number) => {
+                    const mailStr = typeof mail === 'string' ? mail : (mail?.email || '-');
+                    const mailData = typeof mail === 'object' ? (mail?.data_atualizacao || mail?.dt_inclusao || mail?.dt_informacao || mail?.data) : undefined;
+                    return (
+                      <div key={idx} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center justify-between gap-2">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="font-mono text-slate-800 font-medium truncate" title={mailStr}>{mailStr}</span>
+                        </div>
+                        {mailData && (
+                          <span className="text-[10px] text-slate-500 font-mono shrink-0 bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-2xs" title={`Atualizado em ${formatDateBR(mailData)}`}>
+                            {formatDateBR(mailData)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
+
               )}
             </div>
           </div>

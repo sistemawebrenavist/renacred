@@ -106,44 +106,6 @@ export default function HubConsulta() {
     }
   };
 
-  // Ao trocar produto ou montar
-  useEffect(() => {
-    setInputValue('');
-    setResult(null);
-    loadRecentQueries(currentProduct.code);
-    inputRef.current?.focus();
-  }, [currentProduct.code]);
-
-  // Se houver parâmetro ?q= ou ?query= ou ?doc= na URL, preenche automaticamente
-  useEffect(() => {
-    const queryInUrl = searchParams.get('q') || searchParams.get('query') || searchParams.get('doc');
-    if (queryInUrl && !result && !loading) {
-      const formatted = formatInput(queryInUrl, currentProduct.inputType);
-      setInputValue(formatted);
-    }
-  }, [searchParams, currentProduct.inputType]);
-
-  // Ciclo dos passos de loading
-  useEffect(() => {
-    if (loading) {
-      setStepIndex(0);
-      stepTimerRef.current = setInterval(() => {
-        setStepIndex((prev) => (prev < PROGRESS_STEPS.length - 1 ? prev + 1 : prev));
-      }, 500);
-    } else {
-      if (stepTimerRef.current) clearInterval(stepTimerRef.current);
-    }
-    return () => {
-      if (stepTimerRef.current) clearInterval(stepTimerRef.current);
-    };
-  }, [loading]);
-
-  // Ação de seleção de outro produto via Modal
-  const handleSelectProduct = (newProd: ProductDefinition) => {
-    setIsSelectorOpen(false);
-    setSearchParams({ produto: newProd.code.toLowerCase() });
-  };
-
   // Execução da Consulta
   const handleExecuteSearch = async (overrideValue?: string) => {
     const target = (overrideValue || inputValue).trim();
@@ -208,6 +170,82 @@ export default function HubConsulta() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Ao trocar produto ou montar
+  useEffect(() => {
+    setInputValue('');
+    setResult(null);
+    loadRecentQueries(currentProduct.code);
+    inputRef.current?.focus();
+  }, [currentProduct.code]);
+
+  // Se houver queryId na URL, busca e exibe o laudo gravado imediatamente
+  useEffect(() => {
+    const queryIdParam = searchParams.get('queryId') || searchParams.get('id');
+    if (queryIdParam && !result && !loading) {
+      const fetchRecordedQuery = async () => {
+        try {
+          setLoading(true);
+          const res = await api.get(`/api/consultas/detalhes/${queryIdParam}`);
+          if (res.data?.success && res.data.query) {
+            const q = res.data.query;
+            setResult({
+              queryId: q.id,
+              identifier: q.identifier,
+              dados: q.resultData,
+              hash: q.hash || q.id,
+              totalRegistros: q.totalRegistros ?? (q.resultData ? 1 : 0),
+              custoDebitado: Number(q.cost || 0),
+              consultadoEm: q.createdAt,
+              tempoRespostaMs: q.processingTimeMs
+            });
+            const formatted = formatInput(q.identifier, currentProduct.inputType);
+            setInputValue(formatted);
+          }
+        } catch (e) {
+          console.error('Erro ao carregar consulta pelo ID:', e);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchRecordedQuery();
+    }
+  }, [searchParams, currentProduct.inputType]);
+
+  // Se houver parâmetro ?q= ou ?query= ou ?doc= na URL, preenche e opcionalmente executa
+  useEffect(() => {
+    const queryInUrl = searchParams.get('q') || searchParams.get('query') || searchParams.get('doc');
+    const autoParam = searchParams.get('auto') === 'true';
+    const queryIdParam = searchParams.get('queryId') || searchParams.get('id');
+    if (queryInUrl && !queryIdParam && !result && !loading) {
+      const formatted = formatInput(queryInUrl, currentProduct.inputType);
+      setInputValue(formatted);
+      if (autoParam) {
+        handleExecuteSearch(formatted);
+      }
+    }
+  }, [searchParams, currentProduct.inputType]);
+
+  // Ciclo dos passos de loading
+  useEffect(() => {
+    if (loading) {
+      setStepIndex(0);
+      stepTimerRef.current = setInterval(() => {
+        setStepIndex((prev) => (prev < PROGRESS_STEPS.length - 1 ? prev + 1 : prev));
+      }, 500);
+    } else {
+      if (stepTimerRef.current) clearInterval(stepTimerRef.current);
+    }
+    return () => {
+      if (stepTimerRef.current) clearInterval(stepTimerRef.current);
+    };
+  }, [loading]);
+
+  // Ação de seleção de outro produto via Modal
+  const handleSelectProduct = (newProd: ProductDefinition) => {
+    setIsSelectorOpen(false);
+    setSearchParams({ produto: newProd.code.toLowerCase() });
   };
 
   // Visualizar laudo a partir do histórico
