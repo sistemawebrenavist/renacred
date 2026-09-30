@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProductDefinition } from '../../config/productsCatalog';
-import { Clock, User, MapPin, Building, Calendar, FileText, CheckCircle2, ShieldCheck, AlertCircle, Phone, Mail, Award, CreditCard, Briefcase, Users, Scale, ShieldAlert, Shield, CheckCircle, Car } from 'lucide-react';
+import { Clock, User, MapPin, Building, Calendar, FileText, CheckCircle2, ShieldCheck, AlertCircle, Phone, Mail, Award, CreditCard, Briefcase, Users, Scale, ShieldAlert, Shield, CheckCircle, Car, Copy } from 'lucide-react';
 import { ProprietarioTimelineCard } from '../veicular/ProprietarioTimelineCard';
 import { processarHistoricoProprietarios } from '../../utils/veicularUtils';
 import { ExportPdfVeicularButton } from '../veicular/ExportPdfVeicularButton';
@@ -247,6 +247,128 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
         <p className="font-mono text-slate-500">
           Código de Validação: {hash}
         </p>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Card Executivo Exclusivo para E19 (Busca de RENAVAM por Placa)
+ * MOSTRAR RIGOROSAMENTE SOMENTE: name, type, year, yearManufacture, renavam (e a placa consultada)
+ */
+const E19RenavamCard: React.FC<{
+  placa: string;
+  renavam: string;
+  name: string;
+  type: string;
+  year: string;
+  yearManufacture: string;
+}> = ({ placa, renavam, name, type, year, yearManufacture }) => {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = () => {
+    if (renavam && renavam !== '-') {
+      navigator.clipboard.writeText(renavam);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Card Destaque Executivo do RENAVAM */}
+      <div className="bg-gradient-to-br from-emerald-900 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg border border-emerald-700/40 relative overflow-hidden">
+        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+        
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="px-2.5 py-0.5 rounded text-xs font-bold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                PLACA: {placa.toUpperCase()}
+              </span>
+              <span className="text-xs text-emerald-200/80 font-medium">
+                Certidão Oficial de RENAVAM
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-2 font-medium">
+              Código RENAVAM Oficial do Veículo:
+            </p>
+            <div className="text-3xl sm:text-4xl font-bold font-mono text-emerald-400 tracking-wider mt-1 select-all">
+              {renavam}
+            </div>
+          </div>
+
+          <div className="shrink-0 print:hidden">
+            <button
+              type="button"
+              onClick={handleCopy}
+              disabled={!renavam || renavam === '-'}
+              className="inline-flex items-center space-x-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition shadow-md bg-emerald-500 hover:bg-emerald-400 text-slate-950 cursor-pointer disabled:opacity-50"
+            >
+              {copied ? (
+                <>
+                  <CheckCircle className="w-4 h-4 text-slate-950" />
+                  <span>Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 text-slate-950" />
+                  <span>Copiar RENAVAM</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Grid Exclusivo com os 4 Dados Permitidos (name, type, year, yearManufacture) */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-3">
+        <div className="text-xs font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center space-x-2">
+          <Car className="w-4 h-4 text-slate-600" />
+          <span>Dados Técnicos do Veículo</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          {/* 1. Modelo / Marca (name) */}
+          <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
+              Modelo / Marca
+            </span>
+            <span className="font-bold text-slate-900 text-sm block mt-1">
+              {name}
+            </span>
+          </div>
+
+          {/* 2. Tipo do Veículo (type) */}
+          <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
+              Tipo do Veículo
+            </span>
+            <span className="font-bold text-slate-900 text-sm block mt-1">
+              {type}
+            </span>
+          </div>
+
+          {/* 3. Ano Modelo (year) */}
+          <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
+              Ano Modelo
+            </span>
+            <span className="font-mono font-bold text-slate-900 text-sm block mt-1">
+              {year}
+            </span>
+          </div>
+
+          {/* 4. Ano Fabricação (yearManufacture) */}
+          <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
+              Ano Fabricação
+            </span>
+            <span className="font-mono font-bold text-slate-900 text-sm block mt-1">
+              {yearManufacture}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -2603,6 +2725,197 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
             </div>
           )}
         </div>
+      );
+    }
+
+    // E17: Busca por Nome Completo
+    case 'E17': {
+      const registros = dados.registros || [];
+      const nomePesquisado = dados.nomePesquisado || identifier;
+      const totalHomonimos = dados.totalHomonimos ?? registros.length;
+
+      return (
+        <div className="space-y-4">
+          {/* Header de Metadados da Busca */}
+          <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 text-xs">
+              <span className="font-bold text-slate-800 font-sans text-sm uppercase">Nome Pesquisado: {nomePesquisado}</span>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                {totalHomonimos} {totalHomonimos === 1 ? 'registro encontrado' : 'registros / homônimos encontrados'}
+              </span>
+            </div>
+          </div>
+
+          {registros.length === 0 ? (
+            <div className="border border-slate-200 rounded-xl p-8 text-center bg-white shadow-xs">
+              <User className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-800">Nenhum Registro Localizado para este Nome</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                A varredura nas bases federais não retornou cidadãos com o nome informado.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {registros.map((r: any, idx: number) => {
+                const cpfExibicao = r.cpfMascarado || formatCPF(r.cpf);
+                const dataNasc = formatDateBR(r.nascimento);
+                const idade = r.idade ? `${r.idade} anos` : null;
+
+                return (
+                  <div key={idx} className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-mono font-bold">
+                          #{idx + 1}
+                        </span>
+                        <User className="w-4 h-4 text-slate-700" />
+                        <span className="font-bold text-slate-900 text-sm">{r.nome || nomePesquisado}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {r.sexo && (
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                            r.sexo.toUpperCase().startsWith('M') 
+                              ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                              : 'bg-pink-50 text-pink-700 border-pink-200'
+                          }`}>
+                            {r.sexo}
+                          </span>
+                        )}
+                        {idade && (
+                          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
+                            {idade}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-medium block">CPF do Titular:</span>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <span className="font-mono font-bold text-slate-900 text-sm">{cpfExibicao}</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-medium block">Data de Nascimento:</span>
+                        <span className="font-mono font-semibold text-slate-800 block mt-0.5">{dataNasc}</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200 sm:col-span-2">
+                        <span className="text-[10px] text-slate-400 font-medium block">Nome da Mãe:</span>
+                        <span className="font-bold text-slate-900 block mt-0.5 truncate">{r.mae || 'NÃO CONSTA'}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // E18: Busca por Nome de Mãe ou Pai
+    case 'E18': {
+      const filhos = dados.filhos || [];
+      const nomePesquisado = dados.nomePesquisado || identifier;
+      const tipo = dados.tipo || 'mae';
+      const totalFilhos = dados.totalFilhos ?? filhos.length;
+
+      return (
+        <div className="space-y-4">
+          {/* Header de Metadados da Filiação */}
+          <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 text-xs">
+              <span className="font-bold text-slate-800 font-sans text-sm uppercase">
+                {tipo === 'mae' ? 'Mãe Pesquisada' : 'Pai Pesquisado'}: {nomePesquisado}
+              </span>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                {totalFilhos} {totalFilhos === 1 ? 'filho(a) localizado(a)' : 'filhos localizados'}
+              </span>
+            </div>
+          </div>
+
+          {filhos.length === 0 ? (
+            <div className="border border-slate-200 rounded-xl p-8 text-center bg-white shadow-xs">
+              <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-800">Nenhum Filho Localizado para esta Filiação</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                A varredura nas certidões e registros de filiação não retornou filhos vinculados ao nome informado.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filhos.map((f: any, idx: number) => {
+                const cpfExibicao = f.cpfMascarado || formatCPF(f.cpf);
+                const dataNasc = formatDateBR(f.nascimento);
+
+                return (
+                  <div key={idx} className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-mono font-bold">
+                          #{idx + 1}
+                        </span>
+                        <User className="w-4 h-4 text-slate-700" />
+                        <span className="font-bold text-slate-900 text-sm">{f.nome || 'NOME NÃO INFORMADO'}</span>
+                      </div>
+                      {f.uf && (
+                        <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-800 border border-purple-200 font-mono">
+                          UF: {f.uf}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-medium block">CPF do Filho(a):</span>
+                        <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">{cpfExibicao}</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-medium block">Data de Nascimento:</span>
+                        <span className="font-mono font-semibold text-slate-800 block mt-0.5">{dataNasc}</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-medium block">Nome da Mãe:</span>
+                        <span className="font-semibold text-slate-900 block mt-0.5 truncate">{f.mae || 'NÃO CONSTA'}</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-400 font-medium block">Nome do Pai:</span>
+                        <span className="font-semibold text-slate-900 block mt-0.5 truncate">{f.pai || 'NÃO CONSTA'}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // E19: Busca de RENAVAM por Placa (MOSTRAR SOMENTE name, type, year, yearManufacture, renavam)
+    case 'E19': {
+      const renavam = dados.renavam || '-';
+      const name = dados.name || '-';
+      const type = dados.type || '-';
+      const year = dados.year || '-';
+      const yearManufacture = dados.yearManufacture || '-';
+      const placa = dados.placa || identifier;
+
+      return (
+        <E19RenavamCard
+          placa={placa}
+          renavam={renavam}
+          name={name}
+          type={type}
+          year={year}
+          yearManufacture={yearManufacture}
+        />
       );
     }
 

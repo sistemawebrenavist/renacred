@@ -3,7 +3,7 @@ export interface ServerProductConfig {
   slug: string;
   name: string;
   category: 'imobiliario' | 'veicular' | 'cadastral' | 'juridico';
-  inputType: 'cpf_cnpj' | 'cpf' | 'placa' | 'rg' | 'chassi' | 'renavam';
+  inputType: 'cpf_cnpj' | 'cpf' | 'placa' | 'rg' | 'chassi' | 'renavam' | 'nome';
   apiPrimary: string;
   apiContingencies: string[];
   defaultCost: number;
@@ -203,6 +203,42 @@ export const SERVER_PRODUCTS: ServerProductConfig[] = [
     defaultCost: 0.03,
     defaultPrice: 1.32,
     slugAliases: ['identidade', 'documento-rg']
+  },
+  {
+    code: 'E17',
+    slug: 'busca-nome',
+    name: 'Busca por Nome Completo (Localizador de CPF)',
+    category: 'cadastral',
+    inputType: 'nome',
+    apiPrimary: 'nome_basico',
+    apiContingencies: [],
+    defaultCost: 0.03,
+    defaultPrice: 1.32,
+    slugAliases: ['nome-completo', 'busca-nome', 'localizador-cpf', 'nome']
+  },
+  {
+    code: 'E18',
+    slug: 'busca-filiacao',
+    name: 'Busca por Nome de Mãe/Pai (Filiação)',
+    category: 'cadastral',
+    inputType: 'nome',
+    apiPrimary: 'reg_filiacao',
+    apiContingencies: [],
+    defaultCost: 0.03,
+    defaultPrice: 1.32,
+    slugAliases: ['filiacao', 'mae', 'pai', 'parentesco-pais', 'busca-filiacao']
+  },
+  {
+    code: 'E19',
+    slug: 'busca-renavam',
+    name: 'Busca de RENAVAM por Placa',
+    category: 'veicular',
+    inputType: 'placa',
+    apiPrimary: 'placa_df',
+    apiContingencies: [],
+    defaultCost: 0.04,
+    defaultPrice: 1.32,
+    slugAliases: ['renavam-placa', 'renavam', 'localizar-renavam', 'busca-renavam']
   }
 ];
 

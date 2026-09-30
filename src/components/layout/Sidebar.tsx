@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { RenacredLogo } from '../ui/RenacredLogo';
+import { PRODUCTS_CATALOG } from '../../config/productsCatalog';
 
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -25,7 +26,7 @@ export const Sidebar: React.FC = () => {
       to: '/produtos', 
       label: 'Catálogo de Produtos', 
       icon: LayoutGrid, 
-      badge: '16',
+      badge: `${PRODUCTS_CATALOG.length}`,
       badgeColor: 'bg-slate-100 text-slate-700 border-slate-200'
     },
   ];

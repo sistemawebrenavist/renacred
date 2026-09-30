@@ -1,5 +1,5 @@
 export type ProductCategory = 'imobiliario' | 'veicular' | 'cadastral' | 'juridico';
-export type ProductInputType = 'cpf_cnpj' | 'cpf' | 'placa' | 'rg' | 'chassi' | 'renavam';
+export type ProductInputType = 'cpf_cnpj' | 'cpf' | 'placa' | 'rg' | 'chassi' | 'renavam' | 'nome';
 
 export interface ProductDefinition {
   code: string;
@@ -439,13 +439,91 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
       text: 'text-slate-800',
       border: 'border-slate-300'
     }
+  },
+  {
+    code: 'E17',
+    slug: 'busca-nome',
+    name: 'Busca por Nome Completo',
+    shortName: 'Busca por Nome',
+    category: 'cadastral',
+    categoryLabel: 'Cadastral',
+    inputType: 'nome',
+    inputLabel: 'Nome Completo da Pessoa',
+    placeholder: 'Ex: WELLINGTON MARIANO DE BRITO',
+    description: 'Localização de CPFs, data de nascimento, filiação e homônimos vinculados a um nome completo.',
+    highlights: [
+      'Identificação de CPFs vinculados ao nome',
+      'Data de nascimento e idade estimada',
+      'Nome da mãe e gênero',
+      'Desambiguação e rastreio de homônimos'
+    ],
+    defaultCost: 0.03,
+    defaultPrice: 1.32,
+    hasContingency: false,
+    badgeColor: {
+      bg: 'bg-indigo-50',
+      text: 'text-indigo-800',
+      border: 'border-indigo-200'
+    }
+  },
+  {
+    code: 'E18',
+    slug: 'busca-filiacao',
+    name: 'Busca por Nome de Mãe ou Pai',
+    shortName: 'Busca por Filiação',
+    category: 'cadastral',
+    categoryLabel: 'Cadastral',
+    inputType: 'nome',
+    inputLabel: 'Nome da Mãe ou Pai',
+    placeholder: 'Ex: MARIA DE JESUS DE BRITO',
+    description: 'Identificação de todos os filhos e registros civis vinculados à filiação materna ou paterna informada.',
+    highlights: [
+      'Relação completa de filhos registrados',
+      'CPFs, datas de nascimento e UF dos filhos',
+      'Cruzamento de filiação pai e mãe',
+      'Filtro flexível por Mãe ou Pai'
+    ],
+    defaultCost: 0.03,
+    defaultPrice: 1.32,
+    hasContingency: false,
+    badgeColor: {
+      bg: 'bg-purple-50',
+      text: 'text-purple-800',
+      border: 'border-purple-200'
+    }
+  },
+  {
+    code: 'E19',
+    slug: 'renavam-placa',
+    name: 'Busca de RENAVAM por Placa',
+    shortName: 'RENAVAM por Placa',
+    category: 'veicular',
+    categoryLabel: 'Veicular',
+    inputType: 'placa',
+    inputLabel: 'Placa do Veículo',
+    placeholder: 'ABC-1234 ou ABC1D23',
+    description: 'Localização direta e precisa do código RENAVAM do veículo a partir de sua placa de identificação.',
+    highlights: [
+      'Código RENAVAM oficial isolado',
+      'Modelo/marca do veículo',
+      'Tipo do veículo e ano de fabricação/modelo',
+      'Consulta limpa e direta para despachantes'
+    ],
+    defaultCost: 0.04,
+    defaultPrice: 1.32,
+    hasContingency: false,
+    badgeColor: {
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-800',
+      border: 'border-emerald-200'
+    }
   }
 ];
 
 export const CATEGORIES_CONFIG = [
-  { id: 'todos', label: 'Todos os Produtos', count: 16 },
-  { id: 'veicular', label: 'Veicular', count: 8 },
-  { id: 'cadastral', label: 'Cadastral', count: 5 },
+  { id: 'todos', label: 'Todos os Produtos', count: 19 },
+  { id: 'veicular', label: 'Veicular', count: 9 },
+  { id: 'cadastral', label: 'Cadastral', count: 7 },
   { id: 'juridico', label: 'Jurídico', count: 2 },
   { id: 'imobiliario', label: 'Imobiliário', count: 1 },
 ];

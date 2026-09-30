@@ -14,7 +14,7 @@ import { QuerySource, QueryStatus } from '../types/database';
  * Validador genérico por tipo de input configurado no produto
  */
 export function validateProductInput(
-  inputType: 'cpf_cnpj' | 'cpf' | 'placa' | 'rg' | 'chassi' | 'renavam',
+  inputType: 'cpf_cnpj' | 'cpf' | 'placa' | 'rg' | 'chassi' | 'renavam' | 'nome',
   inputValue: string
 ): { valid: boolean; cleaned: string; error?: string } {
   if (!inputValue || typeof inputValue !== 'string') {
@@ -74,6 +74,18 @@ export function validateProductInput(
       }
       return { valid: true, cleaned };
     }
+    case 'nome': {
+      const cleaned = String(raw).replace(/\s+/g, ' ').trim().toUpperCase();
+      const parts = cleaned.split(' ');
+      if (parts.length < 2 || cleaned.length < 5) {
+        return {
+          valid: false,
+          cleaned: '',
+          error: 'Informe o nome completo (ao menos duas palavras, mínimo de 5 caracteres).'
+        };
+      }
+      return { valid: true, cleaned };
+    }
     default:
       return { valid: true, cleaned: raw };
   }
@@ -114,7 +126,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
   }
 
   // 2. Extrair e validar parâmetro de busca
-  const queryParam = req.body?.query || req.body?.parametro || req.body?.documento || req.body?.placa || req.body?.cpf || req.body?.rg;
+  const queryParam = req.body?.query || req.body?.parametro || req.body?.documento || req.body?.placa || req.body?.cpf || req.body?.rg || req.body?.nome;
   const validation = validateProductInput(product.inputType, queryParam);
   if (!validation.valid) {
     return res.status(400).json({
@@ -164,8 +176,10 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
   }
 
   try {
+    const tipoParam = req.body?.tipo || req.query?.tipo || 'mae';
+
     // 4. Executar chamada com cascata de contingências transparentes e normalização pericial
-    const result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery);
+    const result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
     const hasData = totalRegistros > 0 && result.normalized.dados !== null;
@@ -190,6 +204,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
           productName: product.name,
           category: product.category,
           query: cleanQuery,
+          tipo: product.code === 'E18' ? tipoParam : undefined,
           hash: hashAutenticacao
         },
         resultData: result.normalized.dados as any
@@ -279,8 +294,8 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
     });
   }
 
-  const queryParam = req.query.query || req.query.documento || req.query.placa || req.query.cpf || req.query.rg ||
-                     req.body?.query || req.body?.documento || req.body?.placa || req.body?.cpf || req.body?.rg;
+  const queryParam = req.query.query || req.query.documento || req.query.placa || req.query.cpf || req.query.rg || req.query.nome ||
+                     req.body?.query || req.body?.documento || req.body?.placa || req.body?.cpf || req.body?.rg || req.body?.nome;
 
   const validation = validateProductInput(product.inputType, queryParam);
   if (!validation.valid) {
@@ -335,7 +350,8 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
   }
 
   try {
-    const result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery);
+    const tipoParam = req.query.tipo || req.body?.tipo || 'mae';
+    const result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
     const hasData = totalRegistros > 0 && result.normalized.dados !== null;
@@ -357,6 +373,7 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
           productName: product.name,
           category: product.category,
           query: cleanQuery,
+          tipo: product.code === 'E18' ? tipoParam : undefined,
           apiKeyId: apiKey?.id,
           hash: hashAutenticacao
         },

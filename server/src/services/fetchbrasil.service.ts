@@ -414,11 +414,12 @@ export class FetchBrasilService {
 
   /**
    * Consulta genérica com tolerância a falhas e cascata de contingências transparentes
-   * Suporta qualquer um dos 16 produtos (E1 a E16) ou seus slugs.
+   * Suporta qualquer um dos 19 produtos (E1 a E19) ou seus slugs.
    */
   async consultarProdutoComContingencia(
     productCodeOrSlug: string,
-    query: string
+    query: string,
+    extraParams?: { tipo?: string }
   ): Promise<{
     product: ServerProductConfig;
     normalized: NormalizedResult;
@@ -432,7 +433,7 @@ export class FetchBrasilService {
     }
 
     const cleanQuery = query.trim();
-    const cacheKey = `${product.code}:${cleanQuery}`;
+    const cacheKey = `${product.code}:${cleanQuery}${extraParams?.tipo ? ':' + extraParams.tipo : ''}`;
 
     // 1. Checar cache em memória (0ms)
     const cached = this.genericCache.get(cacheKey);
@@ -471,12 +472,17 @@ export class FetchBrasilService {
         logger.info(`[FETCHBRASIL] ${isContingency ? 'CONTINGÊNCIA' : 'PRIMÁRIO'}: Tentando endpoint '${endpoint}' para produto ${product.code}...`);
 
         try {
+          const queryParams: any = {
+            token: this.token,
+            api: endpoint,
+            query: cleanQuery
+          };
+          if (extraParams?.tipo) {
+            queryParams.tipo = extraParams.tipo;
+          }
+
           const response = await this.client.get('/', {
-            params: {
-              token: this.token,
-              api: endpoint,
-              query: cleanQuery
-            }
+            params: queryParams
           });
 
           // Verificar se resposta é válida (não é erro de negócio)
@@ -571,7 +577,7 @@ export class FetchBrasilService {
       }
 
       // Normalização pericial e higienização de dados
-      const normalized = normalizeProductResult(product.code, rawData || {});
+      const normalized = normalizeProductResult(product.code, rawData || {}, cleanQuery, extraParams);
       const processingTimeMs = Date.now() - startTime;
 
       // Gravar no cache de curto prazo
@@ -600,6 +606,27 @@ export class FetchBrasilService {
     } finally {
       this.genericInFlight.delete(cacheKey);
     }
+  }
+
+  /**
+   * Consulta direta Produto E17: Busca por Nome Completo
+   */
+  async consultarNomeBasico(nome: string) {
+    return this.consultarProdutoComContingencia('E17', nome);
+  }
+
+  /**
+   * Consulta direta Produto E18: Busca por Nome de Mãe/Pai (Filiação)
+   */
+  async consultarRegFiliacao(nome: string, tipo: string = 'mae') {
+    return this.consultarProdutoComContingencia('E18', nome, { tipo });
+  }
+
+  /**
+   * Consulta direta Produto E19: Busca de RENAVAM por Placa
+   */
+  async consultarPlacaDf(placa: string) {
+    return this.consultarProdutoComContingencia('E19', placa);
   }
 }
 

@@ -41,12 +41,12 @@ export default function CatalogoProdutos() {
               Catálogo de Produtos & Serviços de API
             </h1>
             <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
-              Portfólio com 16 bases oficiais integradas em tempo real para inteligência patrimonial, cadastral e veicular. Cobrança sob demanda individualizada com garantia de custo zero para consultas sem registros.
+              Portfólio com {PRODUCTS_CATALOG.length} bases oficiais integradas em tempo real para inteligência patrimonial, cadastral e veicular. Cobrança sob demanda individualizada com garantia de custo zero para consultas sem registros.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-              16 Bases Oficiais
+              {PRODUCTS_CATALOG.length} Bases Oficiais
             </span>
             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
               Custo Zero sem Dados

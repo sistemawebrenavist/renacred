@@ -59,6 +59,7 @@ export default function HubConsulta() {
   // Histórico recente do produto ativo
   const [recentQueries, setRecentQueries] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [filiacaoTipo, setFiliacaoTipo] = useState<'mae' | 'pai'>('mae');
 
   const stepTimerRef = useRef<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +83,9 @@ export default function HubConsulta() {
     }
     if (type === 'rg') {
       return val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
+    }
+    if (type === 'nome') {
+      return val.toUpperCase();
     }
     return val;
   };
@@ -114,7 +118,15 @@ export default function HubConsulta() {
       return;
     }
 
-    const clean = target.replace(/[^a-zA-Z0-9]/g, '');
+    const clean = currentProduct.inputType === 'nome'
+      ? target.trim().replace(/\s+/g, ' ')
+      : target.replace(/[^a-zA-Z0-9]/g, '');
+
+    // Validação estrita de nome
+    if (currentProduct.inputType === 'nome' && clean.length < 3) {
+      toast.error('Informe pelo menos 3 caracteres para busca por nome.');
+      return;
+    }
 
     // Validação estrita de placa (Cinza e Mercosul)
     if (currentProduct.inputType === 'placa' && !isValidPlaca(clean)) {
@@ -122,7 +134,9 @@ export default function HubConsulta() {
       return;
     }
 
-    const cacheKey = `${currentProduct.code}:${clean}`;
+    const cacheKey = currentProduct.code === 'E18'
+      ? `${currentProduct.code}:${filiacaoTipo}:${clean}`
+      : `${currentProduct.code}:${clean}`;
 
     // 1. Resposta instantânea se em cache de sessão
     if (sessionHubCache.has(cacheKey)) {
@@ -135,9 +149,12 @@ export default function HubConsulta() {
     setLoading(true);
 
     try {
-      const response = await api.post(`/api/consultas/${currentProduct.code}`, {
-        query: clean
-      });
+      const requestPayload: any = { query: clean };
+      if (currentProduct.code === 'E18') {
+        requestPayload.tipo = filiacaoTipo;
+      }
+
+      const response = await api.post(`/api/consultas/${currentProduct.code}`, requestPayload);
 
       if (response.data?.success) {
         const payload = response.data;
@@ -361,18 +378,52 @@ export default function HubConsulta() {
         >
           <div className="flex flex-col md:flex-row md:items-end gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                {currentProduct.inputLabel}
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  {currentProduct.inputLabel}
+                </label>
+                {currentProduct.code === 'E18' && (
+                  <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setFiliacaoTipo('mae')}
+                      className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition ${
+                        filiacaoTipo === 'mae'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Mãe
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiliacaoTipo('pai')}
+                      className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition ${
+                        filiacaoTipo === 'pai'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Pai
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="relative">
                 <input
                   ref={inputRef}
                   type="text"
                   value={inputValue}
                   onChange={handleInputChange}
-                  placeholder={currentProduct.placeholder}
+                  placeholder={
+                    currentProduct.code === 'E18'
+                      ? filiacaoTipo === 'mae'
+                        ? 'Ex: MARIA DE JESUS DE BRITO'
+                        : 'Ex: JOSE PEREIRA DA SILVA'
+                      : currentProduct.placeholder
+                  }
                   disabled={loading}
-                  className="w-full px-3.5 py-2.5 text-sm font-mono bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-600 focus:bg-white transition disabled:opacity-60"
+                  className={`w-full px-3.5 py-2.5 text-sm ${currentProduct.inputType === 'nome' ? 'font-sans uppercase' : 'font-mono'} bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-600 focus:bg-white transition disabled:opacity-60`}
                 />
                 {inputValue && !loading && (
                   <button

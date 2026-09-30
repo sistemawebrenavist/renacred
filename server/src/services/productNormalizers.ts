@@ -1224,9 +1224,128 @@ export function normalizeE16(raw: any): NormalizedResult {
 }
 
 /**
- * Mapeador Central de Normalizadores por Código do Produto (E1 a E16)
+ * Normalizador E17: Busca por Nome Completo (Localizador de CPF)
  */
-export function normalizeProductResult(code: string, raw: any): NormalizedResult {
+export function normalizeE17(raw: any, query?: string): NormalizedResult {
+  const list = Array.isArray(raw?.RESULTADOS)
+    ? raw.RESULTADOS
+    : (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []));
+
+  const homonimos = list.map((item: any) => {
+    const rawCpf = item.CPF || item.cpf;
+    const cpfDigits = rawCpf ? String(rawCpf).replace(/\D/g, '').padStart(11, '0') : undefined;
+    const sexoRaw = String(item.SEXO || item.sexo || '').trim().toUpperCase();
+    const sexo = sexoRaw === 'M' ? 'Masculino' : (sexoRaw === 'F' ? 'Feminino' : (sexoRaw || 'Não informado'));
+
+    let dataNascimento: string | undefined = undefined;
+    let idade: number | undefined = undefined;
+    const rawNasc = item.NASC || item.data_nascimento || item.nascimento;
+    if (rawNasc) {
+      const match = String(rawNasc).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        dataNascimento = `${match[3]}/${match[2]}/${match[1]}`;
+        const anoNasc = parseInt(match[1], 10);
+        const mesNasc = parseInt(match[2], 10);
+        const diaNasc = parseInt(match[3], 10);
+        const hoje = new Date();
+        idade = hoje.getFullYear() - anoNasc;
+        const mesDiff = hoje.getMonth() + 1 - mesNasc;
+        if (mesDiff < 0 || (mesDiff === 0 && hoje.getDate() < diaNasc)) {
+          idade--;
+        }
+      } else if (String(rawNasc).includes('/')) {
+        dataNascimento = String(rawNasc).trim();
+      }
+    }
+
+    return cleanObject({
+      nome: item.NOME || item.nome,
+      cpf: cpfDigits,
+      sexo,
+      nome_mae: item.NOME_MAE || item.nome_mae || null,
+      data_nascimento: dataNascimento,
+      idade: idade !== undefined && !isNaN(idade) ? idade : undefined
+    });
+  }).filter(Boolean);
+
+  return {
+    totalRegistros: homonimos.length,
+    dados: homonimos.length > 0 ? cleanObject({
+      nome_pesquisado: query || raw?.meta?.nome || (homonimos[0]?.nome ?? null),
+      total_homonimos: homonimos.length,
+      homonimos
+    }) : null
+  };
+}
+
+/**
+ * Normalizador E18: Busca por Nome de Mãe/Pai (Filiação & Parentescos)
+ */
+export function normalizeE18(raw: any, query?: string, extraParams?: any): NormalizedResult {
+  const list = Array.isArray(raw?.data)
+    ? raw.data
+    : (Array.isArray(raw?.filhos) ? raw.filhos : (Array.isArray(raw) ? raw : []));
+
+  const tipoGenitor = extraParams?.tipo || raw?.meta?.tipo || 'mae';
+
+  const filhos = list.map((item: any) => {
+    const rawCpf = item.cpf || item.CPF;
+    const cpfDigits = rawCpf ? String(rawCpf).replace(/\D/g, '').padStart(11, '0') : undefined;
+    return cleanObject({
+      cpf: cpfDigits,
+      nome: item.nome || item.NOME,
+      nascimento: item.nascimento || item.data_nascimento || item.NASC,
+      uf: item.uf || item.UF || item.estado,
+      nome_mae: item.nome_mae || item.NOME_MAE,
+      nome_pai: item.nome_pai || item.NOME_PAI || null
+    });
+  }).filter(Boolean);
+
+  return {
+    totalRegistros: filhos.length,
+    dados: filhos.length > 0 ? cleanObject({
+      tipo_pesquisado: tipoGenitor,
+      nome_pesquisado: query || raw?.meta?.nome,
+      total_filhos: filhos.length,
+      filhos
+    }) : null
+  };
+}
+
+/**
+ * Normalizador E19: Busca de RENAVAM por Placa (Exibição Estrita)
+ * Requisito estrito: Retornar exclusivamente name, type, year, yearManufacture, renavam e plate
+ */
+export function normalizeE19(raw: any, query?: string): NormalizedResult {
+  const v = raw?.vehicle || raw?.veiculo || {};
+  const m = v?.model || v?.modelo || {};
+  const renavamRaw = v?.renavam || raw?.renavam;
+  const renavam = renavamRaw ? String(renavamRaw).trim() : null;
+
+  if (!renavam) {
+    return {
+      totalRegistros: 0,
+      dados: null
+    };
+  }
+
+  return {
+    totalRegistros: 1,
+    dados: cleanObject({
+      name: m.name ? String(m.name).trim() : (v.name ? String(v.name).trim() : 'NÃO INFORMADO'),
+      type: m.type ? String(m.type).trim() : (v.type ? String(v.type).trim() : 'AUTOMOVEL'),
+      year: m.year ? String(m.year).trim() : (v.year ? String(v.year).trim() : null),
+      yearManufacture: m.yearManufacture ? String(m.yearManufacture).trim() : (v.yearManufacture ? String(v.yearManufacture).trim() : null),
+      renavam: renavam,
+      plate: v.plate ? String(v.plate).toUpperCase().trim() : (query ? String(query).toUpperCase().trim() : null)
+    }) || null
+  };
+}
+
+/**
+ * Mapeador Central de Normalizadores por Código do Produto (E1 a E19)
+ */
+export function normalizeProductResult(code: string, raw: any, query?: string, extraParams?: any): NormalizedResult {
   const upper = code.trim().toUpperCase();
   switch (upper) {
     case 'E1': return normalizeE1(raw);
@@ -1245,6 +1364,9 @@ export function normalizeProductResult(code: string, raw: any): NormalizedResult
     case 'E14': return normalizeE14(raw);
     case 'E15': return normalizeE15(raw);
     case 'E16': return normalizeE16(raw);
+    case 'E17': return normalizeE17(raw, query);
+    case 'E18': return normalizeE18(raw, query, extraParams);
+    case 'E19': return normalizeE19(raw, query);
     default:
       return { totalRegistros: raw ? 1 : 0, dados: cleanObject(raw) };
   }
