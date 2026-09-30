@@ -1721,12 +1721,37 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
       const rawCbo = ocup.cbo || dados.cbo;
       const cboInfo = translateCBO(rawCbo);
       const cboDisplay = cboInfo ? cboInfo.codigo : (rawCbo || '-');
-      const cboTitulo = cboInfo?.titulo;
+      const cboTitulo = dados.cbo_titulo || ocup.cbo_titulo || cboInfo?.titulo;
       const profissao = ocup.profissao || dados.profissao || cboTitulo || '-';
       const rendaEstimada = fin.renda || dados.renda || dados.renda_estimada;
 
-      // Perfil Socioeconômico (antigo Mosaic)
-      const rawMosaic = ocup.mosaic || dados.mosaic || dados.cd_mosaic || ocup.perfil_socioeconomico || dados.perfil_socioeconomico || ocup.CD_MOSAIC || dados.CD_MOSAIC;
+      const formatarRenda = (val: any) => {
+        if (!val) return 'Não declarada';
+        if (typeof val === 'number') {
+          return isNaN(val) ? 'Não declarada' : `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        const clean = String(val).replace('R$', '').trim().replace(/\./g, '').replace(',', '.');
+        const num = parseFloat(clean);
+        if (isNaN(num) || num <= 0) return typeof val === 'string' && val.trim() ? val : 'Não declarada';
+        return `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      };
+
+      // Perfil Socioeconômico (Serasa Mosaic Brasil Novo tem prioridade sobre o legado)
+      const rawMosaic = 
+        dados.mosaic_novo ||
+        dados.cd_mosaic_novo ||
+        dados.CD_MOSAIC_NOVO ||
+        ocup.mosaic_novo ||
+        ocup.cd_mosaic_novo ||
+        ocup.CD_MOSAIC_NOVO ||
+        dados.perfil_socioeconomico_info?.codigo ||
+        ocup.mosaic ||
+        dados.mosaic ||
+        dados.cd_mosaic ||
+        ocup.perfil_socioeconomico ||
+        dados.perfil_socioeconomico ||
+        ocup.CD_MOSAIC ||
+        dados.CD_MOSAIC;
       const mosaicInfo = translateMosaic(rawMosaic);
       const perfilSocioeconomicoDisplay = mosaicInfo ? mosaicInfo.descricaoCompleta : (rawMosaic || null);
 
@@ -1884,7 +1909,7 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
                 <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
                   <span className="text-[10px] text-slate-400 font-medium block">Profissão / Cargo:</span>
-                  <span className="font-bold text-slate-900 text-sm block mt-0.5 truncate" title={cboTitulo || profissao}>
+                  <span className="font-bold text-slate-900 text-sm block mt-0.5 break-words leading-snug" title={cboTitulo || profissao}>
                     {cboTitulo || (profissao !== '-' ? profissao : 'Não declarada')}
                   </span>
                   <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
@@ -1895,19 +1920,19 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                 <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
                   <span className="text-[10px] text-slate-400 font-medium block">Renda Presumida:</span>
                   <span className="font-bold text-slate-900 text-sm block mt-0.5">
-                    {rendaEstimada ? `R$ ${Number(rendaEstimada).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'Não declarada'}
+                    {formatarRenda(rendaEstimada)}
                   </span>
                   <span className="text-[11px] text-slate-500 font-medium block mt-0.5">Base Estatística</span>
                 </div>
 
                 {perfilSocioeconomicoDisplay && (
-                  <div className="p-4 bg-slate-50/70 rounded-lg border border-slate-200 col-span-2 space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-1.5">
-                      <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">
+                  <div className="p-4 bg-slate-50/70 rounded-lg border border-slate-200 col-span-2 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 pb-2 border-b border-slate-200/60">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
                         Perfil Socioeconômico:
                       </span>
                       {mosaicInfo?.grupoNome && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
                           {mosaicInfo.grupoCodigo ? `Grupo ${mosaicInfo.grupoCodigo}: ` : ''}{mosaicInfo.grupoNome}
                         </span>
                       )}
@@ -1917,13 +1942,22 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                       <span className="font-bold text-slate-900 text-sm block">
                         {mosaicInfo ? `${mosaicInfo.codigo} • ${mosaicInfo.segmento}` : perfilSocioeconomicoDisplay}
                       </span>
+                      {mosaicInfo?.grupoDescricao && (
+                        <p className="text-[11px] text-slate-500 italic mt-0.5">
+                          {mosaicInfo.grupoDescricao}
+                        </p>
+                      )}
                     </div>
 
                     {(mosaicInfo?.descricaoTexto || dados.mosaic_texto || dados.perfil_socioeconomico_info?.texto) && (
-                      <div className="pt-2 border-t border-slate-200/80">
-                        <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
-                          {mosaicInfo?.descricaoTexto || dados.mosaic_texto || dados.perfil_socioeconomico_info?.texto}
-                        </p>
+                      <div className="pt-2 border-t border-slate-200/80 space-y-2.5">
+                        {(mosaicInfo?.descricaoTexto || dados.mosaic_texto || dados.perfil_socioeconomico_info?.texto)
+                          .split('\n\n')
+                          .map((paragrafo: string, pIdx: number) => (
+                            <p key={pIdx} className="text-xs text-slate-600 leading-relaxed text-justify">
+                              {paragrafo.trim()}
+                            </p>
+                          ))}
                       </div>
                     )}
                   </div>

@@ -835,10 +835,19 @@ export function normalizeE13(raw: any): NormalizedResult {
   const zona = d.ZONA || d.zona;
   const secao = d.SECAO || d.secao;
 
-  // CBO & Perfil Socioeconômico (antigo Mosaic)
+  // CBO & Perfil Socioeconômico (Serasa Mosaic Brasil Novo tem prioridade sobre o legado)
   const rawCbo = d.CBO || d.cbo;
   const cboInfo = translateCBO(rawCbo);
-  const rawMosaic = d.CD_MOSAIC || d.cd_mosaic || d.MOSAIC || d.mosaic;
+  const rawMosaic = 
+    d.CD_MOSAIC_NOVO ||
+    d.cd_mosaic_novo ||
+    d.MOSAIC_NOVO ||
+    d.mosaic_novo ||
+    d.CD_MOSAIC ||
+    d.cd_mosaic ||
+    d.MOSAIC ||
+    d.mosaic ||
+    d.CD_MOSAIC_SECUNDARIO;
   const mosaicInfo = translateMosaic(rawMosaic);
 
   return {
@@ -856,6 +865,8 @@ export function normalizeE13(raw: any): NormalizedResult {
       cbo_titulo: cboInfo?.titulo,
       cbo_formatado: cboInfo?.formatado,
       mosaic: mosaicInfo?.codigo || rawMosaic,
+      mosaic_novo: d.CD_MOSAIC_NOVO || d.cd_mosaic_novo,
+      mosaic_legado: d.CD_MOSAIC || d.cd_mosaic,
       mosaic_descricao: mosaicInfo?.descricaoCompleta,
       mosaic_texto: mosaicInfo?.descricaoTexto,
       perfil_socioeconomico: mosaicInfo?.descricaoCompleta || rawMosaic,
@@ -1054,10 +1065,22 @@ export function normalizeE15(raw: any): NormalizedResult {
   const rgObj = docs.rg || pessoa.rg || raw.rg;
   const scoreObj = fin.score || pessoa.score || raw.score;
 
-  // CBO & Perfil Socioeconômico
-  const rawCbo = ocup.cbo || raw.cbo;
+  // CBO & Perfil Socioeconômico (Serasa Mosaic Brasil Novo tem prioridade sobre legado)
+  const rawCbo = ocup.cbo || raw.cbo || raw.CBO;
   const cboInfo = translateCBO(rawCbo);
-  const rawMosaic = ocup.mosaic || raw.mosaic || raw.cd_mosaic || ocup.cd_mosaic || raw.CD_MOSAIC || ocup.CD_MOSAIC;
+  const rawMosaic = 
+    raw.CD_MOSAIC_NOVO ||
+    ocup.cd_mosaic_novo ||
+    ocup.mosaic_novo ||
+    raw.mosaic_novo ||
+    raw.cd_mosaic_novo ||
+    ocup.mosaic ||
+    raw.mosaic ||
+    raw.cd_mosaic ||
+    ocup.cd_mosaic ||
+    raw.CD_MOSAIC ||
+    ocup.CD_MOSAIC ||
+    raw.CD_MOSAIC_SECUNDARIO;
   const mosaicInfo = translateMosaic(rawMosaic);
 
   return {

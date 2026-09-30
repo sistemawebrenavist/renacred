@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import DetalhesConsultaModal from '../../components/imobiliario/DetalhesConsultaModal';
+import { PRODUCTS_CATALOG } from '../../config/productsCatalog';
 
 export default function DashboardAdmin() {
   const [metrics, setMetrics] = useState<any>(null);
@@ -43,6 +44,32 @@ export default function DashboardAdmin() {
       return c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
     }
     return val;
+  };
+
+  const formatIdentifier = (identifier: string) => {
+    if (!identifier) return '-';
+    const clean = identifier.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (clean.length === 7) {
+      return `${clean.substring(0, 3)}-${clean.substring(3)}`;
+    }
+    return formatDoc(identifier);
+  };
+
+  const getProductDetails = (q: any) => {
+    const rawCode = q.requestData?.product;
+    const isPlaca = (q.identifier && q.identifier.length <= 8 && !/^\d+$/.test(q.identifier.replace(/\D/g, '')));
+    const code = rawCode || (isPlaca ? 'E8' : 'E1');
+    const catalogItem = PRODUCTS_CATALOG.find((p) => p.code === code);
+    return {
+      code,
+      name: q.requestData?.productName || catalogItem?.name || 'Consulta Oficial',
+      shortName: catalogItem?.shortName || q.requestData?.productName || code,
+      badgeColor: catalogItem?.badgeColor || {
+        bg: 'bg-slate-100',
+        text: 'text-slate-800',
+        border: 'border-slate-200'
+      }
+    };
   };
 
   return (
@@ -126,65 +153,79 @@ export default function DashboardAdmin() {
               <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
                 <tr>
                   <th className="py-3 px-4">Empresa (Cliente)</th>
+                  <th className="py-3 px-4">Produto</th>
                   <th className="py-3 px-4">Plano</th>
-                  <th className="py-3 px-4">Documento Consultado</th>
-                  <th className="py-3 px-4 text-center">Declarações</th>
+                  <th className="py-3 px-4">Documento / Placa</th>
+                  <th className="py-3 px-4 text-center">Registros</th>
                   <th className="py-3 px-4">Tarifa</th>
                   <th className="py-3 px-4 text-right">Data/Hora</th>
                   <th className="py-3 px-4 text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {metrics.recentQueries.map((q: any) => (
-                  <tr key={q.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-900">{q.company?.razaoSocial}</div>
-                      {q.company?.cnpjCpf && (
-                        <div className="text-[11px] text-slate-400 font-mono">{formatDoc(q.company.cnpjCpf)}</div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                        {q.company?.accountType === 'PRE_PAID' ? 'Pré-pago' : 'Pós-pago'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-800">
-                      {formatDoc(q.identifier)}
-                    </td>
-                    <td className="py-3 px-4 text-center font-bold text-slate-700">
-                      {q.status === 'ERROR' ? (
-                        <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                          Falha
+                {metrics.recentQueries.map((q: any) => {
+                  const prod = getProductDetails(q);
+                  return (
+                    <tr key={q.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-slate-900">{q.company?.razaoSocial}</div>
+                        {q.company?.cnpjCpf && (
+                          <div className="text-[11px] text-slate-400 font-mono">{formatDoc(q.company.cnpjCpf)}</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center space-x-2">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${prod.badgeColor.bg} ${prod.badgeColor.text} ${prod.badgeColor.border}`}>
+                            {prod.code}
+                          </span>
+                          <span className="font-medium text-slate-700 text-xs truncate max-w-[170px]" title={prod.name}>
+                            {prod.shortName}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                          {q.company?.accountType === 'PRE_PAID' ? 'Pré-pago' : 'Pós-pago'}
                         </span>
-                      ) : (
-                        q.totalDeclaracoes || 0
-                      )}
-                    </td>
-                    <td className="py-3 px-4 font-bold text-emerald-700 font-mono">
-                      R$ {Number(q.cost || 0).toFixed(2)}
-                    </td>
-                    <td className="py-3 px-4 text-right text-slate-500 font-sans">
-                      {new Date(q.createdAt).toLocaleString('pt-BR')}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={() => setSelectedQueryId(q.id)}
-                        title="Visualizar declarações"
-                        className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-[#1D4ED8] bg-blue-50 hover:bg-blue-100/80 rounded-lg transition"
-                      >
-                        <Eye className="w-3.5 h-3.5 mr-1" />
-                        Visualizar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-800">
+                        {formatIdentifier(q.identifier)}
+                      </td>
+                      <td className="py-3 px-4 text-center font-bold text-slate-700">
+                        {q.status === 'ERROR' ? (
+                          <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                            Falha
+                          </span>
+                        ) : (
+                          q.totalDeclaracoes || 0
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-bold text-emerald-700 font-mono">
+                        R$ {Number(q.cost || 0).toFixed(2)}
+                      </td>
+                      <td className="py-3 px-4 text-right text-slate-500 font-sans">
+                        {new Date(q.createdAt).toLocaleString('pt-BR')}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => setSelectedQueryId(q.id)}
+                          title="Visualizar laudo pericial"
+                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-[#1D4ED8] bg-blue-50 hover:bg-blue-100/80 rounded-lg transition cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1" />
+                          Visualizar
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Modal de Detalhes da Consulta */}
+      {/* Modal de Detalhes da Consulta Universal */}
       <DetalhesConsultaModal
         isOpen={!!selectedQueryId}
         queryId={selectedQueryId}

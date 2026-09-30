@@ -378,8 +378,18 @@ export const obterDetalhesConsulta = async (req: any, res: Response) => {
     const companyId = req.user.companyId;
     const { id } = req.params;
 
+    const isSuperAdmin = req.user?.isSuperAdmin === true || req.user?.role === 'SUPERADMIN';
     const query = await prisma.query.findFirst({
-      where: { id, companyId }
+      where: isSuperAdmin ? { id } : { id, companyId },
+      include: {
+        company: {
+          select: {
+            id: true,
+            razaoSocial: true,
+            cnpjCpf: true
+          }
+        }
+      }
     });
 
     if (!query) {

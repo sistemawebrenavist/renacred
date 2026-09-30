@@ -1,27 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, 
-  Building, 
-  Car,
-  Calendar, 
-  CheckCircle2, 
   AlertCircle, 
   RotateCw, 
-  FileSpreadsheet, 
-  FileDown, 
-  ShieldCheck,
-  User,
-  MapPin,
-  Clock
+  Car, 
+  Building, 
+  User, 
+  Scale, 
+  ShieldCheck 
 } from 'lucide-react';
 import api from '../../services/api';
-import { DeclaracaoCard } from './DeclaracaoCard';
-import { ExportPdfButton } from './ExportPdfButton';
-import { ExportExcelButton } from './ExportExcelButton';
-import { ExportPdfVeicularButton } from '../veicular/ExportPdfVeicularButton';
-import { ExportExcelVeicularButton } from '../veicular/ExportExcelVeicularButton';
-import { ProprietarioTimelineCard } from '../veicular/ProprietarioTimelineCard';
-import { processarHistoricoProprietarios } from '../../utils/veicularUtils';
+import { PRODUCTS_CATALOG, ProductDefinition } from '../../config/productsCatalog';
+import { LaudoPericialUniversal } from '../consultas/LaudoPericialUniversal';
 
 interface DetalhesConsultaModalProps {
   isOpen: boolean;
@@ -62,35 +52,75 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
   }, [isOpen, queryId]);
 
   const resultData = queryData?.resultData || {};
+  const reqData = queryData?.requestData || {};
 
-  // Detecção Inteligente de Produto (E1 - Imobiliário vs E2 - Proprietários Veiculares)
-  const isVeicular = Boolean(
-    queryData?.requestData?.product === 'E2' ||
-    resultData?.placa ||
-    (Array.isArray(resultData?.historico) && resultData?.historico.length > 0)
-  );
-
-  // E1 Data
-  const declaracoes = resultData?.declaracoes || [];
-  const totalDeclaracoes = queryData?.totalDeclaracoes || declaracoes.length;
-  const periodo = resultData?.periodo || '';
-
-  // E2 Data & Ordenação Cronológica Ascendente com cálculo de Tempo de Posse
-  const historicoOrdenado = useMemo(() => {
-    return processarHistoricoProprietarios(resultData?.historico || []);
-  }, [resultData?.historico]);
-
-  const totalProprietarios = resultData?.total !== undefined ? resultData.total : historicoOrdenado.length;
-  const proprietarioAtual = resultData?.proprietario_atual || historicoOrdenado.find((h: any) => h.atual) || historicoOrdenado[historicoOrdenado.length - 1];
-
-  const formatDoc = (val: string) => {
-    if (!val) return '-';
-    const c = val.replace(/\D/g, '');
-    if (c.length === 11) {
-      return c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  // Detecção Inteligente e Universal do Código do Produto (E1 a E16)
+  const detectedProductCode = useMemo(() => {
+    if (reqData.product) return reqData.product;
+    if (resultData.placa || (Array.isArray(resultData.historico) && resultData.historico.length > 0)) {
+      return 'E2';
     }
-    if (c.length === 14) {
-      return c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    if (Array.isArray(resultData.multas) || resultData.total_multas !== undefined) {
+      return 'E8';
+    }
+    if (resultData.score !== undefined || resultData.mosaic !== undefined) {
+      return 'E13';
+    }
+    if (Array.isArray(resultData.pendencias_financeiras) || Array.isArray(resultData.protestos)) {
+      return 'E12';
+    }
+    if (Array.isArray(resultData.socios) || Array.isArray(resultData.participacoes)) {
+      return 'E5';
+    }
+    if (queryData?.identifier) {
+      const clean = queryData.identifier.replace(/[^a-zA-Z0-9]/g, '');
+      if (clean.length === 7 || clean.length === 8) {
+        return 'E8';
+      }
+    }
+    return 'E1';
+  }, [reqData.product, resultData, queryData?.identifier]);
+
+  // Definição Completa do Produto a partir do Catálogo Oficial
+  const productDef: ProductDefinition = useMemo(() => {
+    const found = PRODUCTS_CATALOG.find((p) => p.code === detectedProductCode);
+    if (found) return found;
+
+    const isVeic = ['E2', 'E6', 'E7', 'E8', 'E9', 'E10', 'E11'].includes(detectedProductCode);
+    return {
+      code: detectedProductCode,
+      slug: detectedProductCode.toLowerCase(),
+      name: reqData.productName || 'Consulta Oficial Renacred',
+      shortName: reqData.productName || detectedProductCode,
+      category: isVeic ? 'veicular' : 'cadastral',
+      categoryLabel: isVeic ? 'Veicular' : 'Cadastral',
+      inputType: isVeic ? 'placa' : 'cpf_cnpj',
+      inputLabel: isVeic ? 'Placa' : 'Documento',
+      placeholder: '',
+      description: '',
+      highlights: [],
+      defaultCost: 0,
+      defaultPrice: Number(queryData?.cost || 0),
+      hasContingency: false,
+      badgeColor: {
+        bg: 'bg-blue-50',
+        text: 'text-blue-700',
+        border: 'border-blue-200'
+      }
+    };
+  }, [detectedProductCode, reqData.productName, queryData?.cost]);
+
+  const formatIdentifier = (val: string) => {
+    if (!val) return '-';
+    const clean = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (clean.length === 7) {
+      return `${clean.substring(0, 3)}-${clean.substring(3)}`;
+    }
+    if (clean.length === 11) {
+      return clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+    if (clean.length === 14) {
+      return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
     }
     return val;
   };
@@ -98,346 +128,171 @@ export default function DetalhesConsultaModal({ isOpen, queryId, onClose }: Deta
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:static print:inset-auto print:overflow-visible">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" 
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity print:hidden" 
         onClick={onClose} 
       />
 
       {/* Modal Dialog */}
-      <div className="relative bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 z-10 max-h-[92vh] flex flex-col">
-        {/* Header Polimórfico (E1 vs E2) */}
-        <div className="flex items-center justify-between pb-5 border-b border-slate-100 flex-shrink-0">
-          <div className="flex items-center space-x-3.5">
-            <div 
-              className={`w-11 h-11 rounded-2xl flex items-center justify-center border shadow-xs ${
-                isVeicular
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                  : 'bg-blue-50 border-blue-200 text-blue-600'
-              }`}
-            >
-              {isVeicular ? (
-                <Car className="w-5 h-5" />
-              ) : (
-                <Building className="w-5 h-5" />
-              )}
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <span 
-                  className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ${
-                    isVeicular
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                      : 'bg-blue-50 text-blue-700 border-blue-200'
-                  }`}
-                >
-                  {isVeicular ? 'PRODUTO E2' : 'PRODUTO E1'}
-                </span>
-                <span className="text-xs text-slate-400">•</span>
-                <span className="text-xs font-semibold text-slate-600">
-                  {isVeicular ? 'Laudo Oficial de Proprietários Veiculares' : 'Laudo Oficial de Certidão Imobiliária'}
-                </span>
+      <div className="relative bg-white rounded-3xl max-w-5xl w-full p-5 sm:p-7 shadow-2xl border border-slate-200 z-10 max-h-[92vh] flex flex-col print:max-h-none print:shadow-none print:border-none print:p-0 print:w-full">
+        {/* Header Superior do Modal */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0 print:hidden">
+          {loading ? (
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center">
+                <RotateCw className="w-5 h-5 animate-spin text-blue-600" />
               </div>
-
-              <h3 className="text-lg font-bold text-slate-900">
-                {isVeicular
-                  ? 'E2 - Histórico de Proprietários por Placa'
-                  : 'E1 - Busca de Imóvel por Documento'}
-              </h3>
-
-              <div className="flex items-center gap-3 text-xs text-slate-500 font-mono mt-0.5">
-                {isVeicular ? (
-                  <>
-                    <span>Placa: <strong className="text-slate-900 font-bold">{resultData?.placa || queryData?.identifier}</strong></span>
-                    {resultData?.renavam && (
-                      <span>Renavam: <strong className="text-slate-900 font-bold">{resultData.renavam}</strong></span>
-                    )}
-                  </>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Carregando Consulta...</h3>
+                <p className="text-xs text-slate-400">Buscando laudo pericial oficial</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Consulta Indisponível</h3>
+                <p className="text-xs text-slate-400">Não foi possível carregar os dados desta pesquisa</p>
+              </div>
+            </div>
+          ) : queryData ? (
+            <div className="flex items-center space-x-3.5">
+              <div 
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center border shadow-xs ${
+                  productDef.category === 'veicular'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    : productDef.category === 'imobiliario'
+                    ? 'bg-blue-50 border-blue-200 text-blue-600'
+                    : productDef.category === 'juridico'
+                    ? 'bg-amber-50 border-amber-200 text-amber-700'
+                    : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                }`}
+              >
+                {productDef.category === 'veicular' ? (
+                  <Car className="w-5 h-5" />
+                ) : productDef.category === 'imobiliario' ? (
+                  <Building className="w-5 h-5" />
+                ) : productDef.category === 'juridico' ? (
+                  <Scale className="w-5 h-5" />
                 ) : (
-                  <span>Documento: <strong className="text-slate-900 font-bold">{formatDoc(queryData?.identifier || '')}</strong></span>
+                  <User className="w-5 h-5" />
                 )}
               </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span 
+                    className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ${productDef.badgeColor.bg} ${productDef.badgeColor.text} ${productDef.badgeColor.border}`}
+                  >
+                    PRODUTO {productDef.code}
+                  </span>
+                  <span className="text-xs text-slate-400">•</span>
+                  <span className="text-xs font-semibold text-slate-600">
+                    {productDef.categoryLabel} • {productDef.name}
+                  </span>
+                </div>
+
+                <h3 className="text-lg font-bold text-slate-900">
+                  {productDef.code} - {productDef.shortName}
+                </h3>
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500 font-mono mt-0.5">
+                  <span>
+                    {productDef.inputType === 'placa' || resultData?.placa ? 'Placa' : 'Documento'}:{' '}
+                    <strong className="text-slate-900 font-bold">
+                      {formatIdentifier(resultData?.placa || queryData.identifier)}
+                    </strong>
+                  </span>
+                  {resultData?.renavam && (
+                    <span>
+                      • Renavam: <strong className="text-slate-800">{resultData.renavam}</strong>
+                    </span>
+                  )}
+                  {queryData.company?.razaoSocial && (
+                    <span className="font-sans text-slate-500">
+                      • Cliente:{' '}
+                      <strong className="text-slate-800">{queryData.company.razaoSocial}</strong>
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+            title="Fechar janela"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="overflow-y-auto py-5 space-y-6 flex-1 pr-1">
+        {/* Content Body com Laudo Pericial Universal */}
+        <div className="overflow-y-auto py-4 space-y-4 flex-1 pr-1 print:overflow-visible print:p-0">
           {loading ? (
-            <div className="py-16 text-center space-y-3">
+            <div className="py-20 text-center space-y-3">
               <RotateCw className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
               <p className="text-sm font-semibold text-slate-700">Carregando dados da consulta...</p>
+              <p className="text-xs text-slate-400">Descriptografando certidão e montando laudo pericial</p>
             </div>
           ) : error ? (
-            <div className="py-12 text-center space-y-2">
+            <div className="py-16 text-center space-y-2">
               <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
-              <p className="text-sm font-semibold text-slate-900">{error}</p>
+              <p className="text-base font-bold text-slate-900">{error}</p>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Verifique se a consulta foi concluída com sucesso ou entre em contato com o suporte da Renacred.
+              </p>
               <button
                 onClick={onClose}
-                className="mt-4 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-semibold text-slate-700 transition"
+                className="mt-4 px-5 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-semibold text-slate-700 transition cursor-pointer"
               >
                 Fechar
               </button>
             </div>
           ) : queryData ? (
-            <>
-              {/* RENDERIZAÇÃO PARA PRODUTO E2 (VEICULAR) */}
-              {isVeicular ? (
-                <>
-                  {/* Resumo da Consulta E2 */}
-                  <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-emerald-100 text-emerald-900 border border-emerald-300">
-                          PRODUTO E2
-                        </span>
-                        <span className="text-xs text-slate-500 font-medium">Placa:</span>
-                        <span className="text-sm font-bold font-mono text-slate-900">
-                          {resultData?.placa || queryData.identifier}
-                        </span>
-                        {resultData?.renavam && (
-                          <span className="text-xs text-slate-500 font-mono">
-                            • Renavam: <strong className="text-slate-800">{resultData.renavam}</strong>
-                          </span>
-                        )}
-                        {queryData.status === 'ERROR' ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                            Falha no processamento
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            {totalProprietarios} proprietários
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center space-x-4 text-xs text-slate-500">
-                        <span>Data da Pesquisa: {new Date(queryData.createdAt).toLocaleString('pt-BR')}</span>
-                        {queryData.cost > 0 && <span>Tarifa: R$ {Number(queryData.cost).toFixed(2)}</span>}
-                      </div>
-                    </div>
-
-                    {queryData.status !== 'ERROR' && historicoOrdenado.length > 0 && (
-                      <div className="flex items-center space-x-2">
-                        <ExportExcelVeicularButton
-                          placa={resultData?.placa || queryData.identifier}
-                          renavam={resultData?.renavam}
-                          historico={historicoOrdenado}
-                        />
-                        <ExportPdfVeicularButton
-                          placa={resultData?.placa || queryData.identifier}
-                          renavam={resultData?.renavam}
-                          total={totalProprietarios}
-                          proprietarioAtual={proprietarioAtual}
-                          historico={historicoOrdenado}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card de Destaque: Proprietário Atual Vigente */}
-                  {proprietarioAtual && (
-                    <div className="bg-gradient-to-br from-blue-50/60 via-white to-white border border-blue-200 rounded-2xl p-5 shadow-xs relative overflow-hidden">
-                      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-blue-100">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#1D4ED8] text-white">
-                            PROPRIETÁRIO ATUAL VIGENTE
-                          </span>
-                          <span className="text-xs text-blue-900/70 font-medium">Titular Atual Registrado</span>
-                        </div>
-                        <span className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
-                          Situação Regular
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-                        <div>
-                          <span className="text-[11px] text-slate-500 font-medium block">Nome Completo do Titular:</span>
-                          <div className="flex items-center mt-1">
-                            <User className="w-4 h-4 mr-2 text-blue-600 shrink-0" />
-                            <span className="font-bold text-slate-900 text-sm">
-                              {proprietarioAtual.nome || 'NÃO INFORMADO'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[11px] text-slate-500 font-medium block">Documento:</span>
-                          <div className="flex items-center gap-2 mt-1 font-mono">
-                            <span className="font-bold text-slate-800 text-sm">
-                              {formatDoc(proprietarioAtual.documento)}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-slate-100 text-slate-600">
-                              {proprietarioAtual.tipo || 'Pessoa'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[11px] text-slate-500 font-medium block">Tempo de Posse Vigente:</span>
-                          <div className="flex items-center gap-1.5 mt-1 font-mono">
-                            <Clock className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span className="font-bold text-blue-900 text-sm">
-                              {proprietarioAtual.tempoPosse || 'Posse Ativa'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="sm:col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between">
-                          <div className="flex items-center text-slate-700">
-                            <MapPin className="w-4 h-4 mr-1.5 text-slate-400" />
-                            <span className="font-semibold">{proprietarioAtual.municipio || 'MUNICÍPIO NÃO INFORMADO'}</span>
-                            {proprietarioAtual.uf && <span className="ml-1 font-bold text-slate-500">/ {proprietarioAtual.uf}</span>}
-                          </div>
-                          {proprietarioAtual.evento && (
-                            <span className="text-xs text-slate-500 font-mono">
-                              Evento: {proprietarioAtual.evento}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Linha do Tempo / Timeline Ordenada (Da mais antiga para a mais recente) */}
-                  {queryData.status === 'ERROR' ? (
-                    <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-8 text-center text-slate-700 shadow-xs">
-                      <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-2" />
-                      <p className="text-sm font-bold text-slate-900">Falha no Processamento desta Consulta</p>
-                      <p className="text-xs text-rose-700 mt-1 max-w-md mx-auto">
-                        {queryData.errorData?.message || 'Ocorreu uma instabilidade momentânea na comunicação com a base de dados veicular.'}
-                      </p>
-                    </div>
-                  ) : historicoOrdenado.length === 0 ? (
-                    <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-slate-500 shadow-xs">
-                      <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                      <p className="text-sm font-semibold text-slate-800">Nenhum histórico de proprietários localizado</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Não constam registros de transferências para esta placa no registro veicular.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center">
-                          <Clock className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
-                          Cadeia Dominial Cronológica ({historicoOrdenado.length} registros)
-                        </h4>
-                        <span className="text-[11px] font-medium text-slate-500">
-                          Exibindo do registro mais antigo ao vigente
-                        </span>
-                      </div>
-
-                      <div className="pt-2">
-                        {historicoOrdenado.map((item: any, idx: number) => (
-                          <ProprietarioTimelineCard
-                            key={idx}
-                            item={{
-                              ...item,
-                              ordem: idx + 1,
-                              total: historicoOrdenado.length,
-                              isFirst: idx === 0,
-                              isLast: idx === historicoOrdenado.length - 1,
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                /* RENDERIZAÇÃO ORIGINAL PARA PRODUTO E1 (IMOBILIÁRIO) */
-                <>
-                  {/* Resumo da Consulta */}
-                  <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-100 text-blue-800 border border-blue-200">
-                          PRODUTO E1
-                        </span>
-                        <span className="text-xs text-slate-500 font-medium">Documento:</span>
-                        <span className="text-sm font-bold font-mono text-slate-900">{formatDoc(queryData.identifier)}</span>
-                        {queryData.status === 'ERROR' ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                            Falha no processamento
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            {totalDeclaracoes} declarações
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-4 text-xs text-slate-500">
-                        {periodo && <span>Período: {periodo}</span>}
-                        <span>Data: {new Date(queryData.createdAt).toLocaleString('pt-BR')}</span>
-                        {queryData.cost > 0 && <span>Tarifa: R$ {Number(queryData.cost).toFixed(2)}</span>}
-                      </div>
-                    </div>
-
-                    {queryData.status !== 'ERROR' && declaracoes.length > 0 && (
-                      <div className="flex items-center space-x-2">
-                        <ExportExcelButton documento={formatDoc(queryData.identifier)} declaracoes={declaracoes} />
-                        <ExportPdfButton
-                          documento={formatDoc(queryData.identifier)}
-                          totalDeclaracoes={totalDeclaracoes}
-                          periodo={periodo}
-                          declaracoes={declaracoes}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Lista de Declarações */}
-                  {queryData.status === 'ERROR' ? (
-                    <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-8 text-center text-slate-700 shadow-xs">
-                      <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-2" />
-                      <p className="text-sm font-bold text-slate-900">Falha no Processamento desta Consulta</p>
-                      <p className="text-xs text-rose-700 mt-1 max-w-md mx-auto">
-                        {queryData.errorData?.message || 'Ocorreu uma instabilidade ou timeout na comunicação com a base cartorária no momento desta pesquisa.'}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-2">
-                        Nenhum valor foi debitado do seu saldo. Você pode fechar este laudo e realizar uma nova pesquisa.
-                      </p>
-                    </div>
-                  ) : declaracoes.length === 0 ? (
-                    <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-slate-500 shadow-xs">
-                      <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                      <p className="text-sm font-semibold text-slate-800">Nenhum registro de imóvel localizado</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Não constam declarações de operações imobiliárias registradas para este documento no período consultado.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                        Declarações Registradas ({declaracoes.length})
-                      </h4>
-                      {declaracoes.map((item: any, idx: number) => (
-                        <DeclaracaoCard key={idx} declaracao={item} index={idx} />
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </>
+            queryData.status === 'ERROR' ? (
+              <div className="bg-rose-50/70 border border-rose-200 rounded-2xl p-8 text-center text-slate-700 shadow-xs">
+                <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-2" />
+                <p className="text-base font-bold text-slate-900">Falha no Processamento desta Consulta</p>
+                <p className="text-xs text-rose-700 mt-1 max-w-md mx-auto">
+                  {queryData.errorData?.message || 'Ocorreu um erro no provedor ou instabilidade momentânea durante a execução desta consulta via API.'}
+                </p>
+                <p className="text-xs text-slate-500 mt-2">
+                  Nenhum valor foi faturado para esta tentativa com erro.
+                </p>
+              </div>
+            ) : (
+              <LaudoPericialUniversal
+                produto={productDef}
+                identifier={queryData.identifier}
+                dados={resultData}
+                hash={reqData.hash || queryData.id}
+                totalRegistros={queryData.totalDeclaracoes || 0}
+                custoDebitado={Number(queryData.cost || 0)}
+                consultadoEm={queryData.createdAt}
+                tempoRespostaMs={queryData.processingTimeMs || undefined}
+              />
+            )
           ) : null}
         </div>
 
-        {/* Footer */}
-        <div className="pt-4 border-t border-slate-100 flex justify-end flex-shrink-0">
+        {/* Rodapé do Modal */}
+        <div className="pt-3 border-t border-slate-100 flex items-center justify-between flex-shrink-0 print:hidden">
+          <div className="text-[11px] text-slate-400">
+            {queryData && (
+              <span>
+                ID da Consulta: <span className="font-mono text-slate-500">{queryData.id}</span>
+              </span>
+            )}
+          </div>
           <button
             onClick={onClose}
-            className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+            className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
           >
             Fechar
           </button>
