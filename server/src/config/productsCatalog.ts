@@ -20,7 +20,7 @@ export const SERVER_PRODUCTS: ServerProductConfig[] = [
     inputType: 'cpf_cnpj',
     apiPrimary: 'historico_imobiliario',
     apiContingencies: [],
-    defaultCost: 0.00,
+    defaultCost: 0.10,
     defaultPrice: 5.00,
     slugAliases: ['imoveis', 'cartorios', 'doi']
   },
@@ -32,7 +32,7 @@ export const SERVER_PRODUCTS: ServerProductConfig[] = [
     inputType: 'placa',
     apiPrimary: 'historico_proprietario',
     apiContingencies: [],
-    defaultCost: 0.00,
+    defaultCost: 0.17,
     defaultPrice: 5.00,
     slugAliases: ['historico-proprietario', 'veicular-proprietarios']
   },

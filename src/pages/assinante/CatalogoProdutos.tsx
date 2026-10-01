@@ -115,6 +115,14 @@ export default function CatalogoProdutos() {
                     </span>
                   </div>
                   <div className="flex items-center space-x-1.5">
+                    {user?.isSuperAdmin && (
+                      <span
+                        className="text-[10px] font-mono font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200"
+                        title="Custo fixo da API fornecedora"
+                      >
+                        Custo: R$ {p.defaultCost.toFixed(2).replace('.', ',')}
+                      </span>
+                    )}
                     <span className="text-xs font-bold font-mono text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 shadow-2xs">
                       R$ {effectivePrice.toFixed(2).replace('.', ',')}
                       <span className="text-[10px] font-normal text-slate-500 ml-1">/cons</span>

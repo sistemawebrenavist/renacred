@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../config/database';
 import { fetchbrasilService } from '../services/fetchbrasil.service';
 import { validateIdentifier } from '../utils/cpfCnpjValidator';
-import { TransactionType } from '../types/database';
+import { TransactionType, InvoiceStatus } from '../types/database';
 import { logger } from '../utils/logger';
 
 /**
@@ -338,7 +338,20 @@ export const listCompanies = async (req: Request, res: Response) => {
       }
     });
 
-    return res.json({ success: true, data: companies });
+    const formattedCompanies = companies.map((c) => {
+      const customPrices = (c.customPrices as any) || {};
+      const isMasterAdmin = c.cnpjCpf === '00000000000191' ||
+                           c.razaoSocial?.toLowerCase().includes('renacred') ||
+                           Number(c.creditLimit) >= 999999 ||
+                           Boolean(customPrices.isUnlimited);
+      return {
+        ...c,
+        isMasterAdmin,
+        invoices: isMasterAdmin ? [] : c.invoices,
+      };
+    });
+
+    return res.json({ success: true, data: formattedCompanies });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: 'Erro ao listar empresas.' });
   }
@@ -346,7 +359,7 @@ export const listCompanies = async (req: Request, res: Response) => {
 
 /**
  * Atualização dos parâmetros comerciais da empresa
- * (Modalidade Pré/Pós-pago, Dia de Vencimento, Preço Customizado da Consulta, Limite de Crédito)
+ * (Modalidade Pré/Pós-pago/Ilimitada, Dia de Vencimento, Preço Customizado da Consulta, Limite de Crédito e Requisições)
  */
 export const updateCompanySettings = async (req: Request, res: Response) => {
   try {
@@ -359,7 +372,9 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
       isActive,
       rateLimitPerMinute,
       allowedProducts,
-      customPrices
+      customPrices,
+      monthlyRequestLimit,
+      isUnlimited
     } = req.body;
 
     const company = await prisma.company.findUnique({ where: { id } });
@@ -398,6 +413,14 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
       }
     }
 
+    if (isUnlimited !== undefined && Boolean(isUnlimited)) {
+      dataToUpdate.creditLimit = 999999;
+      // Cancela/remove faturas abertas para conta matriz/administradora
+      await prisma.invoice.deleteMany({
+        where: { companyId: id, status: InvoiceStatus.OPEN }
+      });
+    }
+
     if (isActive !== undefined) {
       dataToUpdate.isActive = Boolean(isActive);
     }
@@ -415,10 +438,19 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
         : ['ALL'];
     }
 
-    if (customPrices !== undefined) {
-      dataToUpdate.customPrices = typeof customPrices === 'object' && customPrices !== null
-        ? customPrices
-        : null;
+    if (customPrices !== undefined || isUnlimited !== undefined || monthlyRequestLimit !== undefined) {
+      const basePrices: Record<string, any> = typeof customPrices === 'object' && customPrices !== null
+        ? { ...customPrices }
+        : ((company.customPrices as any) ? { ...(company.customPrices as any) } : {});
+
+      if (isUnlimited !== undefined) {
+        basePrices.isUnlimited = Boolean(isUnlimited);
+      }
+      if (monthlyRequestLimit !== undefined) {
+        const reqLimit = parseInt(monthlyRequestLimit, 10);
+        basePrices.monthlyRequestLimit = !isNaN(reqLimit) && reqLimit > 0 ? reqLimit : null;
+      }
+      dataToUpdate.customPrices = Object.keys(basePrices).length > 0 ? basePrices : null;
     }
 
     const updated = await prisma.company.update({

@@ -111,13 +111,16 @@ export default function GerenciarClientes() {
   // Modal de Edição de Parâmetros (Update)
   const [editingCompany, setEditingCompany] = useState<any | null>(null);
   const [accountType, setAccountType] = useState<'PRE_PAID' | 'POST_PAID'>('PRE_PAID');
+  const [isUnlimitedAccount, setIsUnlimitedAccount] = useState<boolean>(false);
   const [billingDueDate, setBillingDueDate] = useState<number>(10);
   const [customQueryPrice, setCustomQueryPrice] = useState<string>('');
   const [creditLimit, setCreditLimit] = useState<string>('');
+  const [monthlyRequestLimit, setMonthlyRequestLimit] = useState<string>('');
+  const [rateLimitPerMinute, setRateLimitPerMinute] = useState<string>('60');
   const [isActive, setIsActive] = useState<boolean>(true);
   const [saving, setSaving] = useState(false);
 
-  // Gestão Comercial de Produtos & Preços Unitários por Assinante (16 Produtos)
+  // Gestão Comercial de Produtos & Preços Unitários por Assinante (19 Produtos)
   const [modalTab, setModalTab] = useState<'products' | 'billing'>('products');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [productPrices, setProductPrices] = useState<Record<string, string>>({});
@@ -235,10 +238,20 @@ export default function GerenciarClientes() {
 
   const openEditModal = (c: any) => {
     setEditingCompany(c);
-    setAccountType(c.accountType);
+    const customPrices = (c.customPrices as any) || {};
+    const isMaster = Boolean(c.isMasterAdmin) ||
+                     c.cnpjCpf === '00000000000191' ||
+                     c.razaoSocial?.toLowerCase().includes('renacred') ||
+                     Number(c.creditLimit) >= 999999 ||
+                     Boolean(customPrices.isUnlimited);
+
+    setIsUnlimitedAccount(isMaster);
+    setAccountType(isMaster ? 'POST_PAID' : c.accountType);
     setBillingDueDate(c.billingDueDate || 10);
     setCustomQueryPrice(c.customQueryPrice !== null ? String(c.customQueryPrice) : '');
     setCreditLimit(c.creditLimit !== null ? String(c.creditLimit) : '');
+    setMonthlyRequestLimit(customPrices.monthlyRequestLimit ? String(customPrices.monthlyRequestLimit) : '');
+    setRateLimitPerMinute(c.rateLimitPerMinute ? String(c.rateLimitPerMinute) : '60');
     setIsActive(c.isActive);
     setModalTab('products');
     setProductSearch('');
@@ -249,11 +262,13 @@ export default function GerenciarClientes() {
       : PRODUCTS_CATALOG.map((p) => p.code);
     setSelectedProducts(allowed);
 
-    // Resolver preços customizados por produto
+    // Resolver preços customizados por produto (excluindo metadados)
     const initialPrices: Record<string, string> = {};
     if (c.customPrices && typeof c.customPrices === 'object') {
       for (const [k, v] of Object.entries(c.customPrices)) {
-        initialPrices[k] = String(v);
+        if (k !== 'isUnlimited' && k !== 'monthlyRequestLimit') {
+          initialPrices[k] = String(v);
+        }
       }
     }
     setProductPrices(initialPrices);
@@ -283,23 +298,35 @@ export default function GerenciarClientes() {
 
     setSaving(true);
     try {
-      const customPricesObj: Record<string, number> = {};
+      const customPricesObj: Record<string, any> = {};
       for (const [k, v] of Object.entries(productPrices)) {
         if (v !== '' && !isNaN(Number(v))) {
           customPricesObj[k] = Number(v);
         }
       }
 
+      if (isUnlimitedAccount) {
+        customPricesObj.isUnlimited = true;
+      }
+      if (monthlyRequestLimit && !isNaN(Number(monthlyRequestLimit)) && Number(monthlyRequestLimit) > 0) {
+        customPricesObj.monthlyRequestLimit = Number(monthlyRequestLimit);
+      }
+
       const isAllSelected = selectedProducts.length === PRODUCTS_CATALOG.length;
 
       const res = await api.put(`/api/admin/companies/${editingCompany.id}`, {
-        accountType,
+        accountType: isUnlimitedAccount ? 'POST_PAID' : accountType,
         billingDueDate,
         customQueryPrice: customQueryPrice ? parseFloat(customQueryPrice) : null,
-        creditLimit: creditLimit ? parseFloat(creditLimit) : 0,
+        creditLimit: isUnlimitedAccount ? 999999 : (creditLimit ? parseFloat(creditLimit) : 0),
+        rateLimitPerMinute: rateLimitPerMinute ? parseInt(rateLimitPerMinute, 10) : 60,
         isActive,
         allowedProducts: isAllSelected ? ['ALL'] : selectedProducts,
-        customPrices: Object.keys(customPricesObj).length > 0 ? customPricesObj : null
+        customPrices: Object.keys(customPricesObj).length > 0 ? customPricesObj : null,
+        isUnlimited: isUnlimitedAccount,
+        monthlyRequestLimit: monthlyRequestLimit && !isNaN(Number(monthlyRequestLimit)) && Number(monthlyRequestLimit) > 0
+          ? parseInt(monthlyRequestLimit, 10)
+          : null
       });
 
       if (res.data?.success) {
@@ -386,6 +413,34 @@ export default function GerenciarClientes() {
     setTimeout(() => setCopiedKeyId(null), 2000);
   };
 
+  const [togglingCompanyId, setTogglingCompanyId] = useState<string | null>(null);
+
+  const handleToggleCompanyStatus = async (company: any) => {
+    const newStatus = !company.isActive;
+    setTogglingCompanyId(company.id);
+
+    // Optimistic UI update
+    setCompanies((prev) =>
+      prev.map((c) => (c.id === company.id ? { ...c, isActive: newStatus } : c))
+    );
+
+    try {
+      const res = await api.put(`/api/admin/companies/${company.id}`, {
+        isActive: newStatus,
+      });
+      if (res.data?.success) {
+        toast.success(newStatus ? `Empresa "${company.razaoSocial}" ativada!` : `Empresa "${company.razaoSocial}" desativada!`);
+      } else {
+        fetchCompanies();
+      }
+    } catch (err: any) {
+      toast.error('Erro ao alterar status da empresa.');
+      fetchCompanies();
+    } finally {
+      setTogglingCompanyId(null);
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs flex flex-wrap items-center justify-between gap-6">
@@ -422,7 +477,7 @@ export default function GerenciarClientes() {
       </div>
 
       {/* Tabela de Clientes */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
         {loading ? (
           <div className="py-12 text-center text-xs text-slate-400">Carregando lista de clientes...</div>
         ) : companies.length === 0 ? (
@@ -430,43 +485,81 @@ export default function GerenciarClientes() {
             Nenhum cliente cadastrado. Clique em "Novo Cliente" para criar um.
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full">
             <table className="w-full text-left text-xs">
               <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
                 <tr>
-                  <th className="py-3 px-3.5">Empresa / Documento</th>
-                  <th className="py-3 px-3">Plano / Venc.</th>
-                  <th className="py-3 px-3">Produtos & Tarifas</th>
-                  <th className="py-3 px-3">Saldo / Fatura</th>
-                  <th className="py-3 px-3">Acesso API</th>
-                  <th className="py-3 px-3 text-center">Status</th>
-                  <th className="py-3 px-3.5 text-right whitespace-nowrap">Ações</th>
+                  <th className="py-3 px-3">Empresa / Documento</th>
+                  <th className="py-3 px-2.5 whitespace-nowrap">Plano / Venc.</th>
+                  <th className="py-3 px-2.5 whitespace-nowrap">Produtos & Tarifas</th>
+                  <th className="py-3 px-2.5 whitespace-nowrap">Saldo / Fatura</th>
+                  <th className="py-3 px-2.5 whitespace-nowrap">Acesso API</th>
+                  <th className="py-3 px-2 text-center whitespace-nowrap">Status</th>
+                  <th className="py-3 px-3 text-right whitespace-nowrap">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {(Array.isArray(companies) ? companies : []).map((c, idx) => (
                   <tr key={c.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-3 px-3.5">
-                      <div className="max-w-[220px]">
-                        <p className="font-bold text-slate-900 truncate" title={c.razaoSocial}>{c.razaoSocial}</p>
-                        <p className="text-[11px] text-slate-500 font-mono">{c.cnpjCpf}</p>
+                    <td className="py-3 px-3">
+                      <div className="min-w-[170px] max-w-[260px]">
+                        <div className="flex items-start gap-1.5 flex-wrap">
+                          <p className="font-bold text-slate-900 text-xs break-words leading-snug" title={c.razaoSocial}>
+                            {c.razaoSocial}
+                          </p>
+                          {(c.isMasterAdmin || c.cnpjCpf === '00000000000191' || c.customPrices?.isUnlimited) && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-100 text-purple-800 border border-purple-200 shrink-0 self-start">
+                              Matriz
+                            </span>
+                          )}
+                        </div>
+                        {c.nomeFantasia && c.nomeFantasia !== c.razaoSocial && (
+                          <p className="text-[10.5px] text-slate-500 break-words mt-0.5">{c.nomeFantasia}</p>
+                        )}
+                        <p className="text-[11px] text-slate-500 font-mono mt-0.5">{c.cnpjCpf}</p>
                       </div>
                     </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                          c.accountType === 'POST_PAID'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        }`}
-                      >
-                        {c.accountType === 'POST_PAID' ? 'Pós-pago' : 'Pré-pago'}
-                      </span>
-                      <span className="block text-[11px] text-slate-500 font-medium mt-0.5">
-                        Dia {c.billingDueDate || 10}
-                      </span>
+                    <td className="py-3 px-2.5 whitespace-nowrap">
+                      {(() => {
+                        const customPrices = (c.customPrices as any) || {};
+                        const isMaster = Boolean(c.isMasterAdmin) ||
+                                         c.cnpjCpf === '00000000000191' ||
+                                         c.razaoSocial?.toLowerCase().includes('renacred') ||
+                                         Number(c.creditLimit) >= 999999 ||
+                                         Boolean(customPrices.isUnlimited);
+
+                        if (isMaster) {
+                          return (
+                            <div>
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                Ilimitado (Admin)
+                              </span>
+                              <span className="block text-[10px] text-slate-400 font-medium mt-0.5">
+                                Isento de fatura
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <>
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                                c.accountType === 'POST_PAID'
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              }`}
+                            >
+                              {c.accountType === 'POST_PAID' ? 'Pós-pago' : 'Pré-pago'}
+                            </span>
+                            <span className="block text-[10.5px] text-slate-500 font-medium mt-0.5">
+                              Dia {c.billingDueDate || 10}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </td>
-                    <td className="py-3 px-3">
+                    <td className="py-3 px-2.5">
                       {Array.isArray(c.allowedProducts) && c.allowedProducts.length > 0 && !c.allowedProducts.includes('ALL') ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                           {c.allowedProducts.length} de {PRODUCTS_CATALOG.length} produtos
@@ -476,9 +569,9 @@ export default function GerenciarClientes() {
                           Todos ({PRODUCTS_CATALOG.length} produtos)
                         </span>
                       )}
-                      {c.customPrices && typeof c.customPrices === 'object' && Object.keys(c.customPrices).length > 0 ? (
+                      {c.customPrices && typeof c.customPrices === 'object' && Object.keys(c.customPrices).filter(k => k !== 'isUnlimited' && k !== 'monthlyRequestLimit').length > 0 ? (
                         <span className="block text-[10px] text-slate-500 mt-0.5 font-sans">
-                          {Object.keys(c.customPrices).length} tarifas customizadas
+                          {Object.keys(c.customPrices).filter(k => k !== 'isUnlimited' && k !== 'monthlyRequestLimit').length} tarifas customizadas
                         </span>
                       ) : c.customQueryPrice ? (
                         <span className="block text-[10px] text-slate-500 mt-0.5 font-mono">
@@ -486,35 +579,80 @@ export default function GerenciarClientes() {
                         </span>
                       ) : null}
                     </td>
-                    <td className="py-3 px-3 font-mono whitespace-nowrap">
-                      {c.accountType === 'PRE_PAID' ? (
-                        <div>
-                          <span className="text-emerald-700 font-bold block text-xs">
-                            R$ {Number(c.creditsBalance || 0).toFixed(2)}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-sans block mt-0.5">
-                            Saldo em créditos
-                          </span>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="flex items-center space-x-1.5">
-                            <span className="text-blue-700 font-bold text-xs">
-                              Fatura: R$ {Number(c.invoices?.[0]?.totalAmount || 0).toFixed(2)}
+                    <td className="py-3 px-2.5">
+                      {(() => {
+                        const customPrices = (c.customPrices as any) || {};
+                        const isMaster = Boolean(c.isMasterAdmin) ||
+                                         c.cnpjCpf === '00000000000191' ||
+                                         c.razaoSocial?.toLowerCase().includes('renacred') ||
+                                         Number(c.creditLimit) >= 999999 ||
+                                         Boolean(customPrices.isUnlimited);
+                        const monthlyLimit = Number(customPrices.monthlyRequestLimit || 0);
+
+                        if (isMaster) {
+                          return (
+                            <div className="space-y-0.5">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
+                                Ilimitado • Sem Fatura
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-sans block">
+                                Conta Matriz / Administrador
+                              </span>
+                              {c._count?.queries > 0 && (
+                                <span className="text-[9.5px] text-slate-400 font-sans block">
+                                  {c._count.queries} consultas realizadas
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        if (c.accountType === 'PRE_PAID') {
+                          return (
+                            <div className="space-y-0.5">
+                              <span className="text-emerald-700 font-bold block text-xs font-mono">
+                                R$ {Number(c.creditsBalance || 0).toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-sans block">
+                                Saldo em créditos
+                              </span>
+                              {monthlyLimit > 0 && (
+                                <span className="text-[9px] text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100 inline-block font-sans">
+                                  Cota: {monthlyLimit} reqs/mês
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="space-y-0.5">
+                            <span className="text-[10.5px] text-slate-500 font-medium block">
+                              Fatura
                             </span>
-                            {c.invoices?.[0]?.totalQueries > 0 && (
-                              <span className="text-[9.5px] bg-blue-50 text-blue-700 border border-blue-200 px-1 py-0.2 rounded font-sans">
-                                {c.invoices[0].totalQueries} cons.
+                            <span className="text-blue-700 font-bold text-xs font-mono block whitespace-nowrap">
+                              R$ {Number(c.invoices?.[0]?.totalAmount || 0).toFixed(2)}
+                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                              {c.invoices?.[0]?.totalQueries > 0 && (
+                                <span className="text-[9px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded font-sans font-semibold whitespace-nowrap">
+                                  {c.invoices[0].totalQueries} consultas
+                                </span>
+                              )}
+                              <span className="text-[10px] text-slate-500 font-sans whitespace-nowrap">
+                                Lim: {Number(c.creditLimit) > 0 && Number(c.creditLimit) < 999999 ? `R$ ${Number(c.creditLimit).toFixed(0)}` : 'Ilimitado'}
+                              </span>
+                            </div>
+                            {monthlyLimit > 0 && (
+                              <span className="text-[9px] text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100 inline-block font-sans whitespace-nowrap">
+                                {c.invoices?.[0]?.totalQueries || 0}/{monthlyLimit} reqs mês
                               </span>
                             )}
                           </div>
-                          <span className="text-[10.5px] text-slate-500 font-sans block mt-0.5">
-                            Limite: {Number(c.creditLimit) > 0 && Number(c.creditLimit) < 999999 ? `R$ ${Number(c.creditLimit).toFixed(2)}` : 'Ilimitado'}
-                          </span>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </td>
-                    <td className="py-3 px-3">
+                    <td className="py-3 px-2.5">
                       {Array.isArray(c.apiKeys) && c.apiKeys.length > 0 ? (
                         (() => {
                           const activeKeyObj = c.apiKeys.find((k: any) => k?.isActive) || c.apiKeys[0];
@@ -522,8 +660,8 @@ export default function GerenciarClientes() {
                           const apiInfo = getClientApiEndpoint(c.allowedProducts, activeKey);
                           const prodUrl = apiInfo.url;
                           return (
-                            <div className="space-y-1">
-                              {/* Token */}
+                            <div className="space-y-0.5">
+                              {/* Token Pill */}
                               <div className="flex items-center space-x-1">
                                 <button
                                   type="button"
@@ -532,7 +670,7 @@ export default function GerenciarClientes() {
                                   title="Ver/Gerenciar todas as chaves deste cliente"
                                 >
                                   <KeyRound className="w-3 h-3 mr-1 text-purple-600 shrink-0" />
-                                  <span className="truncate max-w-[120px]">{activeKey}</span>
+                                  <span className="truncate max-w-[105px]">{activeKey}</span>
                                 </button>
                                 <button
                                   type="button"
@@ -554,15 +692,24 @@ export default function GerenciarClientes() {
                                 )}
                               </div>
 
-                              {/* Link de Endpoint de Produção Compacto */}
+                              {/* Link de baixo: Copiar Chave API */}
                               <button
                                 type="button"
-                                onClick={() => copyKeyToClipboard(prodUrl, `url-${c.id}`)}
-                                className="text-[10.5px] text-blue-600 hover:text-blue-800 flex items-center gap-1 font-mono transition cursor-pointer hover:underline"
-                                title={prodUrl}
+                                onClick={() => copyKeyToClipboard(activeKey, `token-link-${c.id}`)}
+                                className="text-[10.5px] text-purple-600 hover:text-purple-800 flex items-center gap-1 transition cursor-pointer hover:underline font-medium"
+                                title="Copiar Chave de API"
                               >
-                                <Copy className="w-2.5 h-2.5 shrink-0" />
-                                <span>{copiedKeyId === `url-${c.id}` ? 'Endpoint copiado!' : 'Copiar Endpoint'}</span>
+                                {copiedKeyId === `token-link-${c.id}` ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                                    <span className="text-emerald-700 font-bold">Chave copiada!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-2.5 h-2.5 shrink-0 text-purple-500" />
+                                    <span>Copiar Chave API</span>
+                                  </>
+                                )}
                               </button>
                             </div>
                           );
@@ -577,16 +724,30 @@ export default function GerenciarClientes() {
                         </button>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-center">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                          c.isActive
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
-                        }`}
-                      >
-                        {c.isActive ? 'Ativo' : 'Bloqueado'}
-                      </span>
+                    <td className="py-3 px-2 text-center whitespace-nowrap">
+                      <div className="flex flex-col items-center justify-center space-y-1">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={c.isActive}
+                          disabled={togglingCompanyId === c.id}
+                          onClick={() => handleToggleCompanyStatus(c)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden disabled:opacity-50 ${
+                            c.isActive ? 'bg-emerald-500' : 'bg-slate-300'
+                          }`}
+                          title={c.isActive ? 'Clique para desativar/bloquear este cliente' : 'Clique para ativar este cliente'}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                              c.isActive ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                        <span className={`text-[9.5px] font-bold ${c.isActive ? 'text-emerald-700' : 'text-slate-400'}`}>
+                          {c.isActive ? 'Ativo' : 'Bloqueado'}
+                        </span>
+                      </div>
                     </td>
                     <td className="py-3 px-3.5 text-right whitespace-nowrap">
                       <div className="relative inline-block text-left actions-dropdown-container">
@@ -1015,7 +1176,7 @@ export default function GerenciarClientes() {
       {/* Modal de Configuração Comercial e Produtos (Update) */}
       {editingCompany && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 max-w-3xl w-full shadow-2xl space-y-5 max-h-[92vh] flex flex-col">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 max-w-5xl w-full shadow-2xl space-y-5 max-h-[92vh] flex flex-col">
             {/* Header */}
             <div className="flex items-start justify-between border-b border-slate-100 pb-4 shrink-0">
               <div>
@@ -1052,7 +1213,7 @@ export default function GerenciarClientes() {
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Produtos & Preços ({selectedProducts.length}/16)</span>
+                <span>Produtos & Preços ({selectedProducts.length}/{PRODUCTS_CATALOG.length})</span>
               </button>
               <button
                 type="button"
@@ -1069,7 +1230,7 @@ export default function GerenciarClientes() {
             </div>
 
             <form onSubmit={handleSaveSettings} className="flex-1 overflow-hidden flex flex-col space-y-4 text-xs">
-              {/* ABA 1: Matriz dos 16 Produtos & Preços Customizados */}
+              {/* ABA 1: Matriz dos Produtos & Preços Customizados */}
               {modalTab === 'products' && (
                 <div className="flex-1 overflow-hidden flex flex-col space-y-3">
                   {/* Barra de Ações Rápidas */}
@@ -1088,21 +1249,33 @@ export default function GerenciarClientes() {
                       <button
                         type="button"
                         onClick={handleSelectAllProducts}
-                        className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg font-semibold text-[11px] transition cursor-pointer"
+                        className="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg font-semibold text-[11px] transition cursor-pointer"
                       >
-                        Liberar Todos (16)
+                        Liberar Todos ({PRODUCTS_CATALOG.length})
                       </button>
                       <button
                         type="button"
                         onClick={handleDeselectAllProducts}
-                        className="px-2.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 rounded-lg font-semibold text-[11px] transition cursor-pointer"
+                        className="px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 rounded-lg font-semibold text-[11px] transition cursor-pointer"
                       >
                         Bloquear Todos
                       </button>
                     </div>
                   </div>
 
-                  {/* Lista com Rolagem dos 16 Produtos */}
+                  {/* Cabeçalho de Colunas Informativas */}
+                  <div className="hidden md:flex items-center justify-between px-3.5 py-2 bg-slate-100/90 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                    <div className="flex-1 pr-4">
+                      <span>Produto & Descrição ({PRODUCTS_CATALOG.length} cadastrados)</span>
+                    </div>
+                    <div className="flex items-center space-x-3 shrink-0">
+                      <span className="w-28 text-center">Custo API (Fixo)</span>
+                      <span className="w-44 text-right">Cobrado do Cliente (R$)</span>
+                      <span className="w-24 text-right">Margem Est.</span>
+                    </div>
+                  </div>
+
+                  {/* Lista com Rolagem dos Produtos */}
                   <div className="flex-1 overflow-y-auto pr-1 space-y-2">
                     {PRODUCTS_CATALOG.filter((p) => {
                       const term = productSearch.trim().toLowerCase();
@@ -1115,68 +1288,98 @@ export default function GerenciarClientes() {
                     }).map((p) => {
                       const isEnabled = selectedProducts.includes(p.code);
                       const customPriceVal = productPrices[p.code] || '';
+                      const effectivePrice = customPriceVal !== '' && !isNaN(Number(customPriceVal))
+                        ? Number(customPriceVal)
+                        : p.defaultPrice;
+                      const margin = effectivePrice - p.defaultCost;
 
                       return (
                         <div
                           key={p.code}
-                          className={`p-3 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          className={`p-3 rounded-xl border transition flex flex-col md:flex-row md:items-center justify-between gap-3 ${
                             isEnabled
                               ? 'bg-blue-50/30 border-blue-200 shadow-2xs'
                               : 'bg-slate-50/70 border-slate-200 opacity-60'
                           }`}
                         >
                           {/* Identificação e Toggle */}
-                          <div className="flex items-start space-x-3 flex-1 min-w-0">
+                          <div className="flex items-start space-x-3 flex-1 min-w-0 pr-2">
                             <input
                               type="checkbox"
                               id={`prod-${p.code}`}
                               checked={isEnabled}
                               onChange={() => handleToggleProduct(p.code)}
-                              className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                              className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer shrink-0"
                             />
-                            <div className="min-w-0">
-                              <div className="flex items-center space-x-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span
-                                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono border ${p.badgeColor.bg} ${p.badgeColor.text} ${p.badgeColor.border}`}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono border shrink-0 ${p.badgeColor.bg} ${p.badgeColor.text} ${p.badgeColor.border}`}
                                 >
                                   {p.code}
                                 </span>
                                 <label
                                   htmlFor={`prod-${p.code}`}
-                                  className="text-xs font-bold text-slate-900 truncate cursor-pointer hover:text-blue-700"
+                                  className="text-xs font-bold text-slate-900 cursor-pointer hover:text-blue-700 break-words leading-tight"
                                 >
                                   {p.name}
                                 </label>
-                                <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded font-sans">
+                                <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded font-sans shrink-0">
                                   {p.categoryLabel}
                                 </span>
                               </div>
-                              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                              <p className="text-[11px] text-slate-500 mt-1 leading-snug">
                                 {p.description}
                               </p>
                             </div>
                           </div>
 
-                          {/* Ajuste de Preço Customizado */}
-                          <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
-                            <div className="text-right">
-                              <span className="text-[10px] text-slate-400 font-medium block">
-                                Padrão: R$ {p.defaultPrice.toFixed(2).replace('.', ',')}
+                          {/* Bloco Comercial: Custo Fixo da API + Preço Cobrado + Margem */}
+                          <div className="flex items-center space-x-3 shrink-0 self-end md:self-center">
+                            {/* 1. Custo Fixo da API */}
+                            <div className="flex flex-col items-center justify-center px-2.5 py-1.5 bg-slate-100/90 border border-slate-200 rounded-lg text-center w-28 shrink-0">
+                              <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">
+                                Custo API (Fixo)
+                              </span>
+                              <span className="text-xs font-mono font-bold text-slate-700">
+                                R$ {p.defaultCost.toFixed(2).replace('.', ',')}
                               </span>
                             </div>
-                            <div className="flex items-center space-x-1">
-                              <span className="text-slate-400 font-mono text-[11px]">R$</span>
-                              <input
-                                type="number"
-                                step="0.05"
-                                min="0"
-                                disabled={!isEnabled}
-                                placeholder={p.defaultPrice.toFixed(2)}
-                                value={customPriceVal}
-                                onChange={(e) => handleProductPriceChange(p.code, e.target.value)}
-                                className="w-20 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono text-right disabled:bg-slate-100 disabled:text-slate-400"
-                                title="Preço unitário personalizado para este produto"
-                              />
+
+                            {/* 2. Custo que será cobrado (Preço de Venda ao Cliente) */}
+                            <div className="flex flex-col items-end w-44 shrink-0">
+                              <div className="flex items-center space-x-1 mb-0.5">
+                                <span className="text-[9.5px] uppercase font-bold text-blue-700 tracking-wider">
+                                  Cobrado do Cliente
+                                </span>
+                                <span className="text-[9px] text-slate-400 font-medium">
+                                  (Padrão: R$ {p.defaultPrice.toFixed(2).replace('.', ',')})
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1.5 w-full justify-end">
+                                <span className="text-slate-400 font-mono text-[11px]">R$</span>
+                                <input
+                                  type="number"
+                                  step="0.05"
+                                  min="0"
+                                  disabled={!isEnabled}
+                                  placeholder={p.defaultPrice.toFixed(2)}
+                                  value={customPriceVal}
+                                  onChange={(e) => handleProductPriceChange(p.code, e.target.value)}
+                                  className="w-24 bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 font-mono font-bold text-right placeholder:text-slate-400 focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 disabled:bg-slate-100 disabled:text-slate-400"
+                                  title="Valor unitário cobrado deste cliente por consulta deste produto"
+                                />
+                              </div>
+                            </div>
+
+                            {/* 3. Margem Líquida */}
+                            <div className="hidden sm:flex flex-col items-end justify-center px-2.5 py-1.5 bg-emerald-50/90 border border-emerald-200 rounded-lg text-right w-24 shrink-0">
+                              <span className="text-[9px] uppercase font-bold text-emerald-700 tracking-wider">
+                                Margem Est.
+                              </span>
+                              <span className="text-xs font-mono font-bold text-emerald-800">
+                                +R$ {margin >= 0 ? margin.toFixed(2).replace('.', ',') : '0,00'}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -1189,16 +1392,34 @@ export default function GerenciarClientes() {
               {/* ABA 2: Faturamento & Limites Comerciais */}
               {modalTab === 'billing' && (
                 <div className="space-y-4 flex-1 overflow-y-auto pr-1">
+                  {isUnlimitedAccount && (
+                    <div className="p-3 bg-purple-50/80 border border-purple-200/90 rounded-xl text-purple-900 flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className="p-1 bg-purple-100 rounded text-purple-700 font-bold text-xs">👑</span>
+                        <div>
+                          <strong className="text-xs">Conta Administradora / Matriz (Isenta)</strong>
+                          <p className="text-[11px] text-purple-700">Esta conta possui acesso irrestrito sem geração de cobranças ou faturas comerciais.</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono bg-purple-100/80 text-purple-800 px-2 py-0.5 rounded-full font-bold">
+                        Sem Fatura
+                      </span>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                    {/* Plano de Pagamento */}
+                    {/* Plano de Pagamento (3 Opções: Pré, Pós e Ilimitado) */}
                     <div className="col-span-1 sm:col-span-2">
-                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Plano de Pagamento</label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Modalidade Comercial</label>
+                      <div className="grid grid-cols-3 gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setAccountType('PRE_PAID')}
-                          className={`py-1.5 rounded-lg border font-bold text-xs transition cursor-pointer ${
-                            accountType === 'PRE_PAID'
+                          onClick={() => {
+                            setAccountType('PRE_PAID');
+                            setIsUnlimitedAccount(false);
+                          }}
+                          className={`py-1.5 px-2 rounded-lg border font-bold text-[11px] transition cursor-pointer text-center truncate ${
+                            accountType === 'PRE_PAID' && !isUnlimitedAccount
                               ? 'bg-emerald-50 border-emerald-600 text-emerald-700 shadow-2xs'
                               : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                           }`}
@@ -1207,78 +1428,54 @@ export default function GerenciarClientes() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setAccountType('POST_PAID')}
-                          className={`py-1.5 rounded-lg border font-bold text-xs transition cursor-pointer ${
-                            accountType === 'POST_PAID'
+                          onClick={() => {
+                            setAccountType('POST_PAID');
+                            setIsUnlimitedAccount(false);
+                          }}
+                          className={`py-1.5 px-2 rounded-lg border font-bold text-[11px] transition cursor-pointer text-center truncate ${
+                            accountType === 'POST_PAID' && !isUnlimitedAccount
                               ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-2xs'
                               : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                           }`}
                         >
-                          Pós-pago (Fatura Mensal)
+                          Pós-pago (Fatura)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountType('POST_PAID');
+                            setIsUnlimitedAccount(true);
+                            setCreditLimit('999999');
+                          }}
+                          className={`py-1.5 px-2 rounded-lg border font-bold text-[11px] transition cursor-pointer text-center truncate ${
+                            isUnlimitedAccount
+                              ? 'bg-purple-50 border-purple-600 text-purple-700 shadow-2xs'
+                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          Ilimitado (Admin)
                         </button>
                       </div>
                     </div>
 
                     {/* Dia de Vencimento */}
                     <div className="col-span-1">
-                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Dia de Vencimento (1 a 31)</label>
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">
+                        Dia de Vencimento {isUnlimitedAccount ? '(Isento)' : '(1 a 31)'}
+                      </label>
                       <input
                         type="number"
                         min="1"
                         max="31"
-                        value={billingDueDate}
+                        disabled={isUnlimitedAccount}
+                        value={isUnlimitedAccount ? '' : billingDueDate}
+                        placeholder={isUnlimitedAccount ? 'Sem Fatura' : '10'}
                         onChange={(e) => setBillingDueDate(parseInt(e.target.value, 10))}
-                        required
-                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono disabled:bg-slate-100 disabled:text-slate-400"
                       />
                     </div>
 
-                    {/* Limite de Crédito ou Saldo Informativo */}
-                    <div className="col-span-1">
-                      {accountType === 'POST_PAID' ? (
-                        <>
-                          <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Limite de Consumo (R$)</label>
-                          <input
-                            type="number"
-                            step="50"
-                            min="0"
-                            value={creditLimit}
-                            onChange={(e) => setCreditLimit(e.target.value)}
-                            placeholder="Ex: 2000.00"
-                            className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Saldo em Conta</label>
-                          <div className="w-full bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 text-xs text-emerald-800 font-mono font-bold flex items-center justify-between">
-                            <span>R$ {Number(editingCompany.creditsBalance || 0).toFixed(2)}</span>
-                            <span className="text-[10px] text-emerald-600 bg-emerald-100/60 px-1 rounded font-sans font-semibold">Créditos</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Tarifa Global Fallback */}
-                    <div className="col-span-1 sm:col-span-3">
-                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">
-                        Tarifa Padrão Global da Empresa (R$) — Fallback Opcional
-                      </label>
-                      <input
-                        type="number"
-                        step="0.10"
-                        min="0"
-                        value={customQueryPrice}
-                        onChange={(e) => setCustomQueryPrice(e.target.value)}
-                        placeholder="Deixe vazio para usar os preços individuais dos produtos"
-                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
-                      />
-                      <p className="text-[10.5px] text-slate-400 mt-1">
-                        Se preenchido, substitui o preço padrão dos produtos que não possuírem preço customizado na aba anterior.
-                      </p>
-                    </div>
-
-                    {/* Ativo / Bloqueado */}
+                    {/* Status de Acesso */}
                     <div className="col-span-1 flex flex-col justify-start">
                       <label className="text-slate-700 font-semibold mb-1 text-[11px] block">Status de Acesso</label>
                       <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition">
@@ -1291,6 +1488,89 @@ export default function GerenciarClientes() {
                         />
                         <span className="text-[11px]">{isActive ? 'Empresa Ativa' : 'Bloqueada'}</span>
                       </label>
+                    </div>
+
+                    {/* Limite Financeiro ou Saldo */}
+                    <div className="col-span-1">
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">
+                        {isUnlimitedAccount
+                          ? 'Limite Financeiro'
+                          : accountType === 'POST_PAID'
+                          ? 'Limite de Consumo (R$)'
+                          : 'Saldo em Conta'}
+                      </label>
+                      {isUnlimitedAccount ? (
+                        <div className="w-full bg-purple-50 border border-purple-200 rounded-lg px-2.5 py-1.5 text-xs text-purple-800 font-mono font-bold">
+                          Ilimitado (Sem faturas)
+                        </div>
+                      ) : accountType === 'POST_PAID' ? (
+                        <input
+                          type="number"
+                          step="50"
+                          min="0"
+                          value={creditLimit}
+                          onChange={(e) => setCreditLimit(e.target.value)}
+                          placeholder="Ex: 2000.00"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                        />
+                      ) : (
+                        <div className="w-full bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 text-xs text-emerald-800 font-mono font-bold flex items-center justify-between">
+                          <span>R$ {Number(editingCompany.creditsBalance || 0).toFixed(2)}</span>
+                          <span className="text-[10px] text-emerald-600 bg-emerald-100/60 px-1 rounded font-sans font-semibold">Créditos</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Limite de Requisições Mensais */}
+                    <div className="col-span-1">
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">
+                        Limite de Requisições (Mês)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="100"
+                        value={monthlyRequestLimit}
+                        onChange={(e) => setMonthlyRequestLimit(e.target.value)}
+                        placeholder="Vazio para ilimitado"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                        title="Teto máximo de requisições por ciclo mensal. Deixe vazio para ilimitado."
+                      />
+                    </div>
+
+                    {/* Rate Limit por Minuto (API) */}
+                    <div className="col-span-1">
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">
+                        Rate Limit por Minuto (API)
+                      </label>
+                      <input
+                        type="number"
+                        min="10"
+                        max="600"
+                        step="10"
+                        value={rateLimitPerMinute}
+                        onChange={(e) => setRateLimitPerMinute(e.target.value)}
+                        placeholder="60"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                        title="Máximo de requisições simultâneas por minuto permitidas para a chave API"
+                      />
+                    </div>
+
+                    {/* Tarifa Global Fallback */}
+                    <div className="col-span-1">
+                      <label className="block text-slate-700 font-semibold mb-1 text-[11px]">
+                        Tarifa Fallback (R$)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.10"
+                        min="0"
+                        value={customQueryPrice}
+                        onChange={(e) => setCustomQueryPrice(e.target.value)}
+                        placeholder="Ex: 5.00"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
+                        title="Tarifa aplicada aos produtos que não tiverem preço unitário definido"
+                      />
                     </div>
                   </div>
                 </div>

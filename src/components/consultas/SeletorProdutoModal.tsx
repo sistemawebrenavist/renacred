@@ -68,7 +68,7 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Digite o código (E1..E16), nome do produto ou categoria..."
+            placeholder="Digite o código (E1..E19), nome do produto ou categoria..."
             className="w-full px-3.5 py-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-600 transition"
           />
         </div>

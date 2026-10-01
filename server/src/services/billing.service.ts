@@ -71,19 +71,21 @@ export class BillingService {
   }
 
   /**
-   * Valida se a empresa pode realizar a consulta (Pré-pago ou Pós-pago)
+   * Valida se a empresa pode realizar a consulta (Pré-pago, Pós-pago ou Ilimitada)
    */
   async checkEligibility(companyId: string, existingCompany?: any): Promise<BillingCheckResult> {
     const company = existingCompany || await prisma.company.findUnique({
       where: { id: companyId },
       select: {
         id: true,
+        cnpjCpf: true,
         razaoSocial: true,
         accountType: true,
         creditsBalance: true,
         creditLimit: true,
         billingDueDate: true,
         customQueryPrice: true,
+        customPrices: true,
         isActive: true,
       }
     });
@@ -96,9 +98,42 @@ export class BillingService {
       return { allowed: false, code: 'COMPANY_BLOCKED', message: 'Conta bloqueada ou inativa.', price: 0 };
     }
 
+    const customPrices = (company.customPrices as any) || {};
+    const isMasterAdmin = company.cnpjCpf === '00000000000191' ||
+                         company.razaoSocial?.toLowerCase().includes('renacred') ||
+                         Number(company.creditLimit) >= 999999 ||
+                         Boolean(customPrices.isUnlimited);
+
+    // 0. Conta Matriz / SuperAdmin / Ilimitada: acesso irrestrito sem faturas ou cobranças
+    if (isMasterAdmin) {
+      return { allowed: true, price: 0 };
+    }
+
     const price = company.customQueryPrice ? Number(company.customQueryPrice) : await this.getCompanyQueryPrice(companyId);
 
-    // 0. Bloqueio automático de inadimplência: Fatura vencida em atraso (OVERDUE)
+    // 1. Validação de Limite de Requisições / Consultas no Ciclo Mensal
+    const monthlyRequestLimit = Number(customPrices.monthlyRequestLimit || 0);
+    if (monthlyRequestLimit > 0) {
+      const { cycleStart, cycleEnd } = getBillingCycleDates(company.billingDueDate);
+      const currentCycleQueries = await prisma.query.count({
+        where: {
+          companyId,
+          status: 'COMPLETED',
+          createdAt: { gte: cycleStart, lte: cycleEnd }
+        }
+      });
+
+      if (currentCycleQueries >= monthlyRequestLimit) {
+        return {
+          allowed: false,
+          code: 'REQUEST_LIMIT_EXCEEDED',
+          message: `Limite mensal de requisições atingido (${currentCycleQueries}/${monthlyRequestLimit} consultas realizadas no ciclo). Solicite ampliação de cota à administração.`,
+          price,
+        };
+      }
+    }
+
+    // 2. Bloqueio automático de inadimplência: Fatura vencida em atraso (OVERDUE)
     const overdueInvoice = await prisma.invoice.findFirst({
       where: {
         companyId,
@@ -115,7 +150,7 @@ export class BillingService {
       };
     }
 
-    // 1. Regra para PRÉ-PAGO: saldo deve ser >= preço da consulta
+    // 3. Regra para PRÉ-PAGO: saldo deve ser >= preço da consulta
     if (company.accountType === 'PRE_PAID') {
       const balance = Number(company.creditsBalance);
       if (balance < price) {
@@ -129,7 +164,7 @@ export class BillingService {
       return { allowed: true, price };
     }
 
-    // 2. Regra para PÓS-PAGO: consumo dentro do limite de crédito
+    // 4. Regra para PÓS-PAGO: consumo dentro do limite de crédito financeiro
     if (company.accountType === 'POST_PAID') {
       const limit = Number(company.creditLimit);
       if (limit > 0) {
@@ -167,10 +202,31 @@ export class BillingService {
   async chargeQuery(companyId: string, queryId: string, price: number): Promise<void> {
     const company = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { accountType: true, creditsBalance: true, billingDueDate: true }
+      select: {
+        id: true,
+        cnpjCpf: true,
+        razaoSocial: true,
+        accountType: true,
+        creditsBalance: true,
+        creditLimit: true,
+        billingDueDate: true,
+        customPrices: true
+      }
     });
 
     if (!company) return;
+
+    const customPrices = (company.customPrices as any) || {};
+    const isMasterAdmin = company.cnpjCpf === '00000000000191' ||
+                         company.razaoSocial?.toLowerCase().includes('renacred') ||
+                         Number(company.creditLimit) >= 999999 ||
+                         Boolean(customPrices.isUnlimited);
+
+    // Conta Matriz / SuperAdmin / Ilimitada: NUNCA gera fatura nem debita saldo
+    if (isMasterAdmin) {
+      logger.info(`[BILLING] Consulta ${queryId} executada pela Conta Matriz/Admin (${company.razaoSocial}) - Isento de faturamento.`);
+      return;
+    }
 
     if (company.accountType === 'PRE_PAID') {
       await prisma.$transaction(async (tx) => {

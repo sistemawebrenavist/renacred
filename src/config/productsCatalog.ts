@@ -41,7 +41,7 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
       'Matrícula, livro, folha e cartório de registro',
       'Data de lavratura oficial'
     ],
-    defaultCost: 0.00,
+    defaultCost: 0.10,
     defaultPrice: 5.00,
     hasContingency: false,
     badgeColor: {
@@ -67,7 +67,7 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
       'Município e UF de emplacamento',
       'Eventos de transferência e datas oficiais'
     ],
-    defaultCost: 0.00,
+    defaultCost: 0.17,
     defaultPrice: 5.00,
     hasContingency: false,
     badgeColor: {
