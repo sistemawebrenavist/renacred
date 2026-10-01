@@ -155,6 +155,7 @@ export const getSubscriptionDetails = async (req: any, res: Response) => {
         creditLimit: true,
         billingDueDate: true,
         customQueryPrice: true,
+        allowedProducts: true,
         isActive: true,
       }
     });

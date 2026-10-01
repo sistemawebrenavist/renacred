@@ -423,6 +423,7 @@ export const getSubscriberDashboardMetrics = async (req: any, res: Response) => 
       queriesBySource,
       company,
       apiKeysCount,
+      activeApiKey,
       recentQueries
     ] = await Promise.all([
       // Consultas hoje
@@ -468,11 +469,17 @@ export const getSubscriberDashboardMetrics = async (req: any, res: Response) => 
       prisma.apiKey.count({
         where: { companyId, isActive: true }
       }),
+      // Chave de API ativa principal
+      prisma.apiKey.findFirst({
+        where: { companyId, isActive: true },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, key: true, name: true, createdAt: true }
+      }),
       // Últimas consultas para monitoramento
       prisma.query.findMany({
         where: { companyId },
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: 100,
         select: {
           id: true,
           identifier: true,
@@ -481,6 +488,7 @@ export const getSubscriberDashboardMetrics = async (req: any, res: Response) => 
           cost: true,
           totalDeclaracoes: true,
           processingTimeMs: true,
+          requestData: true,
           createdAt: true,
         }
       })
@@ -498,6 +506,30 @@ export const getSubscriberDashboardMetrics = async (req: any, res: Response) => 
     const apiPercent = totalValid > 0 ? Math.round((totalApi / totalValid) * 100) : 0;
     const webPercent = totalValid > 0 ? Math.round((totalWeb / totalValid) * 100) : 0;
 
+    // Calcular Top 3 produtos consultados
+    const productStats: Record<string, { code: string; name: string; count: number }> = {};
+    recentQueries.forEach(q => {
+      const req = q.requestData as any;
+      const code = req?.product || req?.codigo || 'E1';
+      const name = req?.productName || (code === 'E1' ? 'Pesquisa de Bens (DOI)' : code === 'E2' ? 'Histórico Veicular' : `Produto ${code}`);
+      if (!productStats[code]) {
+        productStats[code] = { code, name, count: 0 };
+      }
+      productStats[code].count++;
+    });
+
+    let topProducts = Object.values(productStats)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+
+    if (topProducts.length === 0) {
+      topProducts = [
+        { code: 'E1', name: 'Pesquisa de Bens (DOI)', count: declaracoesAggregate._sum.totalDeclaracoes || queriesTotal || 0 },
+        { code: 'E2', name: 'Histórico Veicular', count: 0 },
+        { code: 'E5', name: 'Cadastro Completo', count: 0 }
+      ];
+    }
+
     return res.json({
       success: true,
       data: {
@@ -514,7 +546,9 @@ export const getSubscriberDashboardMetrics = async (req: any, res: Response) => 
         },
         company,
         apiKeysCount,
-        recentQueries,
+        activeApiKey,
+        topProducts,
+        recentQueries: recentQueries.slice(0, 10),
       }
     });
   } catch (error: any) {

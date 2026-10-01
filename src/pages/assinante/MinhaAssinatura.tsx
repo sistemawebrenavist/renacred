@@ -20,6 +20,7 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import { PRODUCTS_CATALOG, getProductByCode } from '../../config/productsCatalog';
 
 export default function MinhaAssinatura() {
   const { user } = useAuth();
@@ -526,8 +527,23 @@ export default function MinhaAssinatura() {
                     <p className="font-bold text-slate-900 text-sm">
                       {isPostPaid ? 'Faturamento Pós-pago Consolidado' : 'Consumo Pré-pago via Créditos Pix'}
                     </p>
-                    <p className="text-slate-500 font-medium mt-2">Serviço de Consulta:</p>
-                    <p className="text-slate-700">Histórico Imobiliário Nacional (Cartórios & DOI)</p>
+                    <p className="text-slate-500 font-medium mt-2">Produtos Contratados:</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {(!company?.allowedProducts || company?.allowedProducts.includes('ALL') || (Array.isArray(company?.allowedProducts) && company.allowedProducts.length === 0)) ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Portfólio Completo Liberado (Todos os Produtos)
+                        </span>
+                      ) : (
+                        company.allowedProducts.map((code: string) => {
+                          const p = getProductByCode(code);
+                          return (
+                            <span key={code} className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-[#1D4ED8] border border-blue-200">
+                              {code} · {p?.name || code}
+                            </span>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -542,7 +558,7 @@ export default function MinhaAssinatura() {
                     </p>
                   </div>
                   <a
-                    href="https://wa.me/5547999999999?text=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20um%20upgrade%20no%20meu%20plano%20Renacred."
+                    href="https://wa.me/554196609987?text=Ol%C3%A1%2C%20sou%20assinante%20da%20Renacred%20e%20gostaria%20de%20falar%20sobre%20meu%20plano."
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white text-xs font-semibold px-5 py-2.5 rounded-xl inline-flex items-center transition shadow-xs shrink-0"
