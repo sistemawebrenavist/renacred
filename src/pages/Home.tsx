@@ -27,20 +27,20 @@ const DEMO_CONFIGS: Record<DemoEndpointKey, DemoConfig> = {
   e1: {
     id: 'e1',
     label: 'Imobiliário (DOI)',
-    endpoint: 'GET /v1/e1?query=01036115925',
+    endpoint: 'GET /v1/e1?query=00000000000',
     latency: '348ms',
     code: {
-      curl: `curl -X GET "https://[ENDPOINT_API]/v1/e1?token=SUA_CHAVE&query=01036115925"`,
+      curl: `curl -X GET "https://[ENDPOINT_API]/v1/e1?token=SUA_CHAVE&query=00000000000"`,
       node: `const res = await axios.get('https://[ENDPOINT_API]/v1/e1', {
   headers: { 'x-api-key': process.env.RENACRED_KEY },
-  params: { query: '01036115925' }
+  params: { query: '00000000000' }
 });
 console.log(res.data.dados.declaracoes);`,
       python: `import requests
 res = requests.get(
     "https://[ENDPOINT_API]/v1/e1",
     headers={"x-api-key": "SUA_CHAVE"},
-    params={"query": "01036115925"}
+    params={"query": "00000000000"}
 )
 print(res.json()["dados"])`
     },
@@ -51,7 +51,7 @@ print(res.json()["dados"])`
       custo_debitado: 5.00,
       tempo_ms: 348,
       dados: {
-        documento: "01036115925",
+        documento: "00000000000",
         imoveis_localizados: 1,
         declaracoes: [
           {
@@ -67,20 +67,20 @@ print(res.json()["dados"])`
   e3: {
     id: 'e3',
     label: 'Frota Veicular',
-    endpoint: 'GET /v1/e3?query=01036115925',
+    endpoint: 'GET /v1/e3?query=00000000000',
     latency: '412ms',
     code: {
-      curl: `curl -X GET "https://[ENDPOINT_API]/v1/e3?token=SUA_CHAVE&query=01036115925"`,
+      curl: `curl -X GET "https://[ENDPOINT_API]/v1/e3?token=SUA_CHAVE&query=00000000000"`,
       node: `const res = await axios.get('https://[ENDPOINT_API]/v1/e3', {
   headers: { 'x-api-key': process.env.RENACRED_KEY },
-  params: { query: '01036115925' }
+  params: { query: '00000000000' }
 });
 console.log(res.data.dados.veiculos);`,
       python: `import requests
 res = requests.get(
     "https://[ENDPOINT_API]/v1/e3",
     headers={"x-api-key": "SUA_CHAVE"},
-    params={"query": "01036115925"}
+    params={"query": "00000000000"}
 )
 print(res.json()["dados"]["veiculos"])`
     },
@@ -91,7 +91,7 @@ print(res.json()["dados"]["veiculos"])`
       custo_debitado: 1.32,
       tempo_ms: 412,
       dados: {
-        documento: "01036115925",
+        documento: "00000000000",
         quantidade_veiculos: 1,
         veiculos: [
           {
@@ -146,20 +146,20 @@ print(res.json()["dados"])`
   e5: {
     id: 'e5',
     label: 'Raio-X Cadastral',
-    endpoint: 'GET /v1/e5?query=01036115925',
+    endpoint: 'GET /v1/e5?query=00000000000',
     latency: '290ms',
     code: {
-      curl: `curl -X GET "https://[ENDPOINT_API]/v1/e5?token=SUA_CHAVE&query=01036115925"`,
+      curl: `curl -X GET "https://[ENDPOINT_API]/v1/e5?token=SUA_CHAVE&query=00000000000"`,
       node: `const res = await axios.get('https://[ENDPOINT_API]/v1/e5', {
   headers: { 'x-api-key': process.env.RENACRED_KEY },
-  params: { query: '01036115925' }
+  params: { query: '00000000000' }
 });
 console.log(res.data.dados);`,
       python: `import requests
 res = requests.get(
     "https://[ENDPOINT_API]/v1/e5",
     headers={"x-api-key": "SUA_CHAVE"},
-    params={"query": "01036115925"}
+    params={"query": "00000000000"}
 )
 print(res.json()["dados"])`
     },
@@ -170,7 +170,7 @@ print(res.json()["dados"])`
       custo_debitado: 1.32,
       tempo_ms: 290,
       dados: {
-        cpf: "01036115925",
+        cpf: "00000000000",
         nome: "CARLOS EDUARDO SILVEIRA",
         situacao_receita: "REGULAR",
         data_nascimento: "1984-07-19",

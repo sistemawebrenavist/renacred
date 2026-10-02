@@ -228,5 +228,5 @@
   ssh -n -o StrictHostKeyChecking=no root@209.50.245.165 "chmod +x /opt/renacred/deploy.sh && /opt/renacred/deploy.sh"
   ```
 - [ ] **Passo 3:** Verificar healthcheck da API: `curl -s http://127.0.0.1:3002/health`.
-- [ ] **Passo 4:** Executar chamada real de teste na API pública para um dos novos produtos (ex: `/v1/e3?token=rena_live_testmaster001&query=01036115925`).
+- [ ] **Passo 4:** Executar chamada real de teste na API pública para um dos novos produtos (ex: `/v1/e3?token=rena_live_testmaster001&query=00000000000`).
 - [ ] **Passo 5:** Confirmar que o frontend em `renacred.com.br` está renderizando o novo Sidebar, Catálogo e Hub perfeitamente.

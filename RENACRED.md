@@ -1,6 +1,6 @@
 RENACRED  
 PRODUTO "BUSCA DE FROTA"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renavam\_frota\&query=01036115925  
+https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renavam\_frota\&query=00000000000  
 Preço de Custo: R\$0,10  
 Preço de Venda: R\$1,32
 
@@ -65,7 +65,7 @@ Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "CONSULTA CPF NÍVEL I"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=cpf\_basica\&query=01036115925  
+https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=cpf\_basica\&query=00000000000  
 Preço de Custo: R\$0,03  
 Preço de Venda: R\$1,32
 
@@ -76,7 +76,7 @@ Preço de Custo: R\$0,15
 Preço de Venda: R\$1,32  
 RENACRED  
 PRODUTO "CONSULTA CPF NÍVEL II"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=cpf\_pwn\&query=01036115925  
+https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=cpf\_pwn\&query=00000000000  
 Preço de Custo: R\$0,35  
 Preço de Venda: R\$1,32
 

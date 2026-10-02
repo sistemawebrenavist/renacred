@@ -41,7 +41,7 @@ export default function GerenciarApi() {
 
   const [selectedKeyForTest, setSelectedKeyForTest] = useState<string>('');
   const [testDocument, setTestDocument] = useState<string>(() => {
-    return activeProduct?.inputType === 'placa' ? 'TJM9D75' : activeProduct?.inputType === 'rg' ? '123456789' : '01036115925';
+    return activeProduct?.inputType === 'placa' ? 'ABC1D23' : activeProduct?.inputType === 'rg' ? '123456789' : '00000000000';
   });
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [testApiResult, setTestApiResult] = useState<any | null>(null);
@@ -51,11 +51,11 @@ export default function GerenciarApi() {
     setSelectedProductCode(newCode);
     const prod = getProductByCode(newCode);
     if (prod?.inputType === 'placa') {
-      setTestDocument('TJM9D75');
+      setTestDocument('ABC1D23');
     } else if (prod?.inputType === 'rg') {
       setTestDocument('123456789');
     } else {
-      setTestDocument('01036115925');
+      setTestDocument('00000000000');
     }
     setTestApiResult(null);
   };

@@ -15,7 +15,7 @@ export default function PortalDevDocs() {
   const [activeLang, setActiveLang] = useState<'url_get' | 'curl' | 'node' | 'python' | 'php' | 'csharp'>('url_get');
 
   // Playground Interativo
-  const [playgroundInput, setPlaygroundInput] = useState('01036115925');
+  const [playgroundInput, setPlaygroundInput] = useState('00000000000');
   const [playgroundLoading, setPlaygroundLoading] = useState(false);
   const [playgroundResponse, setPlaygroundResponse] = useState<string | null>(null);
 
@@ -38,7 +38,7 @@ export default function PortalDevDocs() {
     } else if (product.inputType === 'rg') {
       setPlaygroundInput('123456789');
     } else {
-      setPlaygroundInput('01036115925');
+      setPlaygroundInput('00000000000');
     }
   };
 
@@ -58,7 +58,7 @@ export default function PortalDevDocs() {
         ? 'ATT0849'
         : activeProduct.inputType === 'rg'
         ? '123456789'
-        : '01036115925';
+        : '00000000000';
 
     return {
       url_get: `# 1. Requisição Direta via GET (Universal):
