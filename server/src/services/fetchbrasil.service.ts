@@ -3,6 +3,7 @@ import axios, { AxiosInstance } from 'axios';
 import { logger } from '../utils/logger';
 import { findServerProduct, ServerProductConfig } from '../config/productsCatalog';
 import { normalizeProductResult, NormalizedResult } from './productNormalizers';
+import { enrichProprietariosWithCnpj } from './cnpjService';
 
 
 export interface ParteDeclaracao {
@@ -364,6 +365,12 @@ export class FetchBrasilService {
             }));
           }
 
+          // Enriquecimento inteligente de Razão Social para registros com CNPJ
+          await enrichProprietariosWithCnpj({
+            proprietario_atual: rawData?.proprietario_atual,
+            historico: historicoOrdenado,
+          });
+
           const result: FetchBrasilProprietarioResponse = {
             success: rawData?.success !== false,
             placa: rawData?.placa || cleanPlaca,
@@ -574,6 +581,11 @@ export class FetchBrasilService {
             logger.warn(`[FETCHBRASIL] Não foi possível enriquecer proprietário E12 via Senatran: ${err.message}`);
           }
         }
+      }
+
+      // Enriquecimento inteligente para E2 (Histórico de Proprietários) para garantir Razão Social em todos os CNPJs
+      if (product.code === 'E2' && rawData) {
+        await enrichProprietariosWithCnpj(rawData);
       }
 
       // Normalização pericial e higienização de dados

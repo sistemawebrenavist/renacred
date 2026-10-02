@@ -5,7 +5,6 @@ import { AppLayout } from './components/layout/AppLayout';
 
 // Páginas do Assinante / Geral
 import Login from './pages/Login';
-import Home from './pages/Home';
 import DashboardCliente from './pages/assinante/DashboardCliente';
 import HubConsulta from './pages/assinante/HubConsulta';
 import CatalogoProdutos from './pages/assinante/CatalogoProdutos';
@@ -65,8 +64,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rotas Públicas */}
-        <Route path="/" element={<Home />} />
+        {/* Rotas Públicas (Acesso direto ao Login corporativo) */}
+        <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
 
         {/* Rotas Autenticadas */}

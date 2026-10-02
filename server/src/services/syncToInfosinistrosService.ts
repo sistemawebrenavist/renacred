@@ -20,7 +20,7 @@ const infosinistrosDbUrl =
   'postgresql://infosinistros_user:Infosinistros2025Secure@localhost:5432/infosinistros_production?schema=public';
 
 const PoolClass: any = (pg as any).Pool || (pg as any).default?.Pool || pg;
-const infoPool: any = new PoolClass({
+export const infoPool: any = new PoolClass({
   connectionString: infosinistrosDbUrl,
   max: 5,
   idleTimeoutMillis: 30000,

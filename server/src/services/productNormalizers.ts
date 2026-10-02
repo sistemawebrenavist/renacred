@@ -98,13 +98,32 @@ export function normalizeE1(raw: any): NormalizedResult {
  */
 export function normalizeE2(raw: any): NormalizedResult {
   const historico = Array.isArray(raw?.historico) ? raw.historico : [];
+  const propAtual = raw?.proprietario_atual;
+  const isCnpjDoc = (d: any) => String(d || '').replace(/\D/g, '').length === 14;
+
+  const normalizedPropAtual = propAtual ? {
+    ...propAtual,
+    nome: propAtual.nome || propAtual.razao_social || undefined,
+    razao_social: propAtual.razao_social || (isCnpjDoc(propAtual.documento) ? (propAtual.nome || undefined) : undefined)
+  } : undefined;
+
+  const normalizedHistorico = historico.map((h: any) => {
+    const isDocCnpj = isCnpjDoc(h.documento || h.cpfcnpj);
+    const resolvedName = h.nome || h.razao_social || h.razaoSocial || undefined;
+    return {
+      ...h,
+      nome: resolvedName,
+      razao_social: h.razao_social || (isDocCnpj ? resolvedName : undefined)
+    };
+  });
+
   return {
-    totalRegistros: historico.length,
+    totalRegistros: normalizedHistorico.length,
     dados: cleanObject({
       placa: raw?.placa,
       renavam: raw?.renavam,
-      proprietario_atual: raw?.proprietario_atual,
-      historico
+      proprietario_atual: normalizedPropAtual,
+      historico: normalizedHistorico
     }) || null
   };
 }

@@ -179,6 +179,9 @@ export default function ConsultarProprietarios() {
 
   const proprietarioAtual = result?.proprietario_atual || historicoOrdenado.find((h: any) => h.atual) || historicoOrdenado[historicoOrdenado.length - 1];
   const totalRegistros = result?.total !== undefined ? result.total : historicoOrdenado.length;
+  const docAtualLimpo = String(proprietarioAtual?.documento || '').replace(/\D/g, '');
+  const isCnpjAtual = docAtualLimpo.length === 14;
+  const isPfAtual = !isCnpjAtual && (proprietarioAtual?.tipo || '').toLowerCase().includes('fisica');
 
   const formatDoc = (val: string) => {
     if (!val) return '-';
@@ -359,11 +362,17 @@ export default function ConsultarProprietarios() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
                 <div>
-                  <span className="text-[11px] text-slate-500 font-medium block">Nome do Titular Atual:</span>
+                  <span className="text-[11px] text-slate-500 font-medium block">
+                    {isPfAtual ? 'Nome do Titular Atual:' : 'Razão Social do Titular Atual:'}
+                  </span>
                   <div className="flex items-center mt-1">
-                    <User className="w-4 h-4 mr-2 text-emerald-700 shrink-0" />
-                    <span className="font-extrabold text-slate-900 text-base">
-                      {proprietarioAtual.nome || 'NÃO INFORMADO'}
+                    {isPfAtual ? (
+                      <User className="w-4 h-4 mr-2 text-emerald-700 shrink-0" />
+                    ) : (
+                      <Building className="w-4 h-4 mr-2 text-amber-600 shrink-0" />
+                    )}
+                    <span className="font-extrabold text-slate-900 text-base truncate">
+                      {proprietarioAtual.razao_social || proprietarioAtual.nome || 'NÃO INFORMADO'}
                     </span>
                   </div>
                 </div>
@@ -374,8 +383,10 @@ export default function ConsultarProprietarios() {
                     <span className="font-bold text-slate-900 text-sm">
                       {formatDoc(proprietarioAtual.documento)}
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-sans font-medium bg-slate-100 text-slate-600">
-                      {proprietarioAtual.tipo || 'Pessoa'}
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-sans font-medium ${
+                      isCnpjAtual ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {isCnpjAtual ? 'Pessoa jurídica' : (proprietarioAtual.tipo || 'Pessoa física')}
                     </span>
                   </div>
                 </div>

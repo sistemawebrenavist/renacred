@@ -115,9 +115,9 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-6 print:border-none print:shadow-none print:p-0 print:m-0 print:w-full print:space-y-4">
+    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-6 print:border-none print:shadow-none print:p-0 print:m-0 print:w-full print:space-y-3">
       {/* Cabeçalho Institucional de Fé Pública Exclusivo para Impressão / PDF Oficial */}
-      <div className="hidden print:flex items-center justify-between border-b-2 border-slate-900 pb-3 mb-4">
+      <div className="hidden print:flex items-center justify-between border-b-2 border-slate-900 pb-2 mb-2">
         <div className="flex items-center gap-3">
           <RenacredLogo size="md" badge={false} />
           <div>
@@ -166,31 +166,31 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
       </div>
 
       {/* Grid de 3 Cards Executivos de Metadados (Padrão Impeccable) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 print:grid-cols-3 print:gap-2">
         {/* Card 1: Alvo Auditado */}
-        <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3.5">
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+        <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3.5 print:p-2 print:rounded-md">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block print:text-[9px]">
             Alvo Auditado ({produto.inputLabel})
           </span>
-          <span className="text-sm font-bold font-mono text-slate-900 mt-1 block">
+          <span className="text-sm font-bold font-mono text-slate-900 mt-1 block print:mt-0.5 print:text-xs">
             {formatDocumento(identifier)}
           </span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">
+          <span className="text-[11px] text-slate-500 mt-0.5 block print:text-[9.5px]">
             Categoria: {produto.categoryLabel}
           </span>
         </div>
 
         {/* Card 2: Resultado Oficial */}
-        <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3.5">
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+        <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3.5 print:p-2 print:rounded-md">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block print:text-[9px]">
             Resultado da Varredura
           </span>
-          <div className="flex items-center space-x-2 mt-1">
-            <span className="text-sm font-bold font-mono text-slate-900">
+          <div className="flex items-center space-x-2 mt-1 print:mt-0.5">
+            <span className="text-sm font-bold font-mono text-slate-900 print:text-xs">
               {totalRegistros} {totalRegistros === 1 ? 'registro' : 'registros'}
             </span>
             <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold print:text-[9px] ${
                 dados?.aviso
                   ? 'bg-amber-100 text-amber-900 border border-amber-300'
                   : totalRegistros > 0
@@ -201,10 +201,10 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
               {dados?.aviso ? 'Aviso da Base' : totalRegistros > 0 ? 'Dados Localizados' : 'Sem Ocorrências'}
             </span>
           </div>
-          <span className="text-[11px] text-slate-500 mt-0.5 block font-mono">
+          <span className="text-[11px] text-slate-500 mt-0.5 block font-mono print:text-[9.5px]">
             Tarifa: R$ {(custoDebitado > 0 ? custoDebitado : (produto.defaultPrice || 0)).toFixed(2).replace('.', ',')}
             {custoDebitado === 0 && (
-              <span className="ml-1.5 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-sans font-semibold">
+              <span className="ml-1.5 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-sans font-semibold print:text-[9px]">
                 Isento Administrador
               </span>
             )}
@@ -212,14 +212,14 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
         </div>
 
         {/* Card 3: Autenticação Digital */}
-        <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3.5">
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+        <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3.5 print:p-2 print:rounded-md">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block print:text-[9px]">
             Autenticação Digital
           </span>
-          <span className="text-xs font-bold font-mono text-blue-900 mt-1 block truncate" title={hash}>
+          <span className="text-xs font-bold font-mono text-blue-900 mt-1 block truncate print:mt-0.5 print:text-[10px]" title={hash}>
             {hash}
           </span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block font-mono">
+          <span className="text-[11px] text-slate-500 mt-0.5 block font-mono print:text-[9.5px]">
             {dataFormatada} {tempoRespostaMs ? `(${tempoRespostaMs}ms)` : ''}
           </span>
         </div>
@@ -429,6 +429,9 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
         data: titularVigente?.data || dados.proprietario_atual?.data || '',
       } : null;
       const tempoPosseAtual = proprietarioAtual?.tempoPosse || '';
+      const docAtualLimpo = String(proprietarioAtual?.documento || '').replace(/\D/g, '');
+      const isCnpjAtual = docAtualLimpo.length === 14;
+      const isPfAtual = !isCnpjAtual && (proprietarioAtual?.tipo || '').toLowerCase().includes('fisica');
 
       return (
         <div className="space-y-5">
@@ -480,11 +483,17 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
                 <div>
-                  <span className="text-[11px] text-slate-400 font-medium block">Nome do Titular Atual:</span>
+                  <span className="text-[11px] text-slate-400 font-medium block">
+                    {isPfAtual ? 'Nome do Titular Atual:' : 'Razão Social do Titular Atual:'}
+                  </span>
                   <div className="flex items-center mt-1">
-                    <User className="w-4 h-4 mr-1.5 text-emerald-700 shrink-0" />
+                    {isPfAtual ? (
+                      <User className="w-4 h-4 mr-1.5 text-emerald-700 shrink-0" />
+                    ) : (
+                      <Building className="w-4 h-4 mr-1.5 text-amber-600 shrink-0" />
+                    )}
                     <span className="font-extrabold text-slate-900 text-base truncate">
-                      {proprietarioAtual.nome || 'NÃO INFORMADO'}
+                      {proprietarioAtual.razao_social || proprietarioAtual.nome || 'NÃO INFORMADO'}
                     </span>
                   </div>
                 </div>
@@ -495,8 +504,10 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                     <span className="font-bold text-slate-800 text-sm">
                       {formatDocumento(proprietarioAtual.documento || '')}
                     </span>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-slate-100 text-slate-600">
-                      {proprietarioAtual.tipo || 'Pessoa'}
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-medium ${
+                      isCnpjAtual ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {isCnpjAtual ? 'Pessoa jurídica' : (proprietarioAtual.tipo || 'Pessoa física')}
                     </span>
                   </div>
                 </div>
@@ -2196,8 +2207,8 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
           {/* Card Canais de Contato Mapeados (Telefones & E-mails) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Telefones */}
-            <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-3">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className={`border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-3 print:p-2.5 print:space-y-1.5 ${telefones.length === 0 ? 'print:hidden' : ''}`}>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 print:pb-1">
                 <div className="flex items-center space-x-2">
                   <Phone className="w-4 h-4 text-slate-700" />
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -2233,8 +2244,8 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
             </div>
 
             {/* E-mails */}
-            <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-3">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className={`border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-3 print:p-2.5 print:space-y-1.5 ${emails.length === 0 ? 'print:hidden' : ''}`}>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 print:pb-1">
                 <div className="flex items-center space-x-2">
                   <Mail className="w-4 h-4 text-slate-700" />
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -2266,14 +2277,13 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                     );
                   })}
                 </div>
-
               )}
             </div>
           </div>
 
           {/* Card Histórico de Endereços */}
-          <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className={`border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4 print:p-2.5 print:space-y-1.5 ${enderecos.length === 0 ? 'print:hidden' : ''}`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 print:pb-1">
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4 text-slate-700" />
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -2315,8 +2325,8 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
           </div>
 
           {/* Card Vínculos Familiares / Parentesco */}
-          <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className={`border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4 print:p-2.5 print:space-y-1.5 ${parentes.length === 0 ? 'print:hidden' : ''}`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 print:pb-1">
               <div className="flex items-center space-x-2">
                 <Users className="w-4 h-4 text-slate-700" />
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-800">

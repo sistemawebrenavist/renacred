@@ -8,6 +8,8 @@ interface ProprietarioItem {
   documento: string;
   tipo: string;
   nome: string;
+  razao_social?: string;
+  nome_fantasia?: string;
   data: string;
   hora: string;
   uf: string;
@@ -165,46 +167,68 @@ export const ExportPdfVeicularButton: React.FC<ExportPdfVeicularProps> = ({
     doc.setFont('helvetica', 'bold');
     doc.text(`Hash: ${authCode}`, 143, metaCardY + 15);
 
-    let currentY = 50;
+    let currentY = 48;
 
     // Card de Destaque: Proprietário Atual Vigente (se houver)
     if (proprietarioAtual) {
+      const cardAtualH = 18;
       doc.setFillColor(239, 246, 255); // Blue 50
       doc.setDrawColor(191, 219, 254); // Blue 200
       doc.setLineWidth(0.4);
-      doc.roundedRect(12, currentY, 186, 22, 2, 2, 'FD');
+      doc.roundedRect(12, currentY, 186, cardAtualH, 1.5, 1.5, 'FD');
+
+      // Friso lateral azul institucional
+      doc.setFillColor(29, 78, 216);
+      doc.roundedRect(12, currentY, 2, cardAtualH, 1, 0, 'F');
 
       // Tag de destaque
       doc.setFillColor(29, 78, 216);
-      doc.roundedRect(16, currentY + 3.5, 38, 4.5, 1, 1, 'F');
+      doc.roundedRect(16, currentY + 2.5, 36, 4, 1, 1, 'F');
       doc.setFontSize(5.5);
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.text('PROPRIETÁRIO ATUAL VIGENTE', 18, currentY + 6.8);
+      doc.text('PROPRIETÁRIO ATUAL VIGENTE', 17.5, currentY + 5.3);
 
-      doc.setFontSize(9);
+      if (proprietarioAtual.tempoPosse) {
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(4, 120, 87); // Emerald 700
+        doc.text(`Tempo de Posse: ${proprietarioAtual.tempoPosse} (Vigente)`, 194, currentY + 5.3, { align: 'right' });
+      }
+
+      // Razão Social / Nome
+      doc.setFontSize(8.5);
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
-      doc.text(proprietarioAtual.nome || 'NÃO IDENTIFICADO', 16, currentY + 13.5);
+      const nomeTitular = proprietarioAtual.razao_social || proprietarioAtual.nome || 'NÃO IDENTIFICADO';
+      doc.text(nomeTitular, 16, currentY + 10.5);
 
-      doc.setFontSize(7);
+      // Documento, Localização e Evento
+      doc.setFontSize(6.5);
       doc.setTextColor(71, 85, 105);
       doc.setFont('helvetica', 'normal');
-      const docTipo = `${proprietarioAtual.tipo || 'Pessoa'} • ${formatDocumento(proprietarioAtual.documento || '')}`;
-      const localizacao = `${proprietarioAtual.municipio || ''} - ${proprietarioAtual.uf || ''}`;
-      doc.text(`${docTipo}  |  Município: ${localizacao}`, 16, currentY + 18.5);
+      const isAtualPj = String(proprietarioAtual.documento || '').replace(/\D/g, '').length === 14;
+      const docTipo = `${isAtualPj ? 'Pessoa jurídica' : (proprietarioAtual.tipo || 'Pessoa física')} • ${formatDocumento(proprietarioAtual.documento || '')}`;
+      const localizacao = `${proprietarioAtual.municipio || ''}${proprietarioAtual.uf ? ` - ${proprietarioAtual.uf}` : ''}`;
+      doc.text(`${docTipo}  |  Município: ${localizacao || 'Não informado'}`, 16, currentY + 15);
 
-      currentY += 27;
+      if (proprietarioAtual.data) {
+        doc.setFontSize(6);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Desde: ${proprietarioAtual.data}${proprietarioAtual.hora ? ` às ${proprietarioAtual.hora}` : ''}`, 194, currentY + 15, { align: 'right' });
+      }
+
+      currentY += cardAtualH + 3.5;
     }
 
     // Título da Seção do Histórico Cronológico
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(71, 85, 105);
-    doc.text(`HISTÓRICO CRONOLÓGICO DE PROPRIETÁRIOS (${historico.length}) - ORDEM ASCENDENTE`, 12, currentY);
-    currentY += 4;
+    doc.text(`CADEIA DOMINIAL CRONOLÓGICA (${historico.length} REGISTROS)`, 12, currentY);
+    currentY += 3.5;
 
-    const bottomLimit = 275;
+    const bottomLimit = 276;
 
     const drawHeaderSubsequent = () => {
       try {
@@ -218,7 +242,7 @@ export const ExportPdfVeicularButton: React.FC<ExportPdfVeicularProps> = ({
       doc.setTextColor(15, 23, 42);
       doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
-      doc.text('Laudo Oficial de Histórico de Proprietários Veiculares', 48, 10.5);
+      doc.text('Laudo Oficial de Histórico de Proprietários Veiculares (Continuação)', 48, 10.5);
       doc.setFontSize(6);
       doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'normal');
@@ -229,10 +253,11 @@ export const ExportPdfVeicularButton: React.FC<ExportPdfVeicularProps> = ({
       doc.line(12, 17.5, 198, 17.5);
     };
 
-    // Renderização dos Itens do Histórico (Cronológico da mais antiga para a mais recente)
-    historico.forEach((item, idx) => {
-      const cardHeight = 20;
+    // Renderização Compacta e Executiva (evita páginas espaçadas ou com poucos registros soltos)
+    const cardHeight = 15;
+    const cardSpacing = 1.8;
 
+    historico.forEach((item, idx) => {
       if (currentY + cardHeight > bottomLimit) {
         doc.addPage();
         drawHeaderSubsequent();
@@ -250,72 +275,69 @@ export const ExportPdfVeicularButton: React.FC<ExportPdfVeicularProps> = ({
         doc.setDrawColor(226, 232, 240);
       }
       doc.setLineWidth(0.3);
-      doc.roundedRect(12, currentY, 186, cardHeight, 1.5, 1.5, 'FD');
+      doc.roundedRect(12, currentY, 186, cardHeight, 1.2, 1.2, 'FD');
 
       // Friso lateral
       if (isAtual) {
         doc.setFillColor(22, 163, 74); // Green 600
-        doc.roundedRect(12, currentY, 2, cardHeight, 1, 0, 'F');
+        doc.roundedRect(12, currentY, 1.8, cardHeight, 1, 0, 'F');
       }
 
-      // Badge ordinal cronológico
-      doc.setFontSize(6.5);
+      // Linha 1: Badge ordinal e Data/Hora
+      doc.setFontSize(6);
       doc.setFont('helvetica', 'bold');
       if (isAtual) {
         doc.setTextColor(22, 163, 74);
-        doc.text(`#${idx + 1} • PROPRIETÁRIO ATUAL (VIGENTE)`, 17, currentY + 4.5);
+        doc.text(`#${idx + 1} • PROPRIETÁRIO ATUAL (VIGENTE)`, 16, currentY + 3.8);
       } else if (idx === 0) {
         doc.setTextColor(29, 78, 216);
-        doc.text(`#1 • PRIMEIRO REGISTRO HISTÓRICO`, 17, currentY + 4.5);
+        doc.text(`#1 • PRIMEIRO REGISTRO HISTÓRICO`, 16, currentY + 3.8);
       } else {
         doc.setTextColor(100, 116, 139);
-        doc.text(`#${idx + 1} • REGISTRO DE PROPRIEDADE`, 17, currentY + 4.5);
+        doc.text(`#${idx + 1} • REGISTRO DE PROPRIEDADE`, 16, currentY + 3.8);
       }
 
       // Data e Hora do evento à direita
-      doc.setFontSize(6.5);
-      doc.setTextColor(100, 116, 139);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Data: ${item.data || '-'} às ${item.hora || '-'}`, 194, currentY + 4.5, { align: 'right' });
-
-      // Nome do Proprietário
-      doc.setFontSize(8);
-      doc.setTextColor(15, 23, 42);
-      doc.setFont('helvetica', 'bold');
-      doc.text(item.nome || 'NÃO INFORMADO', 17, currentY + 9.5);
-
-      // Documento, Tipo e Evento
-      doc.setFontSize(6.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(71, 85, 105);
-      const docStr = `${item.tipo || 'Pessoa'} | Doc: ${formatDocumento(item.documento || '')}`;
-      const eventoStr = item.evento ? `Evento: ${item.evento}` : 'Evento: Transferência de propriedade';
-      doc.text(docStr, 17, currentY + 14);
-
-      // Localização
-      doc.setFontSize(6.5);
-      doc.setTextColor(15, 23, 42);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Município: ${item.municipio || ''} - ${item.uf || ''}`, 194, currentY + 14, { align: 'right' });
-
       doc.setFontSize(6);
       doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'normal');
-      doc.text(eventoStr, 17, currentY + 18);
+      doc.text(`Registro: ${item.data || '-'} às ${item.hora || '-'}`, 194, currentY + 3.8, { align: 'right' });
+
+      // Linha 2: Razão Social / Nome e Localização
+      doc.setFontSize(7.5);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      const nomeExibicao = item.razao_social || item.nome || 'NÃO INFORMADO';
+      doc.text(nomeExibicao, 16, currentY + 8);
+
+      doc.setFontSize(6.5);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      const locStr = `${item.municipio || ''}${item.uf ? ` - ${item.uf}` : ''}`;
+      doc.text(locStr || 'Município não informado', 194, currentY + 8, { align: 'right' });
+
+      // Linha 3: Documento, Tipo, Evento e Tempo de Posse
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(71, 85, 105);
+      const isItemPj = String(item.documento || '').replace(/\D/g, '').length === 14;
+      const docStr = `${isItemPj ? 'Pessoa jurídica' : (item.tipo || 'Pessoa física')} | Doc: ${formatDocumento(item.documento || '')}`;
+      const eventoStr = item.evento ? ` | Evento: ${item.evento}` : '';
+      doc.text(`${docStr}${eventoStr}`, 16, currentY + 12.3);
 
       if (item.tempoPosse) {
-        doc.setFontSize(6.5);
+        doc.setFontSize(6);
         doc.setFont('helvetica', 'bold');
         if (isAtual) {
           doc.setTextColor(22, 163, 74);
-          doc.text(`Tempo de Posse: ${item.tempoPosse}`, 194, currentY + 18, { align: 'right' });
+          doc.text(`Tempo de Posse: ${item.tempoPosse}`, 194, currentY + 12.3, { align: 'right' });
         } else {
           doc.setTextColor(71, 85, 105);
-          doc.text(`Tempo de Posse: ${item.tempoPosse}`, 194, currentY + 18, { align: 'right' });
+          doc.text(`Tempo de Posse: ${item.tempoPosse}`, 194, currentY + 12.3, { align: 'right' });
         }
       }
 
-      currentY += cardHeight + 2.5;
+      currentY += cardHeight + cardSpacing;
     });
 
     // 4. RODAPÉ DE FÉ PÚBLICA EM TODAS AS PÁGINAS

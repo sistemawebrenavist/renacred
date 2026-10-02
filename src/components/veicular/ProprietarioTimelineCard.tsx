@@ -1,11 +1,14 @@
-import React from 'react';
-import { Calendar, Clock, MapPin, User, Building, CheckCircle2, Shield, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, MapPin, User, Building, CheckCircle2, Shield, ArrowRight, Loader2 } from 'lucide-react';
+import api from '../../services/api';
 
 export interface ProprietarioTimelineProps {
   ordem: number;
   documento: string;
   tipo: string;
   nome: string;
+  razao_social?: string;
+  nome_fantasia?: string;
   data: string;
   hora: string;
   uf: string;
@@ -31,18 +34,64 @@ export const ProprietarioTimelineCard: React.FC<{ item: ProprietarioTimelineProp
     return doc;
   };
 
-  const isPessoaFisica = (item.tipo || '').toLowerCase().includes('fisica');
+  const docLimpo = (item.documento || '').replace(/\D/g, '');
+  const isCnpj = docLimpo.length === 14;
+  const isPessoaFisica = !isCnpj && (item.tipo || '').toLowerCase().includes('fisica');
+
+  const initialName = item.razao_social || item.nome || '';
+  const isMissing =
+    !initialName ||
+    initialName.toUpperCase().includes('NÃO INFORMADO') ||
+    initialName.toUpperCase().includes('NAO INFORMADO') ||
+    initialName.toUpperCase() === 'PROPRIETARIO REGISTRADO' ||
+    initialName.toUpperCase() === 'NAO CONSTA';
+
+  const [asyncRazaoSocial, setAsyncRazaoSocial] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (isCnpj && isMissing && !asyncRazaoSocial) {
+      setResolving(true);
+      api
+        .get(`/api/consultas/cnpj-razao/${docLimpo}`)
+        .then((res) => {
+          if (isMounted && res.data?.razaoSocial) {
+            setAsyncRazaoSocial(res.data.razaoSocial);
+          }
+        })
+        .catch(() => {
+          // Fallback para BrasilAPI direto no navegador
+          fetch(`https://brasilapi.com.br/api/cnpj/v1/${docLimpo}`)
+            .then((r) => r.json())
+            .then((data) => {
+              if (isMounted && data?.razao_social) {
+                setAsyncRazaoSocial(data.razao_social.toUpperCase());
+              }
+            })
+            .catch(() => {});
+        })
+        .finally(() => {
+          if (isMounted) setResolving(false);
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [docLimpo, isCnpj, isMissing, asyncRazaoSocial]);
+
+  const displayName = asyncRazaoSocial || (!isMissing ? initialName : (resolving ? 'Buscando Razão Social...' : 'NÃO INFORMADO'));
 
   return (
-    <div className="relative pl-8 pb-6 last:pb-2 group">
+    <div className="relative pl-8 pb-6 last:pb-2 group print:pl-6 print:pb-2.5 print:break-inside-avoid">
       {/* Linha vertical conectando os nós da timeline */}
       {!item.isLast && (
-        <div className="absolute left-[15px] top-6 bottom-0 w-0.5 bg-slate-200 group-hover:bg-blue-300 transition-colors" />
+        <div className="absolute left-[15px] top-6 bottom-0 w-0.5 bg-slate-200 group-hover:bg-blue-300 transition-colors print:top-4" />
       )}
 
       {/* Marcador do nó na linha do tempo */}
       <div 
-        className={`absolute left-0 top-1.5 w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold font-mono transition-transform group-hover:scale-105 ${
+        className={`absolute left-0 top-1.5 w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold font-mono transition-transform group-hover:scale-105 print:w-6 print:h-6 print:text-[10px] print:top-1 ${
           item.atual
             ? 'bg-emerald-600 border-emerald-200 text-white shadow-sm ring-4 ring-emerald-50'
             : item.isFirst
@@ -51,7 +100,7 @@ export const ProprietarioTimelineCard: React.FC<{ item: ProprietarioTimelineProp
         }`}
       >
         {item.atual ? (
-          <CheckCircle2 className="w-4 h-4" />
+          <CheckCircle2 className="w-4 h-4 print:w-3.5 print:h-3.5" />
         ) : (
           <span>{item.ordem}</span>
         )}
@@ -59,14 +108,14 @@ export const ProprietarioTimelineCard: React.FC<{ item: ProprietarioTimelineProp
 
       {/* Card de Conteúdo do Registro */}
       <div 
-        className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-xs ${
+        className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-xs print:p-2.5 print:rounded-lg print:border-slate-300 print:shadow-none print:break-inside-avoid ${
           item.atual
             ? 'bg-gradient-to-br from-emerald-50/40 via-white to-white border-emerald-200 ring-1 ring-emerald-500/20'
             : 'bg-white border-slate-200/90 hover:border-slate-300 hover:shadow-sm'
         }`}
       >
         {/* Cabeçalho do Card */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 print:pb-1.5 print:mb-1.5">
           <div className="flex items-center gap-2">
             <span 
               className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider border ${
@@ -122,15 +171,22 @@ export const ProprietarioTimelineCard: React.FC<{ item: ProprietarioTimelineProp
         {/* Detalhes do Titular */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           <div>
-            <span className="text-[11px] text-slate-400 font-medium block">Nome do Titular:</span>
+            <span className="text-[11px] text-slate-400 font-medium block">
+              {isPessoaFisica ? 'Nome do Titular:' : 'Razão Social / Titular:'}
+            </span>
             <div className="flex items-center mt-0.5">
               {isPessoaFisica ? (
                 <User className="w-3.5 h-3.5 mr-1.5 text-blue-600 shrink-0" />
               ) : (
                 <Building className="w-3.5 h-3.5 mr-1.5 text-amber-600 shrink-0" />
               )}
-              <span className="font-bold text-slate-900 text-sm truncate">
-                {item.nome || 'NÃO INFORMADO'}
+              <span
+                className={`font-bold text-sm truncate ${
+                  resolving ? 'text-amber-600 animate-pulse' : 'text-slate-900'
+                }`}
+                title={displayName}
+              >
+                {displayName}
               </span>
             </div>
           </div>
@@ -141,8 +197,10 @@ export const ProprietarioTimelineCard: React.FC<{ item: ProprietarioTimelineProp
               <span className="font-bold text-slate-800">
                 {formatDocumento(item.documento)}
               </span>
-              <span className="px-1.5 py-0.2 rounded text-[10px] font-sans font-medium bg-slate-100 text-slate-600">
-                {item.tipo || (isPessoaFisica ? 'PF' : 'PJ')}
+              <span className={`px-1.5 py-0.2 rounded text-[10px] font-sans font-medium ${
+                isCnpj ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {isCnpj ? 'Pessoa jurídica' : (item.tipo || (isPessoaFisica ? 'Pessoa física' : 'PJ'))}
               </span>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { prisma } from '../config/database';
 import { authenticateToken } from '../middlewares/authMiddleware';
 import { executarConsultaWeb } from '../controllers/consultaUnificadaController';
 import { SERVER_PRODUCTS } from '../config/productsCatalog';
+import { resolveCnpjRazaoSocial } from '../services/cnpjService';
 
 const router = Router();
 router.use(authenticateToken);
@@ -148,6 +149,22 @@ router.get('/detalhes/:id', async (req: any, res) => {
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Resolução sob demanda de Razão Social por CNPJ
+router.get('/cnpj-razao/:cnpj', async (req: any, res) => {
+  try {
+    const { cnpj } = req.params;
+    const result = await resolveCnpjRazaoSocial(cnpj);
+    return res.json({
+      success: true,
+      cnpj,
+      razaoSocial: result.razaoSocial,
+      nomeFantasia: result.nomeFantasia,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 

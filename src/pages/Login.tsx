@@ -163,16 +163,6 @@ export default function Login() {
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
-
-        {/* Link para voltar ao início embaixo */}
-        <div className="text-center mt-6">
-          <Link
-            to="/"
-            className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors inline-block"
-          >
-            ← Voltar para a página inicial
-          </Link>
-        </div>
       </div>
 
       {/* Rodapé discreto */}

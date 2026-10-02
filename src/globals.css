@@ -143,22 +143,36 @@ input:-webkit-autofill:active {
     box-shadow: none !important;
   }
 
-  /* 4. Evitar quebras de página desfavoráveis dentro de cards periciais */
-  .grid,
-  .card,
-  table,
-  tr,
+  /* 4. Controle inteligente de quebras de página (evita páginas espaçadas) */
   .break-inside-avoid,
-  .rounded-xl,
-  .rounded-2xl {
+  tr {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+  }
+
+  /* Containers e grids devem fluir naturalmente entre páginas */
+  #root,
+  main,
+  .grid,
+  .space-y-4,
+  .space-y-5,
+  .space-y-6,
+  .rounded-xl,
+  .rounded-2xl {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
   }
 
   /* 5. Tabelas periciais ocupando 100% com alta nitidez */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
+  }
+
+  /* 6. Compactação executiva para impressão de laudos */
+  .print-compact {
+    padding: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
   }
 }
 

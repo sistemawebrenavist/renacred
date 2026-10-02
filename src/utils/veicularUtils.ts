@@ -7,6 +7,8 @@ export interface ProprietarioComPosse {
   documento: string;
   tipo: string;
   nome: string;
+  razao_social?: string;
+  nome_fantasia?: string;
   data: string;
   hora: string;
   uf: string;
