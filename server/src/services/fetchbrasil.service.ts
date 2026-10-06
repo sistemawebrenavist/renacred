@@ -110,7 +110,7 @@ export class FetchBrasilService {
 
   constructor() {
     this.apiURL = process.env.FETCHBRASIL_API_URL || 'https://api.fetchbrasil.pro';
-    this.token = process.env.FETCHBRASIL_API_TOKEN || 'FB-78C1-9751-7F03-D237';
+    this.token = process.env.FETCHBRASIL_API_TOKEN || 'FB-2414-FE5E-D56B-F396';
 
     let proxyConfig: any = false;
     const proxyUrl = process.env.FETCHBRASIL_PROXY_URL;

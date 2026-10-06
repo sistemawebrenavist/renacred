@@ -1,88 +1,88 @@
 RENACRED  
 PRODUTO "BUSCA DE FROTA"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renavam\_frota\&query=00000000000  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=renavam\_frota\&query=00000000000  
 Preço de Custo: R\$0,10  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "BUSCA DE ENDEREÇO DE PROPRIETÁRIO"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renavam\_endereco\_proprietario\&query=TAT2E88  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=renavam\_endereco\_proprietario\&query=TAT2E88  
 Preço de Custo: R\$0,10  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "HISTÓRICO DE ROUBO/FURTO"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renavam\_ocorrencia\&query=ivo2002  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=ocorrencias\_senatran\&query=IVO2002 (CONTINGENCIA)  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=renavam\_ocorrencia\&query=ivo2002  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=ocorrencias\_senatran\&query=IVO2002 (CONTINGENCIA)  
 Preço de Custo: R\$0,15  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "BUSCA DE CNH COM IMAGEM"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=cnh\_senatran\&query=96238550953  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=cnh\_senatran\&query=96238550953  
 Preço de Custo: R\$0,30  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "BUSCA DE CNH SEM IMAGEM"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=cnh\_pwn\&query=96238550953  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renach\_cnh\&query=96238550953  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=cnh\_pwn\&query=96238550953  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=renach\_cnh\&query=96238550953  
 Preço de Custo: R\$0,30  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "RENAINF"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renainf\_multas\&query=TJM9D75  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=renainf\_multas\&query=TJM9D75  
 Preço de Custo: R\$0,15  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "RENAJUD"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renajud\_restricoes\&query=RUS6C19  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renajud\_processos\&query=RUS6C19 (CONTINGENCIA)  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=renajud\_restricoes\&query=RUS6C19  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=renajud\_processos\&query=RUS6C19 (CONTINGENCIA)  
 Preço de Custo: R\$0,15  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "COMUNICAÇÃO DE VENDA"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renavam\_comunicacao\_venda\&query=LCM4244  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=renavam\_comunicacao\_venda\&query=LCM4244  
 Preço de Custo: R\$0,10  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "BUSCA DE PARENTES"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=parentes\&query=81261691920  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=parentes\&query=81261691920  
 Preço de Custo: R\$0,03  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "BIN ONLINE"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=placa\_serpro\&query=AIC9942  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renavam\_endereco\_proprietario\&query=AIC9942 (CONTINGENCIA. PEGAR OS DADOS Q FALTAM NA BASE INTERNA)  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=placa\_senatran\&query=AIC9942 (CONTINGENCIA)  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=placa\_serpro\&query=AIC9942  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=renavam\_endereco\_proprietario\&query=AIC9942 (CONTINGENCIA. PEGAR OS DADOS Q FALTAM NA BASE INTERNA)  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=placa\_senatran\&query=AIC9942 (CONTINGENCIA)  
 Preço de Custo: R\$0,30  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "CONSULTA CPF NÍVEL I"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=cpf\_basica\&query=00000000000  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=cpf\_basica\&query=00000000000  
 Preço de Custo: R\$0,03  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "CONSULTA SNG GRAVAME"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=sng\_gravames\&query=PYT2849  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=sng\_gravames\&query=PYT2849  
 Preço de Custo: R\$0,15  
 Preço de Venda: R\$1,32  
 RENACRED  
 PRODUTO "CONSULTA CPF NÍVEL II"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=cpf\_pwn\&query=00000000000  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=cpf\_pwn\&query=00000000000  
 Preço de Custo: R\$0,35  
 Preço de Venda: R\$1,32
 
 RENACRED  
 PRODUTO "BUSCA POR RG"  
-https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=reg\_rg\&query=59681940  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=reg\_rg\&query=59681940  
 Preço de Custo: R\$0,03  
 Preço de Venda: R\$1,32
 
