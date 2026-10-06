@@ -239,6 +239,18 @@ export const SERVER_PRODUCTS: ServerProductConfig[] = [
     defaultCost: 0.04,
     defaultPrice: 1.32,
     slugAliases: ['renavam-placa', 'renavam', 'localizar-renavam', 'busca-renavam']
+  },
+  {
+    code: 'E20',
+    slug: 'pre-vistoria',
+    name: 'Pré Vistoria Veicular Consolidada',
+    category: 'veicular',
+    inputType: 'placa',
+    apiPrimary: 'pre_vistoria',
+    apiContingencies: [],
+    defaultCost: 0.32,
+    defaultPrice: 0.69,
+    slugAliases: ['pre-vistoria-completa', 'vistoria', 'pre-vistoria-veicular']
   }
 ];
 
@@ -250,6 +262,6 @@ export function findServerProduct(identifier: string): ServerProductConfig | und
       p.code.toLowerCase() === clean ||
       p.slug.toLowerCase() === clean ||
       p.apiPrimary.toLowerCase() === clean ||
-      p.slugAliases.some((alias) => alias.toLowerCase() === clean)
+      (p.slugAliases && p.slugAliases.some((alias) => alias.toLowerCase() === clean))
   );
 }

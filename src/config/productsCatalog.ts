@@ -517,12 +517,38 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
       text: 'text-emerald-800',
       border: 'border-emerald-200'
     }
+  },
+  {
+    code: 'E20',
+    slug: 'pre-vistoria',
+    name: 'Pré Vistoria Veicular Consolidada',
+    shortName: 'Pré Vistoria',
+    category: 'veicular',
+    categoryLabel: 'Veicular',
+    inputType: 'placa',
+    inputLabel: 'Placa do Veículo',
+    placeholder: 'ABC-1234 ou ABC1D23',
+    description: 'Laudo pericial unificado: BIN Fabril completa, histórico dominial e proprietários (E2), roubo e furto oficial (E5), rastreio de locadoras, seguradoras, frotas públicas e garantia de RENAVAM via E19.',
+    highlights: [
+      'Ficha cadastral BIN Fabril e chassi oficial',
+      'Garantia de RENAVAM automático (contingência E19)',
+      'Histórico pericial de roubo e furto (E5)',
+      'Cadeia de proprietários com detecção de locadoras e seguradoras (E2)'
+    ],
+    defaultCost: 0.32,
+    defaultPrice: 0.69,
+    hasContingency: true,
+    badgeColor: {
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-800',
+      border: 'border-emerald-300'
+    }
   }
 ];
 
 export const CATEGORIES_CONFIG = [
-  { id: 'todos', label: 'Todos os Produtos', count: 19 },
-  { id: 'veicular', label: 'Veicular', count: 9 },
+  { id: 'todos', label: 'Todos os Produtos', count: 20 },
+  { id: 'veicular', label: 'Veicular', count: 10 },
   { id: 'cadastral', label: 'Cadastral', count: 7 },
   { id: 'juridico', label: 'Jurídico', count: 2 },
   { id: 'imobiliario', label: 'Imobiliário', count: 1 },
