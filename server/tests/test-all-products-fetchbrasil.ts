@@ -17,9 +17,9 @@ interface TestResult {
 
 // Queries recomendadas por produto (baseadas em RENACRED.md e alvos oficiais)
 const TEST_QUERIES: Record<string, { query: string; extraParams?: any }> = {
-  E1: { query: '00000000000' }, // DOI Imobiliário
+  E1: { query: '81261691920' }, // DOI Imobiliário (alvo real com 5 declarações)
   E2: { query: 'MIR2011' },     // Proprietários
-  E3: { query: '00000000000' }, // Frota
+  E3: { query: '16670085000155' }, // Frota (CNPJ válido)
   E4: { query: 'MIR2011' },     // Endereço Proprietário
   E5: { query: 'MIR2011' },     // Roubo e Furto
   E6: { query: '96238550953' }, // CNH Imagem
