@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProductDefinition } from '../../config/productsCatalog';
-import { Clock, User, MapPin, Building, Calendar, FileText, CheckCircle2, ShieldCheck, AlertCircle, Phone, Mail, Award, CreditCard, Briefcase, Users, Scale, ShieldAlert, Shield, CheckCircle, Car, Copy } from 'lucide-react';
+import { Clock, User, MapPin, Building, Calendar, FileText, CheckCircle2, ShieldCheck, AlertCircle, Phone, Mail, Award, CreditCard, Briefcase, Users, Scale, ShieldAlert, Shield, CheckCircle, Car, Copy, AlertTriangle, Check, Layers } from 'lucide-react';
 import { ProprietarioTimelineCard } from '../veicular/ProprietarioTimelineCard';
 import { processarHistoricoProprietarios } from '../../utils/veicularUtils';
 import { ExportPdfVeicularButton } from '../veicular/ExportPdfVeicularButton';
@@ -367,6 +367,564 @@ const E19RenavamCard: React.FC<{
             <span className="font-mono font-bold text-slate-900 text-sm block mt-1">
               {yearManufacture}
             </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Componente Pericial Completo do Produto E20 (Pré Vistoria Veicular Consolidada)
+ * Consolida 100% da Pré Vistoria InfoSinistros + E5 (Roubo/Furto) + E2 (Proprietários) + Contingência E19 (RENAVAM)
+ */
+const E20PreVistoriaLaudo: React.FC<{
+  dados: any;
+  identifier: string;
+}> = ({ dados, identifier }) => {
+  const [copiedRenavam, setCopiedRenavam] = React.useState(false);
+  const [copiedChassi, setCopiedChassi] = React.useState(false);
+
+  const veiculo = dados?.veiculo || {};
+  const rouboFurto = dados?.roubo_furto || { status: 'regular', totalOcorrencias: 0, ocorrencias: [] };
+  const locadoras = dados?.locadoras || { status: 'negativo', total: 0, registros: [] };
+  const seguradoras = dados?.seguradoras || { status: 'negativo', total: 0, registros: [] };
+  const frotaPublica = dados?.frota_publica || { status: 'negativo', total: 0, registros: [] };
+  const financeiras = dados?.financeiras || { status: 'negativo', total: 0, registros: [] };
+  const proprietarios = dados?.proprietarios || { total: 0, historico: [] };
+  const outros = dados?.outros_produtos || {};
+
+  const placa = veiculo.placa || identifier;
+  const renavam = veiculo.renavam || '-';
+  const chassi = veiculo.chassi || '-';
+
+  const handleCopyRenavam = () => {
+    if (renavam && renavam !== '-') {
+      navigator.clipboard.writeText(renavam);
+      setCopiedRenavam(true);
+      setTimeout(() => setCopiedRenavam(false), 2000);
+    }
+  };
+
+  const handleCopyChassi = () => {
+    if (chassi && chassi !== '-') {
+      navigator.clipboard.writeText(chassi);
+      setCopiedChassi(true);
+      setTimeout(() => setCopiedChassi(false), 2000);
+    }
+  };
+
+  const getBadgeEntidade = (tipo?: string) => {
+    switch (tipo) {
+      case 'locadora':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">LOCADORA DE VEÍCULOS</span>;
+      case 'seguradora':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300">CIA SEGURADORA</span>;
+      case 'frota_publica':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300">ÓRGÃO PÚBLICO</span>;
+      case 'financeira':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">BANCO / FINANCEIRA</span>;
+      default:
+        return <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">PARTICULAR</span>;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 1. HEADER EXECUTIVO DE IDENTIFICAÇÃO VEICULAR & BIN FABRIL */}
+      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-2xl p-6 sm:p-7 text-white shadow-xl border border-slate-800 relative overflow-hidden">
+        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-3 py-1 rounded-lg text-xs font-bold font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                PLACA: {placa.toUpperCase()}
+              </span>
+              {dados?.contingenciaRenavamAplicada && (
+                <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                  ✓ RENAVAM via Contingência E19
+                </span>
+              )}
+              <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                Ficha Técnica BIN Fabril
+              </span>
+            </div>
+
+            <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-3">
+              {veiculo.marcaModelo || `${veiculo.marca || ''} ${veiculo.modelo || ''}`.trim() || 'VEÍCULO NÃO IDENTIFICADO'}
+            </h3>
+
+            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 mt-2">
+              <span>Ano: <strong className="text-white font-mono">{veiculo.anoFabricacao || '-'}/{veiculo.anoModelo || '-'}</strong></span>
+              <span>•</span>
+              <span>Cor: <strong className="text-white">{veiculo.cor || '-'}</strong></span>
+              <span>•</span>
+              <span>Combustível: <strong className="text-white">{veiculo.combustivel || '-'}</strong></span>
+              <span>•</span>
+              <span>Município: <strong className="text-white">{veiculo.municipio || '-'}{veiculo.uf ? `/${veiculo.uf}` : ''}</strong></span>
+            </div>
+          </div>
+
+          {/* Card Rápido de Chaves Primárias: RENAVAM e Chassi */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 shrink-0 min-w-[280px]">
+            {/* RENAVAM */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-3">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider block">Código RENAVAM</span>
+                <span className="font-mono text-base font-bold text-emerald-400 block mt-0.5 select-all">{renavam}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyRenavam}
+                disabled={!renavam || renavam === '-'}
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg transition border border-slate-700 cursor-pointer disabled:opacity-40"
+                title="Copiar RENAVAM"
+              >
+                {copiedRenavam ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            {/* Chassi */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-3">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider block">Número do Chassi</span>
+                <span className="font-mono text-xs font-bold text-slate-200 block mt-0.5 select-all truncate max-w-[190px]">{chassi}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyChassi}
+                disabled={!chassi || chassi === '-'}
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg transition border border-slate-700 cursor-pointer disabled:opacity-40"
+                title="Copiar Chassi"
+              >
+                {copiedChassi ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Grid de Especificações Mecânicas e Cadastrais */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-3">
+        <div className="text-xs font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center space-x-2">
+          <Car className="w-4 h-4 text-slate-600" />
+          <span>Especificações Técnicas e Cadastrais da BIN Fabril</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-xs">
+          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+            <span className="text-[10px] text-slate-400 block font-medium">Motor</span>
+            <span className="font-mono font-bold text-slate-800 truncate block mt-0.5">{veiculo.motor || '-'}</span>
+          </div>
+          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+            <span className="text-[10px] text-slate-400 block font-medium">Potência / Cilindradas</span>
+            <span className="font-bold text-slate-800 block mt-0.5">{veiculo.potencia ? `${veiculo.potencia} cv` : '-'} / {veiculo.cilindradas ? `${veiculo.cilindradas} cc` : '-'}</span>
+          </div>
+          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+            <span className="text-[10px] text-slate-400 block font-medium">Tipo / Espécie</span>
+            <span className="font-medium text-slate-800 block mt-0.5">{veiculo.tipoVeiculo || '-'} / {veiculo.especieVeiculo || '-'}</span>
+          </div>
+          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+            <span className="text-[10px] text-slate-400 block font-medium">Carroceria</span>
+            <span className="font-medium text-slate-800 block mt-0.5">{veiculo.carroceria || '-'}</span>
+          </div>
+          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+            <span className="text-[10px] text-slate-400 block font-medium">Situação do Chassi</span>
+            <span className="font-medium text-slate-800 block mt-0.5">{veiculo.situacaoChassi || 'NORMAL'}</span>
+          </div>
+          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+            <span className="text-[10px] text-slate-400 block font-medium">Situação do Veículo</span>
+            <span className="font-bold text-emerald-700 block mt-0.5">{veiculo.situacaoVeiculo || 'CIRCULAÇÃO'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. CARD DESTAQUE: ROUBO E FURTO (E5 + P10 CONSOLIDADOS) */}
+      <div className={`border-2 rounded-2xl p-5 sm:p-6 transition shadow-xs ${
+        rouboFurto.status === 'alerta'
+          ? 'bg-rose-50/70 border-rose-300'
+          : rouboFurto.status === 'recuperado'
+          ? 'bg-amber-50/70 border-amber-300'
+          : 'bg-emerald-50/60 border-emerald-200'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b gap-3 border-slate-200/60">
+          <div className="flex items-center space-x-3">
+            {rouboFurto.status === 'alerta' ? (
+              <ShieldAlert className="w-6 h-6 text-rose-600 shrink-0" />
+            ) : rouboFurto.status === 'recuperado' ? (
+              <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
+            ) : (
+              <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
+            )}
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  Histórico de Roubo e Furto (Consolidado E5 + P10)
+                </span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                  rouboFurto.status === 'alerta'
+                    ? 'bg-rose-600 text-white'
+                    : rouboFurto.status === 'recuperado'
+                    ? 'bg-amber-500 text-slate-950 font-extrabold'
+                    : 'bg-emerald-600 text-white'
+                }`}>
+                  {rouboFurto.status === 'alerta' ? 'QUEIXA ATIVA' : rouboFurto.status === 'recuperado' ? 'RECUPERADO' : 'NADA CONSTA'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5 font-medium">{rouboFurto.mensagem}</p>
+            </div>
+          </div>
+          <span className="text-xs font-mono font-semibold text-slate-600 shrink-0">
+            Total de Ocorrências: {rouboFurto.totalOcorrencias}
+          </span>
+        </div>
+
+        {rouboFurto.ocorrencias && rouboFurto.ocorrencias.length > 0 && (
+          <div className="pt-4 space-y-2.5">
+            {rouboFurto.ocorrencias.map((oc: any, idx: number) => (
+              <div key={idx} className="bg-white/90 border border-slate-200/90 rounded-xl p-3.5 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2 py-0.5 rounded bg-slate-900 text-white text-[10px] font-bold font-mono">
+                      #{idx + 1}
+                    </span>
+                    <span className="font-bold text-slate-900">{oc.tipo}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      Fonte: {oc.fonte}
+                    </span>
+                  </div>
+                  <span className="font-mono text-slate-500 text-[11px]">
+                    {oc.data ? formatDateBR(oc.data) : (oc.ano ? `Ano ${oc.ano}` : '-')}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11.5px] text-slate-600">
+                  <p><span className="text-slate-400">Boletim:</span> <strong className="text-slate-800 font-mono">{oc.numero_boletim || '-'}</strong></p>
+                  <p><span className="text-slate-400">Localidade:</span> <strong className="text-slate-800">{oc.municipio ? `${oc.municipio}/${oc.uf}` : (oc.uf || '-')}</strong></p>
+                  <p><span className="text-slate-400">Órgão:</span> <strong className="text-slate-800">{oc.orgao_seguranca || '-'}</strong></p>
+                </div>
+                {oc.descricao && (
+                  <p className="p-2 bg-slate-50 rounded border border-slate-200 text-slate-700 text-[11px] leading-relaxed">
+                    {oc.descricao}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 3. MOTOR DE DISTRIBUIÇÃO DE RESPOSTAS: CARDS ESPECIALIZADOS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* CARD A: EX-FROTA DE LOCADORA (P4 + E2) */}
+        <div className={`border rounded-xl p-5 space-y-3 ${
+          locadoras.status === 'positivo' ? 'bg-amber-50/50 border-amber-200' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center space-x-2">
+              <Building className="w-4 h-4 text-amber-600" />
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Ex-Frota de Locadoras
+              </h4>
+            </div>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              locadoras.status === 'positivo'
+                ? 'bg-amber-500 text-slate-950 font-extrabold'
+                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+            }`}>
+              {locadoras.status === 'positivo' ? 'CONSTA LOCADORA' : 'NADA CONSTA'}
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-600">{locadoras.mensagem}</p>
+
+          {locadoras.registros && locadoras.registros.length > 0 && (
+            <div className="space-y-2 pt-1">
+              {locadoras.registros.map((loc: any, idx: number) => (
+                <div key={idx} className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900">{loc.empresa}</span>
+                    <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
+                      {loc.fonte}
+                    </span>
+                  </div>
+                  {loc.documento && (
+                    <p className="text-[11px] font-mono text-slate-600">CNPJ: {formatDocumento(loc.documento)}</p>
+                  )}
+                  {loc.detalhes && (
+                    <p className="text-[11px] text-slate-500 font-medium">{loc.detalhes}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* CARD B: SEGURADORAS & SINISTROS (P1 + P14 + E2) */}
+        <div className={`border rounded-xl p-5 space-y-3 ${
+          seguradoras.status === 'positivo' ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center space-x-2">
+              <Shield className="w-4 h-4 text-blue-600" />
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Seguradoras & Sinistros
+              </h4>
+            </div>
+            <div className="flex items-center space-x-1">
+              {seguradoras.indenizacaoIntegral && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white">
+                  INDENIZAÇÃO INTEGRAL
+                </span>
+              )}
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                seguradoras.status === 'positivo'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+              }`}>
+                {seguradoras.status === 'positivo' ? 'REGISTRO LOCALIZADO' : 'NADA CONSTA'}
+              </span>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-600">{seguradoras.mensagem}</p>
+
+          {seguradoras.registros && seguradoras.registros.length > 0 && (
+            <div className="space-y-2 pt-1">
+              {seguradoras.registros.map((seg: any, idx: number) => (
+                <div key={idx} className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900">{seg.seguradora}</span>
+                    <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
+                      {seg.fonte}
+                    </span>
+                  </div>
+                  {seg.tipoEvento && (
+                    <p className="text-[11px] font-semibold text-blue-800">{seg.tipoEvento}</p>
+                  )}
+                  {seg.documento && (
+                    <p className="text-[11px] font-mono text-slate-600">Doc: {formatDocumento(seg.documento)}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* CARD C: FROTA PÚBLICA & VIATURAS (P2 + P3 + E2) */}
+        <div className={`border rounded-xl p-5 space-y-3 ${
+          frotaPublica.status === 'positivo' ? 'bg-purple-50/50 border-purple-200' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center space-x-2">
+              <Scale className="w-4 h-4 text-purple-600" />
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Frota Pública & Governamental
+              </h4>
+            </div>
+            <div className="flex items-center space-x-1">
+              {frotaPublica.isViatura && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white animate-pulse">
+                  VIATURA POLICIAL
+                </span>
+              )}
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                frotaPublica.status === 'positivo'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+              }`}>
+                {frotaPublica.status === 'positivo' ? 'USO PÚBLICO' : 'NADA CONSTA'}
+              </span>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-600">{frotaPublica.mensagem}</p>
+
+          {frotaPublica.registros && frotaPublica.registros.length > 0 && (
+            <div className="space-y-2 pt-1">
+              {frotaPublica.registros.map((pub: any, idx: number) => (
+                <div key={idx} className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900">{pub.orgao}</span>
+                    <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
+                      {pub.fonte}
+                    </span>
+                  </div>
+                  {pub.tipoUso && (
+                    <p className="text-[11px] font-semibold text-purple-800">{pub.tipoUso}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* CARD D: FINANCEIRAS & GRAVAMES (P7 + E2) */}
+        <div className={`border rounded-xl p-5 space-y-3 ${
+          financeiras.status === 'positivo' ? 'bg-cyan-50/50 border-cyan-200' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center space-x-2">
+              <CreditCard className="w-4 h-4 text-cyan-600" />
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Instituições Financeiras / Leasing
+              </h4>
+            </div>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              financeiras.status === 'positivo'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-100 text-slate-700 border border-slate-200'
+            }`}>
+              {financeiras.status === 'positivo' ? `${financeiras.total} REGISTRO(S)` : 'NADA CONSTA'}
+            </span>
+          </div>
+
+          {!financeiras.registros || financeiras.registros.length === 0 ? (
+            <p className="text-xs text-slate-500">Nenhum registro de financeira ou leasing associado diretamente.</p>
+          ) : (
+            <div className="space-y-2 pt-1">
+              {financeiras.registros.map((fin: any, idx: number) => (
+                <div key={idx} className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900">{fin.instituicao}</span>
+                    <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
+                      {fin.fonte}
+                    </span>
+                  </div>
+                  {fin.tipo && <p className="text-[11px] text-slate-600">{fin.tipo}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 4. CADEIA DOMINIAL OFICIAL E2 COM BADGES DE CLASSIFICAÇÃO */}
+      <div className="border border-slate-200 rounded-xl p-5 sm:p-6 bg-white space-y-4 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div className="flex items-center space-x-2">
+            <Clock className="w-4 h-4 text-indigo-600" />
+            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Histórico Dominial de Proprietários (Produto E2 Integrado)
+            </h4>
+          </div>
+          <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 font-mono">
+            {proprietarios.total} proprietário(s) registrado(s)
+          </span>
+        </div>
+
+        {proprietarios.proprietario_atual && (
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center space-x-2">
+                <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded font-mono">
+                  TITULAR VIGENTE
+                </span>
+                <span className="font-bold text-slate-900 text-sm">
+                  {proprietarios.proprietario_atual.nome || proprietarios.proprietario_atual.razao_social || 'NÃO INFORMADO'}
+                </span>
+              </div>
+              {getBadgeEntidade(proprietarios.proprietario_atual.classificacaoEntidade)}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-600 pt-1">
+              <p><span className="text-slate-400">Documento:</span> <strong className="text-slate-800 font-mono">{formatDocumento(proprietarios.proprietario_atual.documento)}</strong></p>
+              <p><span className="text-slate-400">Tipo:</span> <strong className="text-slate-800">{proprietarios.proprietario_atual.tipo || '-'}</strong></p>
+              <p><span className="text-slate-400">Data Aquisição:</span> <strong className="text-slate-800 font-mono">{formatDateBR(proprietarios.proprietario_atual.data)}</strong></p>
+            </div>
+          </div>
+        )}
+
+        {/* Tabela de Histórico Anterior */}
+        {proprietarios.historico && proprietarios.historico.length > 0 && (
+          <div className="overflow-x-auto pt-1">
+            <table className="w-full text-xs text-left text-slate-700">
+              <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="px-3.5 py-2.5">Ordem</th>
+                  <th className="px-3.5 py-2.5">Nome / Razão Social</th>
+                  <th className="px-3.5 py-2.5">Documento</th>
+                  <th className="px-3.5 py-2.5">Perfil</th>
+                  <th className="px-3.5 py-2.5">Data Posse</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {proprietarios.historico.map((h: any, idx: number) => (
+                  <tr key={idx} className="hover:bg-slate-50/60">
+                    <td className="px-3.5 py-2 font-mono font-bold text-slate-800">
+                      {h.ordem ? `${h.ordem}º` : `#${idx + 1}`}
+                    </td>
+                    <td className="px-3.5 py-2 font-semibold text-slate-900">
+                      {h.nome || h.razao_social || 'NÃO INFORMADO'}
+                    </td>
+                    <td className="px-3.5 py-2 font-mono text-slate-600">
+                      {formatDocumento(h.documento)}
+                    </td>
+                    <td className="px-3.5 py-2">
+                      {getBadgeEntidade(h.classificacaoEntidade)}
+                    </td>
+                    <td className="px-3.5 py-2 font-mono text-slate-600">
+                      {formatDateBR(h.data)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 5. DEMAIS INDICADORES PERICIAIS INFOSINISTROS (LEILÕES, SALVADOS, KM, LAUDO CAUTELAR) */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
+        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center space-x-2">
+          <Layers className="w-4 h-4 text-slate-600" />
+          <span>Indicadores Complementares da Pré-Vistoria</span>
+        </h4>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          {/* Leilões */}
+          <div className="p-3.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
+            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Histórico de Leilões (P11)</span>
+            <div className="mt-1 flex items-center justify-between">
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                outros.leiloes ? 'bg-amber-100 text-amber-900' : 'bg-emerald-50 text-emerald-800'
+              }`}>
+                {outros.leiloes ? 'CONSTA REGISTRO' : 'NADA CONSTA'}
+              </span>
+            </div>
+            {outros.leiloes && (
+              <p className="text-[11px] text-slate-600 mt-1 truncate">{typeof outros.leiloes === 'string' ? outros.leiloes : 'Detalhes auditados no laudo'}</p>
+            )}
+          </div>
+
+          {/* Salvados */}
+          <div className="p-3.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
+            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Veículo Salvado (P8)</span>
+            <div className="mt-1 flex items-center justify-between">
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                outros.salvados ? 'bg-amber-100 text-amber-900' : 'bg-emerald-50 text-emerald-800'
+              }`}>
+                {outros.salvados ? 'CONSTA SALVADO' : 'NADA CONSTA'}
+              </span>
+            </div>
+          </div>
+
+          {/* Sinistro Recuperado */}
+          <div className="p-3.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
+            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Sinistro Recuperado (P19/P20)</span>
+            <div className="mt-1 flex items-center justify-between">
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                outros.sinistro_recuperado ? 'bg-blue-100 text-blue-900' : 'bg-emerald-50 text-emerald-800'
+              }`}>
+                {outros.sinistro_recuperado ? 'RECUPERADO' : 'NADA CONSTA'}
+              </span>
+            </div>
+          </div>
+
+          {/* Tabela FIPE */}
+          <div className="p-3.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
+            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Referência FIPE (P36)</span>
+            <span className="font-bold text-slate-900 text-sm block mt-1">
+              {outros.fipe?.valor || outros.fipe?.preco || 'Consultado'}
+            </span>
+            <span className="text-[10px] text-slate-500 block">{outros.fipe?.codigoFipe || outros.fipe?.mesReferencia || 'Base FIPE'}</span>
           </div>
         </div>
       </div>
@@ -2928,6 +3486,17 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
         />
       );
     }
+
+    // E20: Pré Vistoria Veicular Consolidada
+    case 'E20': {
+      return (
+        <E20PreVistoriaLaudo
+          dados={dados}
+          identifier={identifier}
+        />
+      );
+    }
+
 
     // Default genérico para laudos de outros produtos
     default: {
