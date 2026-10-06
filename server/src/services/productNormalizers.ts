@@ -1362,7 +1362,38 @@ export function normalizeE19(raw: any, query?: string): NormalizedResult {
 }
 
 /**
- * Mapeador Central de Normalizadores por Código do Produto (E1 a E19)
+ * Normalizador E20: Pré Vistoria Veicular Consolidada
+ * Consolida 100% da Pré Vistoria InfoSinistros + E5 (Roubo/Furto) + E2 (Proprietários) + Contingência E19 (RENAVAM)
+ * com distribuição cruzada inteligente de locadoras, seguradoras, frotas públicas e financeiras.
+ */
+export function normalizeE20(raw: any, query?: string): NormalizedResult {
+  if (!raw) {
+    return {
+      totalRegistros: 0,
+      dados: null
+    };
+  }
+
+  // Verifica presença de dados materiais de identificação veicular ou histórico
+  const temVeiculo = Boolean(raw.veiculo?.placa || raw.veiculo?.chassi || raw.placa);
+  const temOcorrencias = Boolean(raw.roubo_furto?.totalOcorrencias || (raw.roubo_furto?.status && raw.roubo_furto.status !== 'regular'));
+  const temProprietarios = Boolean(raw.proprietarios?.total || raw.proprietarios?.proprietario_atual);
+
+  if (!temVeiculo && !temOcorrencias && !temProprietarios) {
+    return {
+      totalRegistros: 0,
+      dados: null
+    };
+  }
+
+  return {
+    totalRegistros: 1,
+    dados: cleanObject(raw) || null
+  };
+}
+
+/**
+ * Mapeador Central de Normalizadores por Código do Produto (E1 a E20)
  */
 export function normalizeProductResult(code: string, raw: any, query?: string, extraParams?: any): NormalizedResult {
   const upper = code.trim().toUpperCase();
@@ -1386,7 +1417,9 @@ export function normalizeProductResult(code: string, raw: any, query?: string, e
     case 'E17': return normalizeE17(raw, query);
     case 'E18': return normalizeE18(raw, query, extraParams);
     case 'E19': return normalizeE19(raw, query);
+    case 'E20': return normalizeE20(raw, query);
     default:
       return { totalRegistros: raw ? 1 : 0, dados: cleanObject(raw) };
   }
 }
+

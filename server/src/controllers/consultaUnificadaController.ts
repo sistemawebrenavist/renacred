@@ -9,6 +9,8 @@ import { validateIdentifier, sanitizeCpfCnpj } from '../utils/cpfCnpjValidator';
 import { validatePlaca } from './veicularController';
 import { logger } from '../utils/logger';
 import { QuerySource, QueryStatus } from '../types/database';
+import { e20Service } from '../services/e20Service';
+import { normalizeE20, NormalizedResult } from '../services/productNormalizers';
 
 /**
  * Validador genérico por tipo de input configurado no produto
@@ -179,7 +181,18 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
     const tipoParam = req.body?.tipo || req.query?.tipo || 'mae';
 
     // 4. Executar chamada com cascata de contingências transparentes e normalização pericial
-    const result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
+    let result: { normalized: NormalizedResult; raw?: any };
+    let custoInternoCalculado: number | undefined;
+
+    if (product.code === 'E20') {
+      const e20Data = await e20Service.executarConsultaE20(cleanQuery);
+      const normalized = normalizeE20(e20Data, cleanQuery);
+      result = { normalized, raw: e20Data };
+      custoInternoCalculado = e20Data.custoInternoTotal;
+    } else {
+      result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
+    }
+
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
     const hasData = totalRegistros > 0 && result.normalized.dados !== null;
@@ -205,7 +218,8 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
           category: product.category,
           query: cleanQuery,
           tipo: product.code === 'E18' ? tipoParam : undefined,
-          hash: hashAutenticacao
+          hash: hashAutenticacao,
+          custoInterno: custoInternoCalculado
         },
         resultData: result.normalized.dados as any
       }
@@ -351,7 +365,18 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
 
   try {
     const tipoParam = req.query.tipo || req.body?.tipo || 'mae';
-    const result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
+    let result: { normalized: NormalizedResult; raw?: any };
+    let custoInternoCalculado: number | undefined;
+
+    if (product.code === 'E20') {
+      const e20Data = await e20Service.executarConsultaE20(cleanQuery);
+      const normalized = normalizeE20(e20Data, cleanQuery);
+      result = { normalized, raw: e20Data };
+      custoInternoCalculado = e20Data.custoInternoTotal;
+    } else {
+      result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
+    }
+
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
     const hasData = totalRegistros > 0 && result.normalized.dados !== null;
@@ -375,7 +400,8 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
           query: cleanQuery,
           tipo: product.code === 'E18' ? tipoParam : undefined,
           apiKeyId: apiKey?.id,
-          hash: hashAutenticacao
+          hash: hashAutenticacao,
+          custoInterno: custoInternoCalculado
         },
         resultData: result.normalized.dados as any
       }
