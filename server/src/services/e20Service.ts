@@ -33,9 +33,12 @@ export interface E20IndicadorItem {
   codigo: string;          // e.g. 'P1', 'P2' (não exibido no título do frontend)
   titulo: string;          // Título limpo sem "P1 | " (e.g. 'HISTÓRICO DE VENDA DIRETA/REMARKETING (SEGURADORAS)')
   status: 'positivo' | 'negativo';
+  consta?: boolean;
   mensagem: string;        // 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' ou mensagem do apontamento
   total?: number;
   conteudo?: any;
+  detalhes?: any;
+  respostaInfoSinistros?: any; // Resposta literal e completa da API InfoSinistros
   fonte?: string;
 }
 
@@ -606,8 +609,10 @@ export class E20Service {
         registrosLocadoras.push({
           empresa: loc.nome,
           documento: loc.documento,
+          tipoEntidade: 'locadora',
           data: loc.data ? `Posse registrada em ${loc.data}` : undefined,
           cnae: loc.cnae,
+          cnaeDescricao: loc.cnaeDescricao,
           detalhes: loc.atual ? 'Titular Vigente' : 'Proprietário Anterior',
           fonte: 'Histórico Dominial E2'
         });
@@ -625,6 +630,7 @@ export class E20Service {
         if (!it) continue;
         registrosSeguradoras.push({
           seguradora: typeof it === 'string' ? it : it.razao_social || it.nome || it.seguradora || 'SEGURADORA REGISTRADA',
+          tipoEntidade: 'seguradora',
           tipoEvento: 'Venda Direta / Remarketing',
           ano: it.ano || it.periodo,
           fonte: 'Registro de Remarketing / Salvados'
@@ -638,6 +644,7 @@ export class E20Service {
         if (!it) continue;
         registrosSeguradoras.push({
           seguradora: typeof it === 'string' ? it : it.seguradora || it.razao_social || 'CIA SEGURADORA',
+          tipoEntidade: 'seguradora',
           tipoEvento: 'Indenização Integral de Sinistro',
           ano: it.ano,
           data: it.data,
@@ -652,8 +659,11 @@ export class E20Service {
         registrosSeguradoras.push({
           seguradora: seg.nome,
           documento: seg.documento,
+          tipoEntidade: 'seguradora',
           tipoEvento: 'Titularidade em Carteira de Seguradora',
           data: seg.data ? `Transferência registrada em ${seg.data}` : undefined,
+          cnae: seg.cnae,
+          cnaeDescricao: seg.cnaeDescricao,
           detalhes: seg.atual ? 'Titular Vigente' : 'Proprietário Anterior',
           fonte: 'Histórico Dominial E2'
         });
@@ -669,6 +679,7 @@ export class E20Service {
       isViatura = true;
       registrosFrotaPublica.push({
         orgao: typeof p2Info.conteudo === 'string' ? p2Info.conteudo : 'OPERAÇÃO COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA',
+        tipoEntidade: 'viatura',
         tipoUso: 'Viatura Policial / Operação Severa',
         fonte: 'Base de Frotas Públicas'
       });
@@ -679,6 +690,7 @@ export class E20Service {
         if (!it) continue;
         registrosFrotaPublica.push({
           orgao: typeof it === 'string' ? it : it.orgao || it.ente_publico || 'ÓRGÃO PÚBLICO IDENTIFICADO',
+          tipoEntidade: 'frota_publica',
           tipoUso: 'Ex-Frota Pública Governamental',
           data: it.data || it.periodo,
           fonte: 'Base de Frotas Públicas'
@@ -689,8 +701,11 @@ export class E20Service {
       registrosFrotaPublica.push({
         orgao: v.nome,
         documento: v.documento,
+        tipoEntidade: 'viatura',
         tipoUso: 'Operação Policial / Segurança Pública',
         data: v.data,
+        cnae: v.cnae,
+        cnaeDescricao: v.cnaeDescricao,
         fonte: 'Histórico Dominial E2'
       });
     }
@@ -698,8 +713,11 @@ export class E20Service {
       registrosFrotaPublica.push({
         orgao: pub.nome,
         documento: pub.documento,
+        tipoEntidade: 'frota_publica',
         tipoUso: 'Órgão Público na Cadeia Dominial',
         data: pub.data,
+        cnae: pub.cnae,
+        cnaeDescricao: pub.cnaeDescricao,
         fonte: 'Histórico Dominial E2'
       });
     }
@@ -713,6 +731,7 @@ export class E20Service {
         if (!it) continue;
         registrosFinanceiras.push({
           instituicao: typeof it === 'string' ? it : it.instituicao || it.banco || 'BANCO / FINANCEIRA',
+          tipoEntidade: 'financeira',
           tipo: 'Venda Direta / Remarketing por Financeira',
           data: it.ano || it.data,
           fonte: 'Base Cadastral de Bancos'
@@ -723,126 +742,167 @@ export class E20Service {
       registrosFinanceiras.push({
         instituicao: fin.nome,
         documento: fin.documento,
+        tipoEntidade: 'financeira',
         tipo: 'Instituição Financeira / Leasing na Cadeia Dominial',
         data: fin.data,
+        cnae: fin.cnae,
+        cnaeDescricao: fin.cnaeDescricao,
         fonte: 'Histórico Dominial E2'
       });
     }
 
-    // 8. MOTOR DE CONSOLIDAÇÃO DOS 34 INDICADORES PERICIAIS (P1 a P34)
+    // 8. MOTOR DE CONSOLIDAÇÃO DOS 37 INDICADORES PERICIAIS (P1 a P37)
     // Títulos limpos sem "P1 | ", layout elegante e padronizado:
     // Se negativo: 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA'
-    // Se positivo: detalhes oficiais consolidados
-    const construirIndicador = (codigo: string): E20IndicadorItem => {
+    // Se positivo: detalhes oficiais consolidados da API InfoSinistros e bases enriquecidas
+    const montarIndicadorInterno = (codigo: string): E20IndicadorItem => {
       const titulo = INFOSINISTROS_TITULOS[codigo] || `INDICADOR ${codigo}`;
       const itemInfo = infoResult?.resultados ? infoResult.resultados[codigo] : null;
+      const hasInfoSinistros =
+        itemInfo?.status === 'positivo' &&
+        itemInfo?.conteudo !== undefined &&
+        itemInfo?.conteudo !== null &&
+        itemInfo?.conteudo !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
+      const rawInfoConteudo = hasInfoSinistros ? itemInfo?.conteudo : null;
 
       // Casos com De/Para Especializado ou Fontes Oficiais Cruzadas:
       switch (codigo) {
         case 'P1': { // HISTÓRICO DE VENDA DIRETA/REMARKETING (SEGURADORAS)
-          const positivo = registrosSeguradoras.length > 0 || itemInfo?.status === 'positivo';
+          const positivo = registrosSeguradoras.length > 0 || hasInfoSinistros;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? `IDENTIFICADO REGISTRO DE SEGURADORA / REMARKETING (${registrosSeguradoras.length} ocorrência(s))`
+              ? (typeof rawInfoConteudo === 'string'
+                  ? rawInfoConteudo
+                  : `IDENTIFICADO REGISTRO DE SEGURADORA / REMARKETING (${registrosSeguradoras.length || 1} ocorrência(s))`)
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (registrosSeguradoras.length > 0 ? registrosSeguradoras : itemInfo?.conteudo) : null,
+            conteudo: positivo ? (registrosSeguradoras.length > 0 ? registrosSeguradoras : rawInfoConteudo) : null,
+            detalhes: positivo ? (registrosSeguradoras.length > 0 ? registrosSeguradoras : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo,
             total: positivo ? registrosSeguradoras.length || 1 : 0
           };
         }
 
         case 'P2': { // HISTÓRICO DE OPERAÇÃO/USO COMO VIATURA POLICIAL
-          const positivo = isViatura || itemInfo?.status === 'positivo';
+          const positivo = isViatura || hasInfoSinistros;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? 'IDENTIFICADA OPERAÇÃO SEVERA COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA'
+              ? (typeof rawInfoConteudo === 'string'
+                  ? rawInfoConteudo
+                  : 'IDENTIFICADA OPERAÇÃO SEVERA COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (viaturasDetectadas.length > 0 ? viaturasDetectadas : itemInfo?.conteudo) : null
+            conteudo: positivo ? (viaturasDetectadas.length > 0 ? viaturasDetectadas : rawInfoConteudo) : null,
+            detalhes: positivo ? (viaturasDetectadas.length > 0 ? viaturasDetectadas : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo
           };
         }
 
         case 'P3': { // HISTÓRICO DE EX-FROTA PÚBLICA
-          const positivo = frotasPublicasDetectadas.length > 0 || (itemInfo?.status === 'positivo' && !isViatura);
+          const positivo = frotasPublicasDetectadas.length > 0 || (hasInfoSinistros && !isViatura);
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? `IDENTIFICADO USO PÚBLICO GOVERNAMENTAL (${frotasPublicasDetectadas.length} registro(s))`
+              ? (typeof rawInfoConteudo === 'string'
+                  ? rawInfoConteudo
+                  : `IDENTIFICADO USO PÚBLICO GOVERNAMENTAL (${frotasPublicasDetectadas.length || 1} registro(s))`)
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (frotasPublicasDetectadas.length > 0 ? frotasPublicasDetectadas : itemInfo?.conteudo) : null
+            conteudo: positivo ? (frotasPublicasDetectadas.length > 0 ? frotasPublicasDetectadas : rawInfoConteudo) : null,
+            detalhes: positivo ? (frotasPublicasDetectadas.length > 0 ? frotasPublicasDetectadas : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo
           };
         }
 
         case 'P4': { // HISTÓRICO DE EX-FROTA DE LOCADORA
-          const positivo = registrosLocadoras.length > 0 || itemInfo?.status === 'positivo';
+          const positivo = registrosLocadoras.length > 0 || hasInfoSinistros;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? `IDENTIFICADO REGISTRO DE EX-FROTA DE LOCADORA (${registrosLocadoras.length} registro(s))`
+              ? (typeof rawInfoConteudo === 'string'
+                  ? rawInfoConteudo
+                  : `IDENTIFICADO REGISTRO DE EX-FROTA DE LOCADORA (${registrosLocadoras.length || 1} registro(s))`)
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (registrosLocadoras.length > 0 ? registrosLocadoras : itemInfo?.conteudo) : null,
+            conteudo: positivo ? (registrosLocadoras.length > 0 ? registrosLocadoras : rawInfoConteudo) : null,
+            detalhes: positivo ? (registrosLocadoras.length > 0 ? registrosLocadoras : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo,
             total: positivo ? registrosLocadoras.length || 1 : 0
           };
         }
 
         case 'P5': { // HISTÓRICO DE EX-FROTA DE ENTIDADE RELIGIOSA
-          const positivo = religiosasDetectadas.length > 0 || itemInfo?.status === 'positivo';
+          const positivo = religiosasDetectadas.length > 0 || hasInfoSinistros;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? 'IDENTIFICADA TITULARIDADE DE ENTIDADE RELIGIOSA NA CADEIA DOMINIAL'
+              ? (typeof rawInfoConteudo === 'string'
+                  ? rawInfoConteudo
+                  : 'IDENTIFICADA TITULARIDADE DE ENTIDADE RELIGIOSA NA CADEIA DOMINIAL')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (religiosasDetectadas.length > 0 ? religiosasDetectadas : itemInfo?.conteudo) : null
+            conteudo: positivo ? (religiosasDetectadas.length > 0 ? religiosasDetectadas : rawInfoConteudo) : null,
+            detalhes: positivo ? (religiosasDetectadas.length > 0 ? religiosasDetectadas : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo
           };
         }
 
         case 'P6': { // HISTÓRICO DE EX-FROTA DE SEGURANÇA PRIVADA
-          const positivo = segurancaPrivadaDetectadas.length > 0 || itemInfo?.status === 'positivo';
+          const positivo = segurancaPrivadaDetectadas.length > 0 || hasInfoSinistros;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? 'IDENTIFICADA OPERAÇÃO POR EMPRESA DE SEGURANÇA PRIVADA / VIGILÂNCIA'
+              ? (typeof rawInfoConteudo === 'string'
+                  ? rawInfoConteudo
+                  : 'IDENTIFICADA OPERAÇÃO POR EMPRESA DE SEGURANÇA PRIVADA / VIGILÂNCIA')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (segurancaPrivadaDetectadas.length > 0 ? segurancaPrivadaDetectadas : itemInfo?.conteudo) : null
+            conteudo: positivo ? (segurancaPrivadaDetectadas.length > 0 ? segurancaPrivadaDetectadas : rawInfoConteudo) : null,
+            detalhes: positivo ? (segurancaPrivadaDetectadas.length > 0 ? segurancaPrivadaDetectadas : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo
           };
         }
 
         case 'P7': { // HISTÓRICO DE VENDA DIRETA / REMARKETING POR BANCOS / FINANCEIRAS
-          const positivo = registrosFinanceiras.length > 0 || itemInfo?.status === 'positivo';
+          const positivo = registrosFinanceiras.length > 0 || hasInfoSinistros;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? `IDENTIFICADA INSTITUIÇÃO FINANCEIRA OU LEASING (${registrosFinanceiras.length} registro(s))`
+              ? (registrosFinanceiras.length > 0
+                  ? `IDENTIFICADA INSTITUIÇÃO FINANCEIRA OU LEASING (${registrosFinanceiras.length} registro(s))`
+                  : (typeof rawInfoConteudo === 'string' ? rawInfoConteudo : 'IDENTIFICADA INSTITUIÇÃO FINANCEIRA OU LEASING'))
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (registrosFinanceiras.length > 0 ? registrosFinanceiras : itemInfo?.conteudo) : null,
+            conteudo: positivo ? (registrosFinanceiras.length > 0 ? registrosFinanceiras : rawInfoConteudo) : null,
+            detalhes: positivo ? (registrosFinanceiras.length > 0 ? registrosFinanceiras : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo,
             total: positivo ? registrosFinanceiras.length || 1 : 0
           };
         }
 
         case 'P8': { // HISTÓRICO DE COMERCIALIZAÇÃO EM LOJAS DE SALVADOS
-          const positivo = salvadosDetectados.length > 0 || itemInfo?.status === 'positivo';
+          const positivo = salvadosDetectados.length > 0 || hasInfoSinistros;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? 'IDENTIFICADO HISTÓRICO DE COMERCIALIZAÇÃO EM LOJAS DE SALVADOS'
+              ? (typeof rawInfoConteudo === 'string'
+                  ? rawInfoConteudo
+                  : 'IDENTIFICADO HISTÓRICO DE COMERCIALIZAÇÃO EM LOJAS DE SALVADOS')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (salvadosDetectados.length > 0 ? salvadosDetectados : itemInfo?.conteudo) : null
+            conteudo: positivo ? (salvadosDetectados.length > 0 ? salvadosDetectados : rawInfoConteudo) : null,
+            detalhes: positivo ? (salvadosDetectados.length > 0 ? salvadosDetectados : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo
           };
         }
 
@@ -854,20 +914,26 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: cardRouboFurto.mensagem,
             conteudo: positivo ? cardRouboFurto.ocorrencias : null,
+            detalhes: positivo ? cardRouboFurto.ocorrencias : null,
+            respostaInfoSinistros: rawInfoConteudo,
             total: cardRouboFurto.totalOcorrencias
           };
         }
 
         case 'P14': { // INDENIZAÇÃO INTEGRAL POR CIA SEGURADORA
-          const positivo = indenizacaoIntegral || itemInfo?.status === 'positivo';
+          const positivo = indenizacaoIntegral || hasInfoSinistros;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? 'IDENTIFICADA INDENIZAÇÃO INTEGRAL POR COMPANHIA SEGURADORA'
+              ? (typeof rawInfoConteudo === 'string'
+                  ? rawInfoConteudo
+                  : 'IDENTIFICADA INDENIZAÇÃO INTEGRAL POR COMPANHIA SEGURADORA')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (itemInfo?.conteudo || 'Registro de Indenização Integral detectado') : null
+            conteudo: positivo ? (rawInfoConteudo || 'Registro de Indenização Integral detectado') : null,
+            detalhes: positivo ? (rawInfoConteudo || 'Registro de Indenização Integral detectado') : null,
+            respostaInfoSinistros: rawInfoConteudo
           };
         }
 
@@ -881,33 +947,43 @@ export class E20Service {
               ? `CADEIA DOMINIAL AUDITADA (${cardProprietarios.total} proprietário(s) registrado(s))`
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? cardProprietarios.historico : null,
+            detalhes: positivo ? cardProprietarios.historico : null,
+            respostaInfoSinistros: rawInfoConteudo,
             total: cardProprietarios.total
           };
         }
 
         case 'P23': { // HISTÓRICO DE FROTA DE EMPRESA PRIVADA
-          const positivo = empresasPrivadasDetectadas.length > 0 || itemInfo?.status === 'positivo';
+          const positivo = empresasPrivadasDetectadas.length > 0 || hasInfoSinistros;
+          const msgInfo = typeof rawInfoConteudo === 'string' ? rawInfoConteudo : null;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? `IDENTIFICADA EMPRESA PRIVADA NA CADEIA DOMINIAL (${empresasPrivadasDetectadas.length} registro(s))`
+              ? (msgInfo || `IDENTIFICADA EMPRESA PRIVADA NA CADEIA DOMINIAL (${empresasPrivadasDetectadas.length} registro(s))`)
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (empresasPrivadasDetectadas.length > 0 ? empresasPrivadasDetectadas : itemInfo?.conteudo) : null
+            conteudo: positivo ? (empresasPrivadasDetectadas.length > 0 ? empresasPrivadasDetectadas : rawInfoConteudo) : null,
+            detalhes: positivo ? (empresasPrivadasDetectadas.length > 0 ? empresasPrivadasDetectadas : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo,
+            total: positivo ? empresasPrivadasDetectadas.length || 1 : 0
           };
         }
 
         case 'P27': { // INDÍCIO DE USO COMO TÁXI/PCD
-          const positivo = taxiPcdDetectados.length > 0 || itemInfo?.status === 'positivo';
+          const positivo = taxiPcdDetectados.length > 0 || hasInfoSinistros;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? 'IDENTIFICADO INDÍCIO DE USO COMO TÁXI OU ISENÇÃO PCD'
+              ? (typeof rawInfoConteudo === 'string'
+                  ? rawInfoConteudo
+                  : 'IDENTIFICADO INDÍCIO DE USO COMO TÁXI OU ISENÇÃO PCD')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (taxiPcdDetectados.length > 0 ? taxiPcdDetectados : itemInfo?.conteudo) : null
+            conteudo: positivo ? (taxiPcdDetectados.length > 0 ? taxiPcdDetectados : rawInfoConteudo) : null,
+            detalhes: positivo ? (taxiPcdDetectados.length > 0 ? taxiPcdDetectados : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo
           };
         }
 
@@ -920,14 +996,16 @@ export class E20Service {
             mensagem: temDadosBin
               ? `${dadosVeiculo.marcaModelo || dadosVeiculo.modelo || 'CADASTRO LOCALIZADO'} (Ano ${dadosVeiculo.anoFabricacao || '-'}/${dadosVeiculo.anoModelo || '-'}, Cor ${dadosVeiculo.cor || '-'})`
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: temDadosBin ? dadosVeiculo : null
+            conteudo: temDadosBin ? dadosVeiculo : null,
+            detalhes: temDadosBin ? dadosVeiculo : null,
+            respostaInfoSinistros: rawInfoConteudo
           };
         }
 
         case 'P36': { // HISTÓRICO DE VALOR DE MERCADO (FIPE)
           const p36Info = infoResult?.resultados?.P36;
           const fipeValor = p36Info?.conteudo?.valor_medio_fipe || p36Info?.conteudo?.valor;
-          const positivo = Boolean(fipeValor) || p36Info?.status === 'positivo';
+          const positivo = Boolean(fipeValor) || hasInfoSinistros;
           return {
             codigo,
             titulo,
@@ -935,37 +1013,65 @@ export class E20Service {
             mensagem: positivo
               ? `${fipeValor || 'VALOR CONSULTADO'} (Código: ${p36Info?.conteudo?.codigo_fipe || '-'}, Ref: ${p36Info?.conteudo?.mes_referencia || '-'})`
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? p36Info?.conteudo : null
+            conteudo: positivo ? p36Info?.conteudo : null,
+            detalhes: positivo ? p36Info?.conteudo : null,
+            respostaInfoSinistros: rawInfoConteudo
           };
         }
 
         case 'P37': { // HISTÓRICO DE PROPRIETÁRIOS PAGANTES DO DPVAT (ONLINE)
-          const positivo = itemInfo?.status === 'positivo';
+          const positivo = hasInfoSinistros;
+          const qtd = Array.isArray(rawInfoConteudo) ? rawInfoConteudo.length : 0;
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? (typeof itemInfo?.conteudo === 'string' ? itemInfo.conteudo : `REGISTRO IDENTIFICADO NA BASE INTERNA`)
+              ? (typeof rawInfoConteudo === 'string'
+                  ? rawInfoConteudo
+                  : (qtd > 0 ? `IDENTIFICADOS ${qtd} APONTAMENTO(S) NA BASE ONLINE DPVAT` : 'REGISTRO IDENTIFICADO NA BASE INTERNA'))
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? itemInfo?.conteudo : null
+            conteudo: positivo ? rawInfoConteudo : null,
+            detalhes: positivo ? rawInfoConteudo : null,
+            respostaInfoSinistros: rawInfoConteudo,
+            total: qtd
           };
         }
 
         default: {
           // Indicadores nativos da InfoSinistros (P9, P11, P12, P13, P15, P16, P18-P22, P24-P26, P28-P34)
-          const positivo = itemInfo?.status === 'positivo';
+          const positivo = hasInfoSinistros;
+          let msg = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
+          if (positivo) {
+            if (typeof rawInfoConteudo === 'string') {
+              msg = rawInfoConteudo;
+            } else if (Array.isArray(rawInfoConteudo)) {
+              msg = `IDENTIFICADO(S) ${rawInfoConteudo.length} REGISTRO(S) NA BASE INTERNA`;
+            } else if (rawInfoConteudo && typeof rawInfoConteudo === 'object') {
+              msg = 'REGISTRO IDENTIFICADO NA BASE INTERNA';
+            } else {
+              msg = 'REGISTRO LOCALIZADO';
+            }
+          }
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
-            mensagem: positivo
-              ? (typeof itemInfo?.conteudo === 'string' ? itemInfo.conteudo : `REGISTRO IDENTIFICADO NA BASE INTERNA`)
-              : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? itemInfo?.conteudo : null
+            mensagem: msg,
+            conteudo: positivo ? rawInfoConteudo : null,
+            detalhes: positivo ? rawInfoConteudo : null,
+            respostaInfoSinistros: rawInfoConteudo
           };
         }
       }
+    };
+
+    const construirIndicador = (codigo: string): E20IndicadorItem => {
+      const item = montarIndicadorInterno(codigo);
+      return {
+        ...item,
+        consta: item.status === 'positivo'
+      };
     };
 
     // 9. Dados Complementares: FIPE (P36)

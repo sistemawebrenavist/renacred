@@ -465,6 +465,12 @@ const E20PreVistoriaLaudo: React.FC<{
             ÓRGÃO PÚBLICO
           </span>
         );
+      case 'viatura':
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-900 border border-red-300">
+            VIATURA POLICIAL
+          </span>
+        );
       case 'financeira':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">
@@ -483,10 +489,29 @@ const E20PreVistoriaLaudo: React.FC<{
             SEGURANÇA PRIVADA
           </span>
         );
+      case 'religiosa':
       case 'entidade_religiosa':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-900 border border-teal-300">
             ENTIDADE RELIGIOSA
+          </span>
+        );
+      case 'empresa_privada':
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-800 border border-slate-300">
+            EMPRESA PRIVADA
+          </span>
+        );
+      case 'salvados':
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            LOJA DE SALVADOS
+          </span>
+        );
+      case 'taxi_pcd':
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-900 border border-yellow-300">
+            TÁXI / ISENÇÃO PCD
           </span>
         );
       default:
@@ -559,7 +584,10 @@ const E20PreVistoriaLaudo: React.FC<{
           titulo: cat.titulo,
           consta: isPos,
           status: isPos ? 'POSITIVO' : 'NEGATIVO',
-          mensagem: achado.mensagem || (isPos ? 'REGISTRO LOCALIZADO' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA')
+          mensagem: achado.mensagem || (isPos ? 'REGISTRO LOCALIZADO' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA'),
+          detalhes: achado.detalhes || achado.conteudo,
+          conteudo: achado.conteudo,
+          respostaInfoSinistros: achado.respostaInfoSinistros || (typeof achado.conteudo === 'string' ? achado.conteudo : null)
         };
       }
 
@@ -567,56 +595,56 @@ const E20PreVistoriaLaudo: React.FC<{
       switch (cat.chave) {
         case 'P1': {
           const pos = !!dados?.seguradoras?.total;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.seguradoras.total} registro(s) de seguradora` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.seguradoras.total} registro(s) de seguradora` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.seguradoras?.registros, conteudo: dados?.seguradoras?.registros };
         }
         case 'P2': {
           const pos = !!dados?.frota_publica?.isViatura;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indício de viatura policial localizado' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indício de viatura policial localizado' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.frota_publica?.registros, conteudo: dados?.frota_publica?.registros };
         }
         case 'P3': {
           const pos = !!dados?.frota_publica?.total;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.frota_publica.total} registro(s) de órgão público` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.frota_publica.total} registro(s) de órgão público` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.frota_publica?.registros, conteudo: dados?.frota_publica?.registros };
         }
         case 'P4': {
           const pos = !!dados?.locadoras?.total;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.locadoras.total} registro(s) de locadora` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.locadoras.total} registro(s) de locadora` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.locadoras?.registros, conteudo: dados?.locadoras?.registros };
         }
         case 'P7': {
           const pos = !!dados?.financeiras?.total;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.financeiras.total} registro(s) de financeira/leasing` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.financeiras.total} registro(s) de financeira/leasing` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.financeiras?.registros, conteudo: dados?.financeiras?.registros };
         }
         case 'P8': {
           const pos = !!outros?.salvados;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Consta comercialização de salvados' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Consta comercialização de salvados' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: outros?.salvados, conteudo: outros?.salvados };
         }
         case 'P10': {
           const pos = rouboFurto.status === 'alerta' || rouboFurto.status === 'recuperado';
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: rouboFurto.mensagem || 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: rouboFurto.ocorrencias };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: rouboFurto.mensagem || 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: rouboFurto.ocorrencias, conteudo: rouboFurto.ocorrencias };
         }
         case 'P11': {
           const pos = !!outros?.leiloes;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Oferta em leilão identificada' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Oferta em leilão identificada' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: outros?.leiloes, conteudo: outros?.leiloes };
         }
         case 'P14': {
           const pos = !!dados?.seguradoras?.indenizacaoIntegral;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indenização integral por seguradora' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indenização integral por seguradora' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.seguradoras?.registros, conteudo: dados?.seguradoras?.registros };
         }
         case 'P17': {
           const totalProp = proprietarios.total || (proprietarios.historico ? proprietarios.historico.length : 0);
           const pos = totalProp > 0;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${totalProp} proprietário(s) registrado(s)` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${totalProp} proprietário(s) registrado(s)` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: proprietarios.historico, conteudo: proprietarios.historico };
         }
         case 'P19': {
           const pos = !!outros?.sinistro_recuperado;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Consta registro de recuperado de sinistro' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Consta registro de recuperado de sinistro' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: outros?.sinistro_recuperado, conteudo: outros?.sinistro_recuperado };
         }
         case 'P35': {
           const pos = Boolean(veiculo.marcaModelo || veiculo.modelo || veiculo.placa);
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${veiculo.marcaModelo || veiculo.modelo || 'CADASTRO LOCALIZADO'} (Ano ${veiculo.anoFabricacao || '-'}/${veiculo.anoModelo || '-'}, Cor ${veiculo.cor || '-'})` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${veiculo.marcaModelo || veiculo.modelo || 'CADASTRO LOCALIZADO'} (Ano ${veiculo.anoFabricacao || '-'}/${veiculo.anoModelo || '-'}, Cor ${veiculo.cor || '-'})` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: veiculo, conteudo: veiculo };
         }
         case 'P36': {
           const pos = !!outros?.fipe;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: outros?.fipe?.valor || outros?.fipe?.preco || 'Consultado', detalhes: outros?.fipe };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: outros?.fipe?.valor || outros?.fipe?.preco || 'Consultado', detalhes: outros?.fipe, conteudo: outros?.fipe };
         }
         default:
           return {
@@ -629,6 +657,266 @@ const E20PreVistoriaLaudo: React.FC<{
       }
     });
   }, [dados, rouboFurto, outros, proprietarios, veiculo, CATALOGO_P1_P37]);
+
+  // Renderizador especializado para exibir a resposta rica da API InfoSinistros e bases consolidadas
+  const renderRespostaPositivaIndicador = (item: any) => {
+    const dados = item.detalhes || item.conteudo || item.respostaInfoSinistros;
+    const infoRaw = item.respostaInfoSinistros;
+
+    return (
+      <div className="space-y-2 pt-0.5">
+        {/* 1. Resposta Oficial em Texto da API InfoSinistros */}
+        {infoRaw && typeof infoRaw === 'string' && infoRaw.trim().length > 0 && infoRaw.trim() !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' && (
+          <div className="p-2.5 bg-amber-100/80 border border-amber-300/90 rounded-md text-[11px] space-y-1 shadow-2xs">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-950 uppercase tracking-wider">
+              <CheckCircle2 className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+              <span>Resposta Oficial da API InfoSinistros:</span>
+            </div>
+            <p className="text-slate-800 leading-relaxed font-medium select-text">
+              {infoRaw}
+            </p>
+          </div>
+        )}
+
+        {/* 2. Roubo e Furto (P10) */}
+        {item.chave === 'P10' && Array.isArray(dados) && dados.length > 0 && (
+          <div className="space-y-1.5 pt-0.5">
+            {dados.map((oc: any, oIdx: number) => (
+              <div key={oIdx} className="p-2.5 bg-white rounded-md border border-rose-200 text-[11px] space-y-1 shadow-2xs">
+                <div className="flex items-center justify-between font-bold text-rose-950">
+                  <span>{oc.tipo || 'Ocorrência Policial'}</span>
+                  <span className="font-mono text-slate-500 text-[10.5px]">
+                    {oc.data ? formatDateBR(oc.data) : (oc.ano || '-')}
+                  </span>
+                </div>
+                <div className="text-slate-600 text-[10.5px]">
+                  Boletim: <strong className="font-mono text-slate-800">{oc.numero_boletim || '-'}</strong> • Órgão: {oc.orgao_seguranca || '-'}
+                </div>
+                {oc.descricao && (
+                  <div className="text-slate-600 text-[10.5px] italic bg-rose-50/50 p-1.5 rounded border border-rose-100">
+                    {oc.descricao}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 3. FIPE (P36) */}
+        {item.chave === 'P36' && dados && (
+          <div className="p-2.5 bg-white rounded-md border border-amber-200 text-xs flex items-center justify-between shadow-2xs">
+            <div>
+              <span className="text-[10px] text-slate-400 block uppercase font-semibold">Valor Médio FIPE</span>
+              <span className="font-extrabold text-slate-900 text-sm">
+                {dados.valor_medio_fipe || dados.valor || dados.preco || item.mensagem}
+              </span>
+            </div>
+            <div className="text-right text-[10.5px] text-slate-500 font-mono">
+              <div>{dados.codigo_fipe || dados.codigoFipe || ''}</div>
+              <div>{dados.mes_referencia || dados.mesReferencia || ''}</div>
+            </div>
+          </div>
+        )}
+
+        {/* 4. Histórico de Circulação (P31) */}
+        {item.chave === 'P31' && dados && typeof dados === 'object' && !Array.isArray(dados) && (
+          <div className="p-2.5 bg-white rounded-md border border-amber-200 text-[11px] space-y-1.5 shadow-2xs">
+            {dados.adquirido_0km && (
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Adquirido 0km:</span>
+                <strong className="font-bold text-slate-900">{dados.adquirido_0km}</strong>
+              </div>
+            )}
+            {dados.licenciamento_1 && (
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">1º Licenciamento:</span>
+                <span className="font-semibold text-slate-800">{dados.licenciamento_1}</span>
+              </div>
+            )}
+            {dados.licenciamento_2 && (
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">2º Licenciamento:</span>
+                <span className="font-semibold text-slate-800">{dados.licenciamento_2}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 5. Histórico de Movimentação / Alteração de Cadastro (P32) */}
+        {item.chave === 'P32' && dados && typeof dados === 'object' && !Array.isArray(dados) && (
+          <div className="p-2.5 bg-white rounded-md border border-amber-200 text-[11px] space-y-1.5 shadow-2xs">
+            {dados.insercao_renavam && (
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Inserção RENAVAM:</span>
+                <strong className="font-mono text-slate-900">{dados.insercao_renavam}</strong>
+              </div>
+            )}
+            {Array.isArray(dados.alteracoes) && dados.alteracoes.length > 0 && (
+              <div className="space-y-1 pt-1 border-t border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Alterações Cadastrais:
+                </span>
+                {dados.alteracoes.map((alt: any, aIdx: number) => (
+                  <div key={aIdx} className="flex items-center justify-between text-[10.5px]">
+                    <span className="text-slate-700">{alt.item || `Alteração #${aIdx + 1}`}</span>
+                    <span className="font-mono font-semibold text-slate-900">{alt.data ? formatDateBR(alt.data) : '-'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 6. Histórico de Proprietários Pagantes DPVAT Online (P37) */}
+        {item.chave === 'P37' && Array.isArray(dados) && dados.length > 0 && (
+          <div className="space-y-1 max-h-56 overflow-y-auto pt-0.5">
+            {dados.map((dp: any, dIdx: number) => (
+              <div key={dIdx} className="p-2 bg-white rounded-md border border-amber-200 text-[11px] space-y-0.5 shadow-2xs">
+                <div className="flex items-center justify-between font-semibold">
+                  <span className="text-slate-900 truncate max-w-[200px]">{dp.nome || 'Proprietário Registrado'}</span>
+                  <span className="text-[10px] font-mono text-slate-500">{dp.data ? formatDateBR(dp.data) : (dp.ordem ? `${dp.ordem}º` : '')}</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] text-slate-500">
+                  {dp.documento && <span className="font-mono">{formatDocumento(dp.documento)}</span>}
+                  {dp.municipio_uf && <span>{dp.municipio_uf}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 7. Entidades e Registros Cadastrais (P1 Seguradoras, P4 Locadoras, P7 Bancos/Financeiras, P23 Frotas, P2, P3, P5, P6, P8, P27) */}
+        {Array.isArray(dados) && !['P10', 'P31', 'P32', 'P35', 'P36', 'P37'].includes(item.chave) && dados.length > 0 && (
+          <div className="space-y-1.5 pt-0.5 max-h-60 overflow-y-auto">
+            {dados.map((reg: any, rIdx: number) => {
+              const nomeEntidade =
+                reg.instituicao ||
+                reg.empresa ||
+                reg.seguradora ||
+                reg.orgao ||
+                reg.nome ||
+                reg.razao_social ||
+                reg.leiloeiro ||
+                reg.comitente ||
+                reg.descricao ||
+                reg.tipo ||
+                reg.evento ||
+                reg.titulo ||
+                (typeof reg === 'string' ? reg : null);
+
+              if (!nomeEntidade && !reg.documento) {
+                if (typeof reg === 'object' && reg !== null) {
+                  return (
+                    <div key={rIdx} className="p-2.5 bg-white rounded-md border border-amber-200 shadow-2xs space-y-1 text-[11px]">
+                      {Object.entries(reg)
+                        .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !['id', '_id', 'status'].includes(k))
+                        .map(([k, v], vIdx) => (
+                          <div key={vIdx} className="flex items-center justify-between gap-1 text-[10.5px]">
+                            <span className="text-slate-500 capitalize">{k.replace(/_/g, ' ')}:</span>
+                            <span className="font-semibold text-slate-800">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                          </div>
+                        ))}
+                    </div>
+                  );
+                }
+                return null;
+              }
+
+              const tipoInferido =
+                reg.tipoEntidade ||
+                (item.chave === 'P7' ? 'financeira' :
+                 item.chave === 'P4' ? 'locadora' :
+                 item.chave === 'P1' ? 'seguradora' :
+                 item.chave === 'P2' ? 'viatura' :
+                 item.chave === 'P3' ? 'frota_publica' :
+                 item.chave === 'P5' ? 'religiosa' :
+                 item.chave === 'P6' ? 'seguranca_privada' :
+                 item.chave === 'P8' ? 'salvados' :
+                 item.chave === 'P23' ? 'empresa_privada' :
+                 item.chave === 'P27' ? 'taxi_pcd' : undefined);
+
+              return (
+                <div key={rIdx} className="p-2.5 bg-white rounded-md border border-amber-200/90 shadow-2xs space-y-1 text-[11px]">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-bold text-slate-900 leading-snug">
+                      {nomeEntidade || 'REGISTRO IDENTIFICADO'}
+                    </span>
+                    {tipoInferido && getBadgeEntidade(tipoInferido)}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[10.5px] text-slate-600 pt-0.5">
+                    {reg.documento && (
+                      <div>
+                        <span className="text-slate-400">Documento:</span>{' '}
+                        <strong className="font-mono text-slate-800">{formatDocumento(reg.documento)}</strong>
+                      </div>
+                    )}
+                    {reg.data && (
+                      <div>
+                        <span className="text-slate-400">Data/Posse:</span>{' '}
+                        <strong className="font-mono text-slate-800">{formatDateBR(reg.data)}</strong>
+                      </div>
+                    )}
+                    {(reg.tipo || reg.tipoEvento || reg.tipoUso) && (
+                      <div className="sm:col-span-2">
+                        <span className="text-slate-400">Perfil:</span>{' '}
+                        <span className="text-slate-800 font-medium">{reg.tipo || reg.tipoEvento || reg.tipoUso}</span>
+                      </div>
+                    )}
+                    {(reg.cnaeDescricao || reg.cnae_descricao) && (
+                      <div className="sm:col-span-2 text-slate-500">
+                        <span className="text-slate-400">CNAE:</span>{' '}
+                        {reg.cnae ? `${reg.cnae} - ` : ''}{reg.cnaeDescricao || reg.cnae_descricao}
+                      </div>
+                    )}
+                    {reg.detalhes && (
+                      <div className="sm:col-span-2 text-slate-600 italic">
+                        {reg.detalhes}
+                      </div>
+                    )}
+                  </div>
+
+                  {reg.fonte && (
+                    <div className="text-[9.5px] text-slate-400 pt-1 border-t border-slate-100 flex items-center justify-between">
+                      <span>Fonte: {reg.fonte}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 8. Fallback Genérico para Objetos da API InfoSinistros (P11 Leilão, P12 Acidentes, P30 CSV, etc.) */}
+        {dados && typeof dados === 'object' && !Array.isArray(dados) && !['P10', 'P31', 'P32', 'P35', 'P36', 'P37'].includes(item.chave) && (
+          <div className="p-2.5 bg-white rounded-md border border-amber-200 text-[11px] space-y-1 shadow-2xs">
+            <div className="text-[10px] font-bold text-amber-950 uppercase tracking-wider pb-1 border-b border-amber-100 flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+              <span>Dados Oficiais InfoSinistros:</span>
+            </div>
+            {Object.entries(dados)
+              .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !['id', '_id', 'status', 'sucesso', 'codigo', 'produto_id'].includes(k))
+              .map(([key, val]: [string, any], kIdx: number) => {
+                const label = key
+                  .replace(/_/g, ' ')
+                  .replace(/([A-Z])/g, ' $1')
+                  .replace(/^./, (str) => str.toUpperCase())
+                  .trim();
+
+                const valStr = typeof val === 'object' ? JSON.stringify(val) : String(val);
+
+                return (
+                  <div key={kIdx} className="flex flex-wrap items-center justify-between gap-1 text-[10.5px]">
+                    <span className="text-slate-500">{label}:</span>
+                    <strong className="text-slate-900 font-mono">{valStr}</strong>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -881,57 +1169,14 @@ const E20PreVistoriaLaudo: React.FC<{
                         NENHUM REGISTRO LOCALIZADO NA BASE INTERNA
                       </p>
                     ) : (
-                      <div className="space-y-1.5">
-                        <p className="text-[11.5px] font-semibold text-slate-800 leading-relaxed">
-                          {item.mensagem}
-                        </p>
-
-                        {/* Detalhes para Roubo e Furto (P10) */}
-                        {item.chave === 'P10' && Array.isArray(item.detalhes) && item.detalhes.length > 0 && (
-                          <div className="space-y-1 pt-1">
-                            {item.detalhes.map((oc: any, oIdx: number) => (
-                              <div key={oIdx} className="p-2 bg-white rounded border border-rose-200 text-[11px] space-y-0.5">
-                                <div className="flex items-center justify-between font-semibold">
-                                  <span>{oc.tipo || 'Ocorrência'}</span>
-                                  <span className="font-mono text-slate-500">{oc.data ? formatDateBR(oc.data) : (oc.ano || '-')}</span>
-                                </div>
-                                <div className="text-slate-600">
-                                  Boletim: <strong className="font-mono">{oc.numero_boletim || '-'}</strong> • Órgão: {oc.orgao_seguranca || '-'}
-                                </div>
-                                {oc.descricao && <div className="text-slate-500 text-[10.5px]">{oc.descricao}</div>}
-                              </div>
-                            ))}
-                          </div>
+                      <div className="space-y-2">
+                        {(!item.respostaInfoSinistros || typeof item.respostaInfoSinistros !== 'string' || item.respostaInfoSinistros.trim() !== item.mensagem?.trim() || item.respostaInfoSinistros.trim() === 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA') && (
+                          <p className="text-[11.5px] font-semibold text-slate-800 leading-relaxed">
+                            {item.mensagem}
+                          </p>
                         )}
 
-                        {/* Detalhes para Entidades (P1, P4, P7, P23 etc) */}
-                        {Array.isArray(item.detalhes) && item.chave !== 'P10' && item.detalhes.length > 0 && (
-                          <div className="space-y-1 pt-1">
-                            {item.detalhes.map((reg: any, rIdx: number) => (
-                              <div key={rIdx} className="p-2 bg-white rounded border border-amber-200 text-[11px]">
-                                <span className="font-bold text-slate-900">{reg.nome || reg.empresa || reg.seguradora || reg.instituicao || reg.orgao}</span>
-                                {reg.documento && (
-                                  <span className="font-mono text-slate-600 block">Doc: {formatDocumento(reg.documento)}</span>
-                                )}
-                                {reg.cnae_descricao && (
-                                  <span className="text-[10px] text-slate-500 block">CNAE: {reg.cnae} - {reg.cnae_descricao}</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Detalhes para FIPE (P36) */}
-                        {item.chave === 'P36' && item.detalhes && (
-                          <div className="pt-1 flex items-center justify-between text-xs">
-                            <span className="font-bold text-slate-900 text-sm">
-                              {item.detalhes.valor || item.detalhes.preco || item.mensagem}
-                            </span>
-                            <span className="text-[10.5px] text-slate-500 font-mono">
-                              {item.detalhes.codigoFipe || item.detalhes.mesReferencia || ''}
-                            </span>
-                          </div>
-                        )}
+                        {renderRespostaPositivaIndicador(item)}
                       </div>
                     )}
                   </div>
