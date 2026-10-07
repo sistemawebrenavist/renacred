@@ -1378,8 +1378,9 @@ export function normalizeE20(raw: any, query?: string): NormalizedResult {
   const temVeiculo = Boolean(raw.veiculo?.placa || raw.veiculo?.chassi || raw.placa);
   const temOcorrencias = Boolean(raw.roubo_furto?.totalOcorrencias || (raw.roubo_furto?.status && raw.roubo_furto.status !== 'regular'));
   const temProprietarios = Boolean(raw.proprietarios?.total || raw.proprietarios?.proprietario_atual);
+  const temIndicadores = Boolean(raw.indicadores && Array.isArray(raw.indicadores) && raw.indicadores.length > 0);
 
-  if (!temVeiculo && !temOcorrencias && !temProprietarios) {
+  if (!temVeiculo && !temOcorrencias && !temProprietarios && !temIndicadores) {
     return {
       totalRegistros: 0,
       dados: null

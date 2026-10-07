@@ -11,10 +11,24 @@ import { ExportExcelButton } from '../imobiliario/ExportExcelButton';
 import { translateCBO, translateMosaic } from '../../utils/cboMosaicUtils';
 import { RenacredLogo } from '../ui/RenacredLogo';
 
+// Formatação universal de Placa (Mercosul ou antiga)
+const formatPlaca = (placa?: string | number | null): string => {
+  if (!placa) return '-';
+  const clean = String(placa).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (clean.length === 7) {
+    return `${clean.slice(0, 3)}-${clean.slice(3)}`;
+  }
+  return clean || '-';
+};
+
 // Formatação universal de CPF com 11 dígitos garantidos (preenchimento com zero à esquerda)
 const formatCPF = (doc?: string | number | null): string => {
   if (!doc) return '-';
-  const clean = String(doc).replace(/\D/g, '');
+  const str = String(doc).trim();
+  if (/[A-Za-z]/.test(str)) {
+    return formatDocumento(doc);
+  }
+  const clean = str.replace(/\D/g, '');
   if (!clean) return '-';
   const padded = clean.padStart(11, '0');
   if (padded.length === 11) {
@@ -27,6 +41,19 @@ const formatCPF = (doc?: string | number | null): string => {
 const formatDocumento = (doc?: string | number | null) => {
   if (!doc) return '-';
   const str = String(doc).trim();
+  const cleanAlphaNum = str.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+  // 1. Se for placa brasileira (7 caracteres com 3 letras no início)
+  if (/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(cleanAlphaNum)) {
+    return `${cleanAlphaNum.slice(0, 3)}-${cleanAlphaNum.slice(3)}`;
+  }
+
+  // 2. Se contiver letras e não for placa, não trate como CPF/CNPJ
+  if (/[A-Za-z]/.test(str)) {
+    return str.toUpperCase();
+  }
+
+  // 3. Tratamento estritamente numérico
   const clean = str.replace(/\D/g, '');
   if (clean.length > 0 && clean.length <= 11) {
     const padded = clean.padStart(11, '0');
@@ -173,7 +200,9 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
             Alvo Auditado ({produto.inputLabel})
           </span>
           <span className="text-sm font-bold font-mono text-slate-900 mt-1 block print:mt-0.5 print:text-xs">
-            {formatDocumento(identifier)}
+            {produto.category === 'veicular' || produto.inputLabel?.toLowerCase().includes('placa')
+              ? formatPlaca(identifier)
+              : formatDocumento(identifier)}
           </span>
           <span className="text-[11px] text-slate-500 mt-0.5 block print:text-[9.5px]">
             Categoria: {produto.categoryLabel}
@@ -387,10 +416,6 @@ const E20PreVistoriaLaudo: React.FC<{
 
   const veiculo = dados?.veiculo || {};
   const rouboFurto = dados?.roubo_furto || { status: 'regular', totalOcorrencias: 0, ocorrencias: [] };
-  const locadoras = dados?.locadoras || { status: 'negativo', total: 0, registros: [] };
-  const seguradoras = dados?.seguradoras || { status: 'negativo', total: 0, registros: [] };
-  const frotaPublica = dados?.frota_publica || { status: 'negativo', total: 0, registros: [] };
-  const financeiras = dados?.financeiras || { status: 'negativo', total: 0, registros: [] };
   const proprietarios = dados?.proprietarios || { total: 0, historico: [] };
   const outros = dados?.outros_produtos || {};
 
@@ -414,31 +439,206 @@ const E20PreVistoriaLaudo: React.FC<{
     }
   };
 
+  // Higieniza qualquer título removendo prefixos como "P1 | ", "P2 | ", etc.
+  const sanitizeTituloIndicador = (titulo?: string) => {
+    if (!titulo) return '';
+    return titulo.replace(/^P\d+\s*\|\s*/i, '').trim();
+  };
+
   const getBadgeEntidade = (tipo?: string) => {
     switch (tipo) {
       case 'locadora':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">LOCADORA DE VEÍCULOS</span>;
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            LOCADORA DE VEÍCULOS
+          </span>
+        );
       case 'seguradora':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300">CIA SEGURADORA</span>;
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300">
+            CIA SEGURADORA
+          </span>
+        );
       case 'frota_publica':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300">ÓRGÃO PÚBLICO</span>;
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+            ÓRGÃO PÚBLICO
+          </span>
+        );
       case 'financeira':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">BANCO / FINANCEIRA</span>;
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">
+            BANCO / FINANCEIRA / LEASING
+          </span>
+        );
+      case 'concessionaria':
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-300">
+            COMÉRCIO / CONCESSIONÁRIA
+          </span>
+        );
+      case 'seguranca_privada':
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-900 border border-orange-300">
+            SEGURANÇA PRIVADA
+          </span>
+        );
+      case 'entidade_religiosa':
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-900 border border-teal-300">
+            ENTIDADE RELIGIOSA
+          </span>
+        );
       default:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">PARTICULAR</span>;
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+            PARTICULAR
+          </span>
+        );
     }
   };
 
+  // Catálogo Oficial completo de P1 a P37 da InfoSinistros
+  const CATALOGO_P1_P37 = React.useMemo(() => [
+    { chave: 'P1', titulo: 'HISTÓRICO DE VENDA DIRETA/REMARKETING (SEGURADORAS)' },
+    { chave: 'P2', titulo: 'HISTÓRICO DE OPERAÇÃO/USO COMO VIATURA POLICIAL (PM, PC, PF, GM)' },
+    { chave: 'P3', titulo: 'HISTÓRICO DE EX-FROTA PÚBLICA' },
+    { chave: 'P4', titulo: 'HISTÓRICO DE EX-FROTA DE LOCADORA' },
+    { chave: 'P5', titulo: 'HISTÓRICO DE EX-FROTA DE ENTIDADE RELIGIOSA' },
+    { chave: 'P6', titulo: 'HISTÓRICO DE EX-FROTA DE SEGURANÇA PRIVADA' },
+    { chave: 'P7', titulo: 'HISTÓRICO DE VENDA DIRETA / REMARKETING POR BANCOS / FINANCEIRAS' },
+    { chave: 'P8', titulo: 'HISTÓRICO DE COMERCIALIZAÇÃO EM LOJAS DE SALVADOS' },
+    { chave: 'P9', titulo: 'HISTÓRICO DE RESTRIÇÃO PARA EMISSÃO DE APÓLICE DE SEGUROS' },
+    { chave: 'P10', titulo: 'HISTÓRICO DE BOLETINS DE ROUBO E FURTO E OCORRÊNCIAS DIVERSAS' },
+    { chave: 'P11', titulo: 'HISTÓRICO DE NOTIFICAÇÃO/OFERTA EM EDITAL ELETRÔNICO DE LEILÃO' },
+    { chave: 'P12', titulo: 'HISTÓRICO DE ACIDENTES DE TRÂNSITO' },
+    { chave: 'P13', titulo: 'HISTÓRICO DE ACIDENTES DE TRÂNSITO DETALHADO' },
+    { chave: 'P14', titulo: 'INDENIZAÇÃO INTEGRAL POR CIA SEGURADORA' },
+    { chave: 'P15', titulo: 'HISTÓRICO DE DANOS E AVARIAS' },
+    { chave: 'P16', titulo: 'SUSPEITA DE CHASSI ADULTERADO' },
+    { chave: 'P17', titulo: 'HISTÓRICO DE PROPRIETÁRIOS DO VEÍCULO' },
+    { chave: 'P18', titulo: 'VEÍCULO UTILIZADO PARA COMETIMENTO DE CRIMES' },
+    { chave: 'P19', titulo: 'HISTÓRICO DE RECUPERADO DE SINISTRO (BRF)' },
+    { chave: 'P20', titulo: 'HISTÓRICO DE SINISTRO RECUPERADO (ACT)' },
+    { chave: 'P21', titulo: 'HISTÓRICO DE KM' },
+    { chave: 'P22', titulo: 'HISTÓRICO DE LAUDO CAUTELAR' },
+    { chave: 'P23', titulo: 'HISTÓRICO DE FROTA DE EMPRESA PRIVADA' },
+    { chave: 'P24', titulo: 'INDICADOR DE EXPOSIÇÃO A SINISTRO E INTEGRIDADE DE COMPONENTES' },
+    { chave: 'P25', titulo: 'BANCO DE IMAGENS DE FLAGRANTES DE TRÂNSITO' },
+    { chave: 'P26', titulo: 'HISTÓRICO DE ATENDIMENTO A SINISTROS' },
+    { chave: 'P27', titulo: 'INDÍCIO DE USO COMO TÁXI/PCD' },
+    { chave: 'P28', titulo: 'HISTÓRICO DE DEMANDA JUDICIAL BÁSICO' },
+    { chave: 'P29', titulo: 'HISTÓRICO DE DEMANDA JUDICIAL DETALHADO' },
+    { chave: 'P30', titulo: 'HISTÓRICO DE EMISSÃO DE CERTIFICADO DE SEGURANÇA VEICULAR (CSV)' },
+    { chave: 'P31', titulo: 'HISTÓRICO DE CIRCULAÇÃO' },
+    { chave: 'P32', titulo: 'HISTÓRICO DE MOVIMENTAÇÃO / ALTERAÇÃO DE CADASTRO' },
+    { chave: 'P33', titulo: 'VERIFICAÇÃO DE ALTERAÇÃO DE CARACTERÍSTICAS' },
+    { chave: 'P34', titulo: 'INDÍCIO DE GRANDES FROTISTAS' },
+    { chave: 'P35', titulo: 'FICHA TÉCNICA E CADASTRO BIN FABRIL' },
+    { chave: 'P36', titulo: 'HISTÓRICO DE VALOR DE MERCADO (FIPE)' },
+    { chave: 'P37', titulo: 'HISTÓRICO DE PROPRIETÁRIOS PAGANTES DO DPVAT (ONLINE)' }
+  ], []);
+
+  // Garante a exibição estrita dos 37 indicadores (P1 ao P37) mesmo que não haja registros
+  const indicadoresGrid: any[] = React.useMemo(() => {
+    const mapaBackend: Record<string, any> = {};
+    if (Array.isArray(dados?.indicadores)) {
+      for (const item of dados.indicadores) {
+        const k = item.chave || item.codigo;
+        if (k) mapaBackend[k] = item;
+      }
+    }
+
+    return CATALOGO_P1_P37.map((cat) => {
+      const achado = mapaBackend[cat.chave];
+      if (achado) {
+        const isPos = achado.consta || achado.status === 'positivo' || achado.status === 'POSITIVO';
+        return {
+          ...achado,
+          chave: cat.chave,
+          titulo: cat.titulo,
+          consta: isPos,
+          status: isPos ? 'POSITIVO' : 'NEGATIVO',
+          mensagem: achado.mensagem || (isPos ? 'REGISTRO LOCALIZADO' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA')
+        };
+      }
+
+      // Fallback inteligente para quando o backend não retornar determinado indicador
+      switch (cat.chave) {
+        case 'P1': {
+          const pos = !!dados?.seguradoras?.total;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.seguradoras.total} registro(s) de seguradora` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P2': {
+          const pos = !!dados?.frota_publica?.isViatura;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indício de viatura policial localizado' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P3': {
+          const pos = !!dados?.frota_publica?.total;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.frota_publica.total} registro(s) de órgão público` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P4': {
+          const pos = !!dados?.locadoras?.total;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.locadoras.total} registro(s) de locadora` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P7': {
+          const pos = !!dados?.financeiras?.total;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.financeiras.total} registro(s) de financeira/leasing` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P8': {
+          const pos = !!outros?.salvados;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Consta comercialização de salvados' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P10': {
+          const pos = rouboFurto.status === 'alerta' || rouboFurto.status === 'recuperado';
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: rouboFurto.mensagem || 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: rouboFurto.ocorrencias };
+        }
+        case 'P11': {
+          const pos = !!outros?.leiloes;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Oferta em leilão identificada' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P14': {
+          const pos = !!dados?.seguradoras?.indenizacaoIntegral;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indenização integral por seguradora' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P17': {
+          const totalProp = proprietarios.total || (proprietarios.historico ? proprietarios.historico.length : 0);
+          const pos = totalProp > 0;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${totalProp} proprietário(s) registrado(s)` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P19': {
+          const pos = !!outros?.sinistro_recuperado;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Consta registro de recuperado de sinistro' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P35': {
+          const pos = Boolean(veiculo.marcaModelo || veiculo.modelo || veiculo.placa);
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${veiculo.marcaModelo || veiculo.modelo || 'CADASTRO LOCALIZADO'} (Ano ${veiculo.anoFabricacao || '-'}/${veiculo.anoModelo || '-'}, Cor ${veiculo.cor || '-'})` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
+        }
+        case 'P36': {
+          const pos = !!outros?.fipe;
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: outros?.fipe?.valor || outros?.fipe?.preco || 'Consultado', detalhes: outros?.fipe };
+        }
+        default:
+          return {
+            chave: cat.chave,
+            titulo: cat.titulo,
+            consta: false,
+            status: 'NEGATIVO',
+            mensagem: 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA'
+          };
+      }
+    });
+  }, [dados, rouboFurto, outros, proprietarios, veiculo, CATALOGO_P1_P37]);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* 1. HEADER EXECUTIVO DE IDENTIFICAÇÃO VEICULAR & BIN FABRIL */}
-      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-2xl p-6 sm:p-7 text-white shadow-xl border border-slate-800 relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 sm:p-6 text-white shadow-sm relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-lg text-xs font-bold font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                PLACA: {placa.toUpperCase()}
+              <span className="px-3 py-1 rounded-md text-xs font-bold font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                PLACA: {formatPlaca(placa)}
               </span>
               {dados?.contingenciaRenavamAplicada && (
                 <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
@@ -450,11 +650,11 @@ const E20PreVistoriaLaudo: React.FC<{
               </span>
             </div>
 
-            <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-3">
+            <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white mt-2.5">
               {veiculo.marcaModelo || `${veiculo.marca || ''} ${veiculo.modelo || ''}`.trim() || 'VEÍCULO NÃO IDENTIFICADO'}
             </h3>
 
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 mt-2">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300 mt-2">
               <span>Ano: <strong className="text-white font-mono">{veiculo.anoFabricacao || '-'}/{veiculo.anoModelo || '-'}</strong></span>
               <span>•</span>
               <span>Cor: <strong className="text-white">{veiculo.cor || '-'}</strong></span>
@@ -465,19 +665,19 @@ const E20PreVistoriaLaudo: React.FC<{
             </div>
           </div>
 
-          {/* Card Rápido de Chaves Primárias: RENAVAM e Chassi */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 shrink-0 min-w-[280px]">
+          {/* Chaves Primárias: RENAVAM e Chassi */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 shrink-0 min-w-[270px]">
             {/* RENAVAM */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-3">
+            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between gap-3">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider block">Código RENAVAM</span>
-                <span className="font-mono text-base font-bold text-emerald-400 block mt-0.5 select-all">{renavam}</span>
+                <span className="font-mono text-sm font-bold text-emerald-400 block mt-0.5 select-all">{renavam}</span>
               </div>
               <button
                 type="button"
                 onClick={handleCopyRenavam}
                 disabled={!renavam || renavam === '-'}
-                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg transition border border-slate-700 cursor-pointer disabled:opacity-40"
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md transition border border-slate-700 cursor-pointer disabled:opacity-40"
                 title="Copiar RENAVAM"
               >
                 {copiedRenavam ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -485,16 +685,16 @@ const E20PreVistoriaLaudo: React.FC<{
             </div>
 
             {/* Chassi */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-3">
+            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between gap-3">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider block">Número do Chassi</span>
-                <span className="font-mono text-xs font-bold text-slate-200 block mt-0.5 select-all truncate max-w-[190px]">{chassi}</span>
+                <span className="font-mono text-xs font-bold text-slate-200 block mt-0.5 select-all truncate max-w-[180px]">{chassi}</span>
               </div>
               <button
                 type="button"
                 onClick={handleCopyChassi}
                 disabled={!chassi || chassi === '-'}
-                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg transition border border-slate-700 cursor-pointer disabled:opacity-40"
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md transition border border-slate-700 cursor-pointer disabled:opacity-40"
                 title="Copiar Chassi"
               >
                 {copiedChassi ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -505,314 +705,55 @@ const E20PreVistoriaLaudo: React.FC<{
       </div>
 
       {/* Grid de Especificações Mecânicas e Cadastrais */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-3">
+      <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs space-y-2.5">
         <div className="text-xs font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center space-x-2">
-          <Car className="w-4 h-4 text-slate-600" />
+          <Car className="w-3.5 h-3.5 text-slate-600" />
           <span>Especificações Técnicas e Cadastrais da BIN Fabril</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-xs">
-          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs">
+          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
             <span className="text-[10px] text-slate-400 block font-medium">Motor</span>
             <span className="font-mono font-bold text-slate-800 truncate block mt-0.5">{veiculo.motor || '-'}</span>
           </div>
-          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
             <span className="text-[10px] text-slate-400 block font-medium">Potência / Cilindradas</span>
             <span className="font-bold text-slate-800 block mt-0.5">{veiculo.potencia ? `${veiculo.potencia} cv` : '-'} / {veiculo.cilindradas ? `${veiculo.cilindradas} cc` : '-'}</span>
           </div>
-          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
             <span className="text-[10px] text-slate-400 block font-medium">Tipo / Espécie</span>
             <span className="font-medium text-slate-800 block mt-0.5">{veiculo.tipoVeiculo || '-'} / {veiculo.especieVeiculo || '-'}</span>
           </div>
-          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
             <span className="text-[10px] text-slate-400 block font-medium">Carroceria</span>
             <span className="font-medium text-slate-800 block mt-0.5">{veiculo.carroceria || '-'}</span>
           </div>
-          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
             <span className="text-[10px] text-slate-400 block font-medium">Situação do Chassi</span>
             <span className="font-medium text-slate-800 block mt-0.5">{veiculo.situacaoChassi || 'NORMAL'}</span>
           </div>
-          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
             <span className="text-[10px] text-slate-400 block font-medium">Situação do Veículo</span>
             <span className="font-bold text-emerald-700 block mt-0.5">{veiculo.situacaoVeiculo || 'CIRCULAÇÃO'}</span>
           </div>
         </div>
       </div>
 
-      {/* 2. CARD DESTAQUE: ROUBO E FURTO (E5 + P10 CONSOLIDADOS) */}
-      <div className={`border-2 rounded-2xl p-5 sm:p-6 transition shadow-xs ${
-        rouboFurto.status === 'alerta'
-          ? 'bg-rose-50/70 border-rose-300'
-          : rouboFurto.status === 'recuperado'
-          ? 'bg-amber-50/70 border-amber-300'
-          : 'bg-emerald-50/60 border-emerald-200'
-      }`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b gap-3 border-slate-200/60">
-          <div className="flex items-center space-x-3">
-            {rouboFurto.status === 'alerta' ? (
-              <ShieldAlert className="w-6 h-6 text-rose-600 shrink-0" />
-            ) : rouboFurto.status === 'recuperado' ? (
-              <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
-            ) : (
-              <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
-            )}
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                  Histórico de Roubo e Furto (Consolidado E5 + P10)
-                </span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  rouboFurto.status === 'alerta'
-                    ? 'bg-rose-600 text-white'
-                    : rouboFurto.status === 'recuperado'
-                    ? 'bg-amber-500 text-slate-950 font-extrabold'
-                    : 'bg-emerald-600 text-white'
-                }`}>
-                  {rouboFurto.status === 'alerta' ? 'QUEIXA ATIVA' : rouboFurto.status === 'recuperado' ? 'RECUPERADO' : 'NADA CONSTA'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 mt-0.5 font-medium">{rouboFurto.mensagem}</p>
-            </div>
-          </div>
-          <span className="text-xs font-mono font-semibold text-slate-600 shrink-0">
-            Total de Ocorrências: {rouboFurto.totalOcorrencias}
-          </span>
-        </div>
-
-        {rouboFurto.ocorrencias && rouboFurto.ocorrencias.length > 0 && (
-          <div className="pt-4 space-y-2.5">
-            {rouboFurto.ocorrencias.map((oc: any, idx: number) => (
-              <div key={idx} className="bg-white/90 border border-slate-200/90 rounded-xl p-3.5 space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="px-2 py-0.5 rounded bg-slate-900 text-white text-[10px] font-bold font-mono">
-                      #{idx + 1}
-                    </span>
-                    <span className="font-bold text-slate-900">{oc.tipo}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                      Fonte: {oc.fonte}
-                    </span>
-                  </div>
-                  <span className="font-mono text-slate-500 text-[11px]">
-                    {oc.data ? formatDateBR(oc.data) : (oc.ano ? `Ano ${oc.ano}` : '-')}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11.5px] text-slate-600">
-                  <p><span className="text-slate-400">Boletim:</span> <strong className="text-slate-800 font-mono">{oc.numero_boletim || '-'}</strong></p>
-                  <p><span className="text-slate-400">Localidade:</span> <strong className="text-slate-800">{oc.municipio ? `${oc.municipio}/${oc.uf}` : (oc.uf || '-')}</strong></p>
-                  <p><span className="text-slate-400">Órgão:</span> <strong className="text-slate-800">{oc.orgao_seguranca || '-'}</strong></p>
-                </div>
-                {oc.descricao && (
-                  <p className="p-2 bg-slate-50 rounded border border-slate-200 text-slate-700 text-[11px] leading-relaxed">
-                    {oc.descricao}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 3. MOTOR DE DISTRIBUIÇÃO DE RESPOSTAS: CARDS ESPECIALIZADOS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* CARD A: EX-FROTA DE LOCADORA (P4 + E2) */}
-        <div className={`border rounded-xl p-5 space-y-3 ${
-          locadoras.status === 'positivo' ? 'bg-amber-50/50 border-amber-200' : 'bg-white border-slate-200'
-        }`}>
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="flex items-center space-x-2">
-              <Building className="w-4 h-4 text-amber-600" />
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Ex-Frota de Locadoras
-              </h4>
-            </div>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-              locadoras.status === 'positivo'
-                ? 'bg-amber-500 text-slate-950 font-extrabold'
-                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-            }`}>
-              {locadoras.status === 'positivo' ? 'CONSTA LOCADORA' : 'NADA CONSTA'}
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-600">{locadoras.mensagem}</p>
-
-          {locadoras.registros && locadoras.registros.length > 0 && (
-            <div className="space-y-2 pt-1">
-              {locadoras.registros.map((loc: any, idx: number) => (
-                <div key={idx} className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900">{loc.empresa}</span>
-                    <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
-                      {loc.fonte}
-                    </span>
-                  </div>
-                  {loc.documento && (
-                    <p className="text-[11px] font-mono text-slate-600">CNPJ: {formatDocumento(loc.documento)}</p>
-                  )}
-                  {loc.detalhes && (
-                    <p className="text-[11px] text-slate-500 font-medium">{loc.detalhes}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* CARD B: SEGURADORAS & SINISTROS (P1 + P14 + E2) */}
-        <div className={`border rounded-xl p-5 space-y-3 ${
-          seguradoras.status === 'positivo' ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-200'
-        }`}>
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="flex items-center space-x-2">
-              <Shield className="w-4 h-4 text-blue-600" />
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Seguradoras & Sinistros
-              </h4>
-            </div>
-            <div className="flex items-center space-x-1">
-              {seguradoras.indenizacaoIntegral && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white">
-                  INDENIZAÇÃO INTEGRAL
-                </span>
-              )}
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                seguradoras.status === 'positivo'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-              }`}>
-                {seguradoras.status === 'positivo' ? 'REGISTRO LOCALIZADO' : 'NADA CONSTA'}
-              </span>
-            </div>
-          </div>
-
-          <p className="text-xs text-slate-600">{seguradoras.mensagem}</p>
-
-          {seguradoras.registros && seguradoras.registros.length > 0 && (
-            <div className="space-y-2 pt-1">
-              {seguradoras.registros.map((seg: any, idx: number) => (
-                <div key={idx} className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900">{seg.seguradora}</span>
-                    <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
-                      {seg.fonte}
-                    </span>
-                  </div>
-                  {seg.tipoEvento && (
-                    <p className="text-[11px] font-semibold text-blue-800">{seg.tipoEvento}</p>
-                  )}
-                  {seg.documento && (
-                    <p className="text-[11px] font-mono text-slate-600">Doc: {formatDocumento(seg.documento)}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* CARD C: FROTA PÚBLICA & VIATURAS (P2 + P3 + E2) */}
-        <div className={`border rounded-xl p-5 space-y-3 ${
-          frotaPublica.status === 'positivo' ? 'bg-purple-50/50 border-purple-200' : 'bg-white border-slate-200'
-        }`}>
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="flex items-center space-x-2">
-              <Scale className="w-4 h-4 text-purple-600" />
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Frota Pública & Governamental
-              </h4>
-            </div>
-            <div className="flex items-center space-x-1">
-              {frotaPublica.isViatura && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white animate-pulse">
-                  VIATURA POLICIAL
-                </span>
-              )}
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                frotaPublica.status === 'positivo'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-              }`}>
-                {frotaPublica.status === 'positivo' ? 'USO PÚBLICO' : 'NADA CONSTA'}
-              </span>
-            </div>
-          </div>
-
-          <p className="text-xs text-slate-600">{frotaPublica.mensagem}</p>
-
-          {frotaPublica.registros && frotaPublica.registros.length > 0 && (
-            <div className="space-y-2 pt-1">
-              {frotaPublica.registros.map((pub: any, idx: number) => (
-                <div key={idx} className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900">{pub.orgao}</span>
-                    <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
-                      {pub.fonte}
-                    </span>
-                  </div>
-                  {pub.tipoUso && (
-                    <p className="text-[11px] font-semibold text-purple-800">{pub.tipoUso}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* CARD D: FINANCEIRAS & GRAVAMES (P7 + E2) */}
-        <div className={`border rounded-xl p-5 space-y-3 ${
-          financeiras.status === 'positivo' ? 'bg-cyan-50/50 border-cyan-200' : 'bg-white border-slate-200'
-        }`}>
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="flex items-center space-x-2">
-              <CreditCard className="w-4 h-4 text-cyan-600" />
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Instituições Financeiras / Leasing
-              </h4>
-            </div>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-              financeiras.status === 'positivo'
-                ? 'bg-cyan-600 text-white'
-                : 'bg-slate-100 text-slate-700 border border-slate-200'
-            }`}>
-              {financeiras.status === 'positivo' ? `${financeiras.total} REGISTRO(S)` : 'NADA CONSTA'}
-            </span>
-          </div>
-
-          {!financeiras.registros || financeiras.registros.length === 0 ? (
-            <p className="text-xs text-slate-500">Nenhum registro de financeira ou leasing associado diretamente.</p>
-          ) : (
-            <div className="space-y-2 pt-1">
-              {financeiras.registros.map((fin: any, idx: number) => (
-                <div key={idx} className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900">{fin.instituicao}</span>
-                    <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
-                      {fin.fonte}
-                    </span>
-                  </div>
-                  {fin.tipo && <p className="text-[11px] text-slate-600">{fin.tipo}</p>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 4. CADEIA DOMINIAL OFICIAL E2 COM BADGES DE CLASSIFICAÇÃO */}
-      <div className="border border-slate-200 rounded-xl p-5 sm:p-6 bg-white space-y-4 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+      {/* 2. CARD DESTAQUE: HISTÓRICO DOMINIAL DE PROPRIETÁRIOS (CARD P17 INTEGRADO) */}
+      <div className="border border-slate-200 rounded-lg p-4 sm:p-5 bg-white space-y-3.5 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
           <div className="flex items-center space-x-2">
             <Clock className="w-4 h-4 text-indigo-600" />
             <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Histórico Dominial de Proprietários (Produto E2 Integrado)
+              Histórico de Proprietários do Veículo
             </h4>
           </div>
           <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 font-mono">
-            {proprietarios.total} proprietário(s) registrado(s)
+            {proprietarios.total || (proprietarios.historico ? proprietarios.historico.length : 0)} proprietário(s) registrado(s)
           </span>
         </div>
 
         {proprietarios.proprietario_atual && (
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center space-x-2">
                 <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded font-mono">
@@ -829,38 +770,46 @@ const E20PreVistoriaLaudo: React.FC<{
               <p><span className="text-slate-400">Tipo:</span> <strong className="text-slate-800">{proprietarios.proprietario_atual.tipo || '-'}</strong></p>
               <p><span className="text-slate-400">Data Aquisição:</span> <strong className="text-slate-800 font-mono">{formatDateBR(proprietarios.proprietario_atual.data)}</strong></p>
             </div>
+            {proprietarios.proprietario_atual.cnae_descricao && (
+              <p className="text-[11px] text-slate-500 pt-0.5 font-medium">
+                CNAE: {proprietarios.proprietario_atual.cnae} - {proprietarios.proprietario_atual.cnae_descricao}
+              </p>
+            )}
           </div>
         )}
 
         {/* Tabela de Histórico Anterior */}
-        {proprietarios.historico && proprietarios.historico.length > 0 && (
+        {proprietarios.historico && proprietarios.historico.length > 0 ? (
           <div className="overflow-x-auto pt-1">
             <table className="w-full text-xs text-left text-slate-700">
               <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="px-3.5 py-2.5">Ordem</th>
-                  <th className="px-3.5 py-2.5">Nome / Razão Social</th>
-                  <th className="px-3.5 py-2.5">Documento</th>
-                  <th className="px-3.5 py-2.5">Perfil</th>
-                  <th className="px-3.5 py-2.5">Data Posse</th>
+                  <th className="px-3 py-2">Ordem</th>
+                  <th className="px-3 py-2">Nome / Razão Social</th>
+                  <th className="px-3 py-2">Documento</th>
+                  <th className="px-3 py-2">Perfil / Segmento</th>
+                  <th className="px-3 py-2">Data da Posse</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {proprietarios.historico.map((h: any, idx: number) => (
-                  <tr key={idx} className="hover:bg-slate-50/60">
-                    <td className="px-3.5 py-2 font-mono font-bold text-slate-800">
+                  <tr key={idx} className="hover:bg-slate-50/70">
+                    <td className="px-3 py-2 font-mono font-bold text-slate-800">
                       {h.ordem ? `${h.ordem}º` : `#${idx + 1}`}
                     </td>
-                    <td className="px-3.5 py-2 font-semibold text-slate-900">
-                      {h.nome || h.razao_social || 'NÃO INFORMADO'}
+                    <td className="px-3 py-2 font-semibold text-slate-900">
+                      <div>{h.nome || h.razao_social || 'NÃO INFORMADO'}</div>
+                      {h.cnae_descricao && (
+                        <div className="text-[10px] text-slate-400 font-normal">CNAE: {h.cnae} ({h.cnae_descricao})</div>
+                      )}
                     </td>
-                    <td className="px-3.5 py-2 font-mono text-slate-600">
+                    <td className="px-3 py-2 font-mono text-slate-600">
                       {formatDocumento(h.documento)}
                     </td>
-                    <td className="px-3.5 py-2">
+                    <td className="px-3 py-2">
                       {getBadgeEntidade(h.classificacaoEntidade)}
                     </td>
-                    <td className="px-3.5 py-2 font-mono text-slate-600">
+                    <td className="px-3 py-2 font-mono text-slate-600">
                       {formatDateBR(h.data)}
                     </td>
                   </tr>
@@ -868,64 +817,134 @@ const E20PreVistoriaLaudo: React.FC<{
               </tbody>
             </table>
           </div>
+        ) : (
+          <div className="p-3 bg-slate-50 rounded border border-slate-200 text-xs">
+            <p className="font-mono text-slate-500">NENHUM REGISTRO LOCALIZADO NA BASE INTERNA</p>
+          </div>
         )}
       </div>
 
-      {/* 5. DEMAIS INDICADORES PERICIAIS INFOSINISTROS (LEILÕES, SALVADOS, KM, LAUDO CAUTELAR) */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
-        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center space-x-2">
-          <Layers className="w-4 h-4 text-slate-600" />
-          <span>Indicadores Complementares da Pré-Vistoria</span>
-        </h4>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-          {/* Leilões */}
-          <div className="p-3.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Histórico de Leilões (P11)</span>
-            <div className="mt-1 flex items-center justify-between">
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                outros.leiloes ? 'bg-amber-100 text-amber-900' : 'bg-emerald-50 text-emerald-800'
-              }`}>
-                {outros.leiloes ? 'CONSTA REGISTRO' : 'NADA CONSTA'}
-              </span>
-            </div>
-            {outros.leiloes && (
-              <p className="text-[11px] text-slate-600 mt-1 truncate">{typeof outros.leiloes === 'string' ? outros.leiloes : 'Detalhes auditados no laudo'}</p>
-            )}
+      {/* 3. QUADRO DE INDICADORES PERICIAIS (INFOSINISTROS CONSOLIDADA) - LAYOUT MINIMALISTA */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+          <div className="flex items-center space-x-2">
+            <Layers className="w-4 h-4 text-slate-700" />
+            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Indicadores Periciais da Pré-Vistoria
+            </h4>
           </div>
+          <span className="text-[11px] font-medium text-slate-500 font-mono">
+            {indicadoresGrid.length} itens auditados
+          </span>
+        </div>
 
-          {/* Salvados */}
-          <div className="p-3.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Veículo Salvado (P8)</span>
-            <div className="mt-1 flex items-center justify-between">
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                outros.salvados ? 'bg-amber-100 text-amber-900' : 'bg-emerald-50 text-emerald-800'
-              }`}>
-                {outros.salvados ? 'CONSTA SALVADO' : 'NADA CONSTA'}
-              </span>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          {indicadoresGrid.map((item: any, idx: number) => {
+            const isPositivo = item.consta || item.status === 'POSITIVO';
+            const isAlertaCritico = isPositivo && (item.chave === 'P10' || item.chave === 'P14' || item.chave === 'P16' || item.chave === 'P18');
+            const titulo = sanitizeTituloIndicador(item.titulo);
 
-          {/* Sinistro Recuperado */}
-          <div className="p-3.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Sinistro Recuperado (P19/P20)</span>
-            <div className="mt-1 flex items-center justify-between">
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                outros.sinistro_recuperado ? 'bg-blue-100 text-blue-900' : 'bg-emerald-50 text-emerald-800'
-              }`}>
-                {outros.sinistro_recuperado ? 'RECUPERADO' : 'NADA CONSTA'}
-              </span>
-            </div>
-          </div>
+            return (
+              <div
+                key={item.chave || idx}
+                className={`border rounded-lg p-3 transition-all text-xs flex flex-col justify-between ${
+                  isAlertaCritico
+                    ? 'bg-rose-50/60 border-rose-300'
+                    : isPositivo
+                    ? 'bg-amber-50/50 border-amber-300'
+                    : 'bg-white border-slate-200/90'
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2 pb-1.5 border-b border-slate-100">
+                    <span className={`font-bold tracking-tight uppercase leading-snug ${
+                      isAlertaCritico ? 'text-rose-950' : isPositivo ? 'text-slate-900' : 'text-slate-700'
+                    }`}>
+                      {titulo}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[9.5px] font-bold shrink-0 tracking-wider ${
+                        isAlertaCritico
+                          ? 'bg-rose-600 text-white'
+                          : isPositivo
+                          ? 'bg-amber-500 text-slate-950 font-extrabold'
+                          : 'bg-slate-100 text-slate-500 border border-slate-200'
+                      }`}
+                    >
+                      {isAlertaCritico ? 'ALERTA ATIVO' : isPositivo ? 'CONSTA REGISTRO' : 'NADA CONSTA'}
+                    </span>
+                  </div>
 
-          {/* Tabela FIPE */}
-          <div className="p-3.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Referência FIPE (P36)</span>
-            <span className="font-bold text-slate-900 text-sm block mt-1">
-              {outros.fipe?.valor || outros.fipe?.preco || 'Consultado'}
-            </span>
-            <span className="text-[10px] text-slate-500 block">{outros.fipe?.codigoFipe || outros.fipe?.mesReferencia || 'Base FIPE'}</span>
-          </div>
+                  <div className="pt-2">
+                    {!isPositivo ? (
+                      <p className="text-[11px] font-mono text-slate-500 leading-relaxed">
+                        NENHUM REGISTRO LOCALIZADO NA BASE INTERNA
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <p className="text-[11.5px] font-semibold text-slate-800 leading-relaxed">
+                          {item.mensagem}
+                        </p>
+
+                        {/* Detalhes para Roubo e Furto (P10) */}
+                        {item.chave === 'P10' && Array.isArray(item.detalhes) && item.detalhes.length > 0 && (
+                          <div className="space-y-1 pt-1">
+                            {item.detalhes.map((oc: any, oIdx: number) => (
+                              <div key={oIdx} className="p-2 bg-white rounded border border-rose-200 text-[11px] space-y-0.5">
+                                <div className="flex items-center justify-between font-semibold">
+                                  <span>{oc.tipo || 'Ocorrência'}</span>
+                                  <span className="font-mono text-slate-500">{oc.data ? formatDateBR(oc.data) : (oc.ano || '-')}</span>
+                                </div>
+                                <div className="text-slate-600">
+                                  Boletim: <strong className="font-mono">{oc.numero_boletim || '-'}</strong> • Órgão: {oc.orgao_seguranca || '-'}
+                                </div>
+                                {oc.descricao && <div className="text-slate-500 text-[10.5px]">{oc.descricao}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Detalhes para Entidades (P1, P4, P7, P23 etc) */}
+                        {Array.isArray(item.detalhes) && item.chave !== 'P10' && item.detalhes.length > 0 && (
+                          <div className="space-y-1 pt-1">
+                            {item.detalhes.map((reg: any, rIdx: number) => (
+                              <div key={rIdx} className="p-2 bg-white rounded border border-amber-200 text-[11px]">
+                                <span className="font-bold text-slate-900">{reg.nome || reg.empresa || reg.seguradora || reg.instituicao || reg.orgao}</span>
+                                {reg.documento && (
+                                  <span className="font-mono text-slate-600 block">Doc: {formatDocumento(reg.documento)}</span>
+                                )}
+                                {reg.cnae_descricao && (
+                                  <span className="text-[10px] text-slate-500 block">CNAE: {reg.cnae} - {reg.cnae_descricao}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Detalhes para FIPE (P36) */}
+                        {item.chave === 'P36' && item.detalhes && (
+                          <div className="pt-1 flex items-center justify-between text-xs">
+                            <span className="font-bold text-slate-900 text-sm">
+                              {item.detalhes.valor || item.detalhes.preco || item.mensagem}
+                            </span>
+                            <span className="text-[10.5px] text-slate-500 font-mono">
+                              {item.detalhes.codigoFipe || item.detalhes.mesReferencia || ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {item.fonte && (
+                  <div className="mt-2 pt-1 border-t border-slate-100/60 flex items-center justify-between text-[10px] text-slate-400">
+                    <span>Fonte: {item.fonte}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
