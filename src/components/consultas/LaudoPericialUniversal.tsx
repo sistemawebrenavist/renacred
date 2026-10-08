@@ -731,8 +731,17 @@ export const E20PreVistoriaLaudo: React.FC<{
           return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'ALTERAÇÕES CADASTRAIS REGISTRADAS' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: mov, conteudo: mov };
         }
         case 'P36': {
-          const pos = !!outros?.fipe;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: outros?.fipe?.valor || outros?.fipe?.preco || 'Consultado', detalhes: outros?.fipe, conteudo: outros?.fipe };
+          const fipeObj = outros?.fipe || dados?.fipe;
+          const pos = Boolean(fipeObj && (fipeObj.valor || fipeObj.preco || fipeObj.valor_medio_fipe));
+          return {
+            chave: cat.chave,
+            titulo: cat.titulo,
+            consta: pos,
+            status: pos ? 'POSITIVO' : 'NEGATIVO',
+            mensagem: fipeObj?.valor || fipeObj?.preco || fipeObj?.valor_medio_fipe || (pos ? 'VALOR CONSULTADO' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA'),
+            detalhes: fipeObj,
+            conteudo: fipeObj
+          };
         }
         default:
           return {
@@ -791,17 +800,25 @@ export const E20PreVistoriaLaudo: React.FC<{
 
         {/* 3. FIPE */}
         {item.chave === 'P36' && dados && (
-          <div className="p-2.5 bg-slate-50/60 rounded-md border border-slate-200 text-xs flex items-center justify-between">
-            <div>
-              <span className="text-[10px] text-slate-500 block uppercase font-semibold">Valor Médio FIPE</span>
-              <span className="font-extrabold text-slate-900 text-sm">
-                {dados.valor_medio_fipe || dados.valor || dados.preco || item.mensagem}
-              </span>
+          <div className="p-3 bg-slate-50/80 rounded-lg border border-slate-200 text-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">Valor Médio de Mercado (FIPE)</span>
+                <span className="font-extrabold text-slate-900 text-base">
+                  {dados.valor_medio_fipe || dados.valor || dados.preco || item.mensagem}
+                </span>
+              </div>
+              <div className="text-right text-[11px] text-slate-600 font-mono">
+                <div className="font-bold text-slate-800">Cód: {dados.codigo_fipe || dados.codigoFipe || '-'}</div>
+                <div className="text-slate-500 text-[10.5px]">Ref: {dados.mes_referencia || dados.mesReferencia || 'Vigente'}</div>
+              </div>
             </div>
-            <div className="text-right text-[10.5px] text-slate-500 font-mono">
-              <div>{dados.codigo_fipe || dados.codigoFipe || ''}</div>
-              <div>{dados.mes_referencia || dados.mesReferencia || ''}</div>
-            </div>
+            {(dados.modelo || dados.marca || dados.combustivel) && (
+              <div className="pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                <span><strong>Modelo FIPE:</strong> {dados.modelo || dados.marcaModelo || '-'}</span>
+                {dados.combustivel && <span><strong>Combustível:</strong> {dados.combustivel}</span>}
+              </div>
+            )}
           </div>
         )}
 

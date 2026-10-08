@@ -282,8 +282,17 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           return { chave: cat.chave, numero: cat.numero, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'ALTERAÇÕES CADASTRAIS REGISTRADAS' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: mov };
         }
         case 'P36': {
-          const pos = Boolean(outros?.fipe);
-          return { chave: cat.chave, numero: cat.numero, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: outros?.fipe?.valor || outros?.fipe?.preco || 'Consultado', detalhes: outros?.fipe };
+          const fipeObj = outros?.fipe || dados?.fipe;
+          const pos = Boolean(fipeObj && (fipeObj.valor || fipeObj.preco || fipeObj.valor_medio_fipe));
+          return {
+            chave: cat.chave,
+            numero: cat.numero,
+            titulo: cat.titulo,
+            consta: pos,
+            status: pos ? 'POSITIVO' : 'NEGATIVO',
+            mensagem: fipeObj?.valor || fipeObj?.preco || fipeObj?.valor_medio_fipe || (pos ? 'VALOR CONSULTADO' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA'),
+            detalhes: fipeObj
+          };
         }
         default:
           return { chave: cat.chave, numero: cat.numero, titulo: cat.titulo, consta: false, status: 'NEGATIVO', mensagem: 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' };
@@ -866,12 +875,14 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           const valorFipe = dadosItem.valor_medio_fipe || dadosItem.valor || dadosItem.preco || item.mensagem;
           const codFipe = dadosItem.codigo_fipe || dadosItem.codigoFipe || '-';
           const mesRef = dadosItem.mes_referencia || dadosItem.mesReferencia || '-';
+          const modeloFipe = dadosItem.modelo || dadosItem.marcaModelo || 'Tabela FIPE Consolidada';
+          const combFipe = dadosItem.combustivel ? ` (${dadosItem.combustivel})` : '';
 
           autoTable(doc, {
             startY: currentY,
             margin: { left: 12, right: 12 },
-            head: [['INDICADOR', 'VALOR DE MERCADO', 'CÓDIGO FIPE', 'MÊS DE REFERÊNCIA']],
-            body: [['Tabela FIPE Consolidada', valorFipe, codFipe, mesRef]],
+            head: [['MODELO FIPE OFICIAL', 'VALOR DE MERCADO', 'CÓDIGO FIPE', 'MÊS DE REFERÊNCIA']],
+            body: [[`${modeloFipe}${combFipe}`, valorFipe, codFipe, mesRef]],
             theme: 'striped',
             headStyles: {
               fillColor: [30, 58, 138],

@@ -3,6 +3,7 @@ import { infosinistrosService, InfoSinistrosPreVistoriaResponse } from './infosi
 import { fetchbrasilService } from './fetchbrasil.service';
 import { syncVeicularToInfosinistros } from './syncToInfosinistrosService';
 import { cleanObject } from './productNormalizers';
+import { fipeGratisService, FipeResultado } from './fipeGratisService';
 
 export type TipoEntidadeClassificada =
   | 'locadora'
@@ -490,6 +491,33 @@ export class E20Service {
       ufFaturado: p35Bruto.ufFaturado || null,
       dataAtualizacao: p35Bruto.dataAtualizacao || null
     };
+
+    // 3.1 Consulta de Contingência Gratuita à Tabela FIPE Oficial (P36)
+    let fipeComplementar: FipeResultado | null = null;
+    const p36InfoPrevia = infoResult?.resultados?.P36;
+    const fipeInternaExiste = Boolean(
+      p36InfoPrevia?.status === 'positivo' &&
+      (p36InfoPrevia?.conteudo?.valor_medio_fipe || p36InfoPrevia?.conteudo?.valor || p36InfoPrevia?.conteudo?.preco)
+    );
+
+    if (!fipeInternaExiste && (dadosVeiculo.marca || dadosVeiculo.modelo || dadosVeiculo.marcaModelo)) {
+      try {
+        logger.info(`[E20] P36 ausente na base interna. Acionando API gratuita da FIPE para ${dadosVeiculo.marcaModelo || dadosVeiculo.modelo}...`);
+        fipeComplementar = await fipeGratisService.consultarFipe({
+          marca: dadosVeiculo.marca || undefined,
+          modelo: dadosVeiculo.modelo || undefined,
+          marcaModelo: dadosVeiculo.marcaModelo || undefined,
+          anoModelo: dadosVeiculo.anoModelo || undefined,
+          anoFabricacao: dadosVeiculo.anoFabricacao || undefined,
+          tipoVeiculo: dadosVeiculo.tipoVeiculo || undefined
+        });
+        if (fipeComplementar?.sucesso) {
+          logger.info(`[E20] FIPE gratuita retornou com sucesso para ${cleanPlaca}: ${fipeComplementar.modelo} -> ${fipeComplementar.valor} (Cód: ${fipeComplementar.codigoFipe})`);
+        }
+      } catch (errFipe: any) {
+        logger.warn(`[E20] Falha ao consultar FIPE gratuita complementar: ${errFipe.message}`);
+      }
+    }
 
     // 4. Analisador da Cadeia Dominial Unificada (E2 Oficial + InfoSinistros P17/P37)
     const historicoE2: any[] = Array.isArray(e2Result?.normalized?.dados?.historico)
@@ -1377,17 +1405,37 @@ export class E20Service {
 
         case 'P36': { // HISTÓRICO DE VALOR DE MERCADO (FIPE)
           const p36Info = infoResult?.resultados?.P36;
-          const fipeValor = p36Info?.conteudo?.valor_medio_fipe || p36Info?.conteudo?.valor;
+          const fipeValor = p36Info?.conteudo?.valor_medio_fipe || p36Info?.conteudo?.valor || p36Info?.conteudo?.preco || fipeComplementar?.valor;
+          const fipeCod = p36Info?.conteudo?.codigo_fipe || p36Info?.conteudo?.codigoFipe || fipeComplementar?.codigoFipe;
+          const fipeRef = p36Info?.conteudo?.mes_referencia || p36Info?.conteudo?.mesReferencia || fipeComplementar?.mesReferencia;
           const positivo = Boolean(fipeValor) || hasInfoSinistros;
+
+          const conteudoFipe = positivo
+            ? (p36Info?.conteudo || {
+                valor_medio_fipe: fipeComplementar?.valor,
+                valor: fipeComplementar?.valor,
+                preco: fipeComplementar?.valor,
+                codigo_fipe: fipeComplementar?.codigoFipe,
+                codigoFipe: fipeComplementar?.codigoFipe,
+                mes_referencia: fipeComplementar?.mesReferencia,
+                mesReferencia: fipeComplementar?.mesReferencia,
+                marca: fipeComplementar?.marca || dadosVeiculo.marca,
+                modelo: fipeComplementar?.modelo || dadosVeiculo.modelo,
+                ano_modelo: fipeComplementar?.anoModelo || dadosVeiculo.anoModelo,
+                combustivel: fipeComplementar?.combustivel || dadosVeiculo.combustivel,
+                fonte: fipeComplementar?.fonte || 'Tabela FIPE Oficial (API Pública)'
+              })
+            : null;
+
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? `${fipeValor || 'VALOR CONSULTADO'} (Código: ${p36Info?.conteudo?.codigo_fipe || '-'}, Ref: ${p36Info?.conteudo?.mes_referencia || '-'})`
+              ? `${fipeValor || 'VALOR CONSULTADO'} (Código: ${fipeCod || '-'}, Ref: ${fipeRef || '-'})`
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? p36Info?.conteudo : null,
-            detalhes: positivo ? p36Info?.conteudo : null,
+            conteudo: conteudoFipe,
+            detalhes: conteudoFipe,
             respostaInfoSinistros: rawInfoConteudo
           };
         }
@@ -1430,12 +1478,21 @@ export class E20Service {
 
     // 11. Dados Complementares: FIPE (P36)
     const p36Info = infoResult?.resultados?.P36;
-    const dadosFipe = p36Info?.status === 'positivo' && p36Info.conteudo ? {
+    const dadosFipe = (p36Info?.status === 'positivo' && p36Info.conteudo && (p36Info.conteudo.valor_medio_fipe || p36Info.conteudo.valor)) ? {
       mesReferencia: p36Info.conteudo.mes_referencia || p36Info.conteudo.mesReferencia,
       codigoFipe: p36Info.conteudo.codigo_fipe || p36Info.conteudo.codigoFipe,
       valor: p36Info.conteudo.valor_medio_fipe || p36Info.conteudo.valor,
       dataConsulta: p36Info.conteudo.data_consulta || p36Info.conteudo.dataConsulta
-    } : null;
+    } : (fipeComplementar?.sucesso ? {
+      mesReferencia: fipeComplementar.mesReferencia,
+      codigoFipe: fipeComplementar.codigoFipe,
+      valor: fipeComplementar.valor,
+      marca: fipeComplementar.marca,
+      modelo: fipeComplementar.modelo,
+      anoModelo: fipeComplementar.anoModelo,
+      combustivel: fipeComplementar.combustivel,
+      dataConsulta: new Date().toLocaleDateString('pt-BR')
+    } : null);
 
     // Catálogo Oficial Consolidado de P1 a P36 (sem P37 online, incorporado em P17)
     const codigosIndicadores = [
