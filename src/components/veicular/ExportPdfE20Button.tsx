@@ -413,23 +413,28 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
     let currentY = 47;
 
-    // 3. QUADRO COMPACTO DE ESPECIFICAÇÕES MECÂNICAS DA BIN FABRIL
-    doc.setFillColor(241, 245, 249); // Slate 100
-    doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(12, currentY, 186, 17, 1.5, 1.5, 'FD');
+    // 3. QUADRO EXECUTIVO RESUMO DO VEÍCULO & DADOS DA CONSULTA (PADRÃO RENACRED)
+    doc.setFillColor(248, 250, 252); // Slate 50
+    doc.setDrawColor(226, 232, 240); // Slate 200
+    doc.roundedRect(12, currentY, 186, 20, 2, 2, 'FD');
 
-    doc.setFontSize(6.5);
+    // Friso decorativo lateral institucional em Azul Royal
+    doc.setFillColor(30, 58, 138); // Royal Blue
+    doc.roundedRect(12, currentY, 2.5, 20, 1, 0, 'F');
+
+    doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(51, 65, 85);
-    doc.text(`DADOS CADASTRAIS DA BIN FABRIL: ${marcaModelo.toUpperCase()}`, 16, currentY + 4.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`ESPECIFICAÇÕES OFICIAIS DO VEÍCULO: ${marcaModelo.toUpperCase()}`, 17, currentY + 5);
 
     doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(71, 85, 105);
-    doc.text(`Ano Fab/Mod: ${anoFabMod}   |   Cor: ${cor}   |   Combustível: ${combustivel}`, 16, currentY + 9);
-    doc.text(`Município/UF: ${municipioUf}   |   Situação: ${situacao}   |   Chassi: ${chassi}`, 16, currentY + 13.5);
+    doc.setTextColor(51, 65, 85);
+    doc.text(`Ano Fab/Mod: ${anoFabMod}   •   Cor: ${String(cor).toUpperCase()}   •   Combustível: ${String(combustivel).toUpperCase()}`, 17, currentY + 10);
+    doc.text(`Município/UF: ${municipioUf}   •   Situação: ${String(situacao).toUpperCase()}   •   Chassi: ${chassi}`, 17, currentY + 14.5);
+    doc.text(`Data/Hora da Emissão: ${dataFormatada} às ${horaFormatada}   •   RENAVAM Oficial: ${renavam}`, 17, currentY + 18.5);
 
-    currentY += 21;
+    currentY += 24;
 
     // 4. SE NÃO HOUVER APONTAMENTOS: CERTIDÃO DE REGULARIDADE PERICIAL
     if (apontamentosPositivos.length === 0) {
@@ -475,9 +480,9 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
       doc.setFontSize(6.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 116, 139);
-      doc.text(`Documento consolidado exibindo estritamente os indicadores com registros identificados nas bases auditadas.`, 12, currentY + 4);
+      doc.text(`Documento pericial consolidado exibindo estritamente os indicadores com registros identificados nas bases auditadas.`, 12, currentY + 4);
 
-      currentY += 7;
+      currentY += 7.5;
 
       for (const item of apontamentosPositivos) {
         const numFormat = item.numero < 10 ? `0${item.numero}` : `${item.numero}`;
@@ -485,36 +490,42 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
         const dadosItem = item.detalhes || item.conteudo || item.respostaInfoSinistros;
 
         // Verifica quebra de página antes de cada bloco
-        if (currentY > 235) {
+        if (currentY > 238) {
           doc.addPage();
           currentY = 16;
         }
 
-        // Título do Indicador Pericial (sem "P")
+        // Título do Indicador Pericial (Fundo Navy Institucional com cápsula esmeralda)
         doc.setFillColor(15, 23, 42); // Slate 900
-        doc.roundedRect(12, currentY, 186, 6.5, 1, 1, 'F');
+        doc.roundedRect(12, currentY, 186, 7, 1.2, 1.2, 'F');
 
-        doc.setFontSize(6.5);
+        doc.setFontSize(6.8);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(255, 255, 255);
-        doc.text(`#${numFormat} - ${tituloLimpo}`, 16, currentY + 4.3);
+        doc.text(`#${numFormat} - ${tituloLimpo}`, 16, currentY + 4.8);
 
+        // Badge CONSTA REGISTRO elegante e sóbrio
+        doc.setFillColor(4, 120, 87); // Emerald 700
+        doc.roundedRect(165, currentY + 1.2, 30, 4.6, 1, 1, 'F');
         doc.setFontSize(5.5);
-        doc.setTextColor(226, 232, 240);
-        doc.text('CONSTA REGISTRO', 194, currentY + 4.3, { align: 'right' });
+        doc.setTextColor(255, 255, 255);
+        doc.text('CONSTA REGISTRO', 180, currentY + 4.4, { align: 'center' });
 
-        currentY += 7.5;
+        currentY += 8.5;
 
-        // Mensagem de registro
+        // Mensagem técnica de registro
         if (item.mensagem && item.mensagem !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA') {
-          doc.setFontSize(6);
+          doc.setFontSize(6.2);
           doc.setFont('helvetica', 'bold');
-          doc.setTextColor(51, 65, 85);
-          doc.text(String(item.mensagem).slice(0, 120), 14, currentY + 3);
+          doc.setTextColor(30, 41, 59);
+          doc.text(String(item.mensagem).slice(0, 140), 14, currentY + 2.5);
           currentY += 5;
         }
 
-        // Tabelas especializadas por indicador
+        // =========================================================================
+        // TABELAS ESPECIALIZADAS POR INDICADOR (PADRÃO RENACRED UX PRO)
+        // =========================================================================
+
         // A. Bancos / Financeiras / Locadoras / Seguradoras (P7, P1, P3, P4, P5, P6, P8, P14)
         if (['P7', 'P1', 'P3', 'P4', 'P5', 'P6', 'P8', 'P14'].includes(item.chave) && Array.isArray(dadosItem) && dadosItem.length > 0) {
           const bodyData = dadosItem.map((reg: any) => [
@@ -535,12 +546,12 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
               textColor: [255, 255, 255],
               fontSize: 6,
               fontStyle: 'bold',
-              cellPadding: 1.5
+              cellPadding: 1.8
             },
             bodyStyles: {
               fontSize: 5.5,
               textColor: [30, 41, 59],
-              cellPadding: 1.5
+              cellPadding: 1.8
             },
             alternateRowStyles: {
               fillColor: [248, 250, 252]
@@ -549,6 +560,7 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
           currentY = (doc as any).lastAutoTable.finalY + 4;
         }
+
         // B. Roubo e Furto (P10)
         else if (item.chave === 'P10' && Array.isArray(dadosItem) && dadosItem.length > 0) {
           const bodyData = dadosItem.map((oc: any) => [
@@ -570,18 +582,89 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
               textColor: [255, 255, 255],
               fontSize: 6,
               fontStyle: 'bold',
-              cellPadding: 1.5
+              cellPadding: 1.8
             },
             bodyStyles: {
               fontSize: 5.5,
               textColor: [30, 41, 59],
-              cellPadding: 1.5
+              cellPadding: 1.8
             }
           });
 
           currentY = (doc as any).lastAutoTable.finalY + 4;
         }
-        // C. Proprietários DPVAT / Cadeia Dominial (P17)
+
+        // C. Leilão / Editais Eletrônicos de Leilão (P11)
+        else if (item.chave === 'P11' && Array.isArray(dadosItem) && dadosItem.length > 0) {
+          const bodyData = dadosItem.map((lei: any) => [
+            lei.ano || (lei.data ? formatDateBR(lei.data) : '-'),
+            lei.leiloeiro || lei.empresa || lei.leilao || '-',
+            lei.lote || '-',
+            lei.comitente || lei.condicao || lei.motivo || lei.detalhes || 'Edital Eletrônico'
+          ]);
+
+          autoTable(doc, {
+            startY: currentY,
+            margin: { left: 12, right: 12 },
+            head: [['ANO / DATA', 'LEILOEIRO / EMPRESA', 'LOTE', 'COMITENTE / CONDIÇÃO']],
+            body: bodyData,
+            theme: 'striped',
+            headStyles: {
+              fillColor: [30, 58, 138], // Royal Blue Renacred
+              textColor: [255, 255, 255],
+              fontSize: 6,
+              fontStyle: 'bold',
+              cellPadding: 1.8
+            },
+            bodyStyles: {
+              fontSize: 5.5,
+              textColor: [30, 41, 59],
+              cellPadding: 1.8
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
+            }
+          });
+
+          currentY = (doc as any).lastAutoTable.finalY + 4;
+        }
+
+        // D. Acidentes de Trânsito (P12, P13)
+        else if ((item.chave === 'P12' || item.chave === 'P13') && Array.isArray(dadosItem) && dadosItem.length > 0) {
+          const bodyData = dadosItem.map((ac: any) => [
+            ac.data ? formatDateBR(ac.data) : (ac.ano || '-'),
+            ac.local || ac.municipio_uf || ac.municipio || '-',
+            ac.tipo || ac.classificacao || 'Acidente de Trânsito',
+            ac.gravidade || ac.danos || ac.detalhes || '-'
+          ]);
+
+          autoTable(doc, {
+            startY: currentY,
+            margin: { left: 12, right: 12 },
+            head: [['DATA / ANO', 'LOCALIZAÇÃO', 'TIPO DO ACIDENTE', 'GRAVIDADE / DETALHES']],
+            body: bodyData,
+            theme: 'striped',
+            headStyles: {
+              fillColor: [30, 58, 138],
+              textColor: [255, 255, 255],
+              fontSize: 6,
+              fontStyle: 'bold',
+              cellPadding: 1.8
+            },
+            bodyStyles: {
+              fontSize: 5.5,
+              textColor: [30, 41, 59],
+              cellPadding: 1.8
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
+            }
+          });
+
+          currentY = (doc as any).lastAutoTable.finalY + 4;
+        }
+
+        // E. Proprietários DPVAT / Cadeia Dominial (P17)
         else if (item.chave === 'P17' && Array.isArray(dadosItem) && dadosItem.length > 0) {
           // Garante deduplicação estrita das linhas de proprietários no PDF
           const propsUnicosPdf: any[] = [];
@@ -596,7 +679,7 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
               return false;
             });
             if (!jaTem) {
-              propsUnicosPdf.push(prop);
+              propsUnicosPdf.push({ ...prop });
             } else {
               if (prop.isVigente || prop.atual) jaTem.isVigente = true;
               const tExist = String(jaTem.tempoDePosse || jaTem.tempoPosse || '');
@@ -605,6 +688,7 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
                 jaTem.tempoDePosse = tNovo;
                 jaTem.tempoPosse = tNovo;
               }
+              if (prop.municipio_uf && !jaTem.municipio_uf) jaTem.municipio_uf = prop.municipio_uf;
             }
           }
 
@@ -629,18 +713,80 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
               textColor: [255, 255, 255],
               fontSize: 6,
               fontStyle: 'bold',
-              cellPadding: 1.5
+              cellPadding: 1.8
             },
             bodyStyles: {
               fontSize: 5.5,
               textColor: [30, 41, 59],
-              cellPadding: 1.5
+              cellPadding: 1.8
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
             }
           });
 
           currentY = (doc as any).lastAutoTable.finalY + 4;
         }
-        // D. Circulação (P31)
+
+        // F. Sinistro Recuperado (P19, P20)
+        else if ((item.chave === 'P19' || item.chave === 'P20') && (typeof dadosItem === 'string' || typeof item.respostaInfoSinistros === 'string')) {
+          const textoSinistro = String(typeof dadosItem === 'string' ? dadosItem : item.respostaInfoSinistros);
+
+          doc.setFillColor(254, 242, 242); // Rose 50
+          doc.setDrawColor(254, 202, 202); // Rose 200
+          doc.roundedRect(12, currentY, 186, 13, 1.5, 1.5, 'FD');
+
+          doc.setFillColor(159, 18, 57); // Friso Rose 900
+          doc.roundedRect(12, currentY, 2, 13, 1, 0, 'F');
+
+          doc.setFontSize(6.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(159, 18, 57);
+          doc.text('APONTAMENTO PERICIAL OFICIAL DE SINISTRO RECUPERADO:', 17, currentY + 4.5);
+
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(30, 41, 59);
+          doc.text(doc.splitTextToSize(textoSinistro, 175), 17, currentY + 8.5);
+
+          currentY += 16;
+        }
+
+        // G. Atendimento a Sinistros (P26)
+        else if (item.chave === 'P26' && Array.isArray(dadosItem) && dadosItem.length > 0) {
+          const bodyData = dadosItem.map((sin: any) => [
+            sin.data_hora || sin.data || '-',
+            sin.local || sin.municipio_uf || '-',
+            sin.classificacao || sin.natureza || sin.tipo || 'Atendimento a Sinistro'
+          ]);
+
+          autoTable(doc, {
+            startY: currentY,
+            margin: { left: 12, right: 12 },
+            head: [['DATA / HORA DO EVENTO', 'LOCALIZAÇÃO REGISTRADA', 'CLASSIFICAÇÃO / NATUREZA']],
+            body: bodyData,
+            theme: 'striped',
+            headStyles: {
+              fillColor: [30, 58, 138],
+              textColor: [255, 255, 255],
+              fontSize: 6,
+              fontStyle: 'bold',
+              cellPadding: 1.8
+            },
+            bodyStyles: {
+              fontSize: 5.5,
+              textColor: [30, 41, 59],
+              cellPadding: 1.8
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
+            }
+          });
+
+          currentY = (doc as any).lastAutoTable.finalY + 4;
+        }
+
+        // H. Circulação e Emplacamento (P31)
         else if (item.chave === 'P31' && dadosItem) {
           const rowsCirc: any[] = [];
           if (dadosItem.adquirido_0km) rowsCirc.push(['Faturamento Fabril (0km)', dadosItem.adquirido_0km]);
@@ -659,23 +805,27 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
               body: rowsCirc,
               theme: 'striped',
               headStyles: {
-                fillColor: [51, 65, 85],
+                fillColor: [30, 58, 138],
                 textColor: [255, 255, 255],
                 fontSize: 6,
                 fontStyle: 'bold',
-                cellPadding: 1.5
+                cellPadding: 1.8
               },
               bodyStyles: {
                 fontSize: 5.5,
                 textColor: [30, 41, 59],
-                cellPadding: 1.5
+                cellPadding: 1.8
+              },
+              alternateRowStyles: {
+                fillColor: [248, 250, 252]
               }
             });
 
             currentY = (doc as any).lastAutoTable.finalY + 4;
           }
         }
-        // E. Movimentação Cadastral (P32)
+
+        // I. Movimentação Cadastral (P32)
         else if (item.chave === 'P32' && dadosItem) {
           const rowsMov: any[] = [];
           if (dadosItem.insercao_renavam) rowsMov.push(['Inserção na Base RENAVAM', formatDateBR(dadosItem.insercao_renavam)]);
@@ -691,23 +841,27 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
               body: rowsMov,
               theme: 'striped',
               headStyles: {
-                fillColor: [51, 65, 85],
+                fillColor: [30, 58, 138],
                 textColor: [255, 255, 255],
                 fontSize: 6,
                 fontStyle: 'bold',
-                cellPadding: 1.5
+                cellPadding: 1.8
               },
               bodyStyles: {
                 fontSize: 5.5,
                 textColor: [30, 41, 59],
-                cellPadding: 1.5
+                cellPadding: 1.8
+              },
+              alternateRowStyles: {
+                fillColor: [248, 250, 252]
               }
             });
 
             currentY = (doc as any).lastAutoTable.finalY + 4;
           }
         }
-        // F. FIPE (P36)
+
+        // J. Tabela FIPE (P36)
         else if (item.chave === 'P36' && dadosItem) {
           const valorFipe = dadosItem.valor_medio_fipe || dadosItem.valor || dadosItem.preco || item.mensagem;
           const codFipe = dadosItem.codigo_fipe || dadosItem.codigoFipe || '-';
@@ -724,18 +878,22 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
               textColor: [255, 255, 255],
               fontSize: 6,
               fontStyle: 'bold',
-              cellPadding: 1.5
+              cellPadding: 1.8
             },
             bodyStyles: {
               fontSize: 5.5,
               textColor: [30, 41, 59],
-              cellPadding: 1.5
+              cellPadding: 1.8
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
             }
           });
 
           currentY = (doc as any).lastAutoTable.finalY + 4;
         }
-        // G. Banco de Imagens de Flagrantes de Trânsito (P25)
+
+        // K. Banco de Imagens de Flagrantes de Trânsito (P25)
         else if (item.chave === 'P25') {
           const listaImgs: string[] = [];
           if (Array.isArray(dadosItem)) {
@@ -751,11 +909,17 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           }
 
           if (listaImgs.length > 0) {
-            doc.setFontSize(6);
+            // Verificação rigorosa de quebra de página para evitar sobreposição do rodapé
+            if (currentY + 42 > 265) {
+              doc.addPage();
+              currentY = 16;
+            }
+
+            doc.setFontSize(6.5);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(15, 23, 42);
-            doc.text(`Registros Fotográficos Oficiais (${listaImgs.length} imagem(ns) capturada(s)):`, 14, currentY);
-            currentY += 3;
+            doc.text(`Registros Fotográficos Oficiais de Flagrantes (${listaImgs.length} foto(s) capturada(s)):`, 14, currentY + 2);
+            currentY += 5;
 
             let imgX = 14;
             const imgW = 42;
@@ -763,20 +927,34 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
             for (let i = 0; i < Math.min(listaImgs.length, 4); i++) {
               const src = listaImgs[i];
-              if (src.startsWith('data:image')) {
+              if (src && (src.startsWith('data:image') || src.startsWith('http'))) {
                 try {
-                  doc.addImage(src, 'JPEG', imgX, currentY, imgW, imgH);
+                  doc.setFillColor(248, 250, 252);
+                  doc.setDrawColor(226, 232, 240);
+                  doc.roundedRect(imgX, currentY, imgW, imgH + 3.5, 1.2, 1.2, 'FD');
+
+                  doc.addImage(src, 'JPEG', imgX + 0.6, currentY + 0.6, imgW - 1.2, imgH - 1.2);
+
+                  doc.setFontSize(5);
+                  doc.setFont('helvetica', 'bold');
+                  doc.setTextColor(100, 116, 139);
+                  doc.text(`Flagrante #${i + 1}`, imgX + (imgW / 2), currentY + imgH + 2.5, { align: 'center' });
+
                   imgX += imgW + 4;
                   if (imgX + imgW > 196) {
                     imgX = 14;
-                    currentY += imgH + 4;
+                    currentY += imgH + 6;
+                    if (currentY + imgH > 265) {
+                      doc.addPage();
+                      currentY = 16;
+                    }
                   }
                 } catch {
                   // fallback se base64 for corrompido
                 }
               }
             }
-            currentY += imgH + 4;
+            currentY += imgH + 6;
           } else {
             doc.setFontSize(6);
             doc.setFont('helvetica', 'italic');
@@ -785,27 +963,59 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
             currentY += 6;
           }
         }
-        // H. Resposta em Texto Oficial ou Objeto Genérico
-        else if (typeof item.respostaInfoSinistros === 'string' && item.respostaInfoSinistros.trim().length > 0) {
-          doc.setFillColor(248, 250, 252);
-          doc.setDrawColor(226, 232, 240);
-          doc.roundedRect(12, currentY, 186, 11, 1, 1, 'FD');
 
-          doc.setFontSize(5.5);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(71, 85, 105);
-          doc.text('RESPOSTA REGISTRADA NA BASE DE PRÉ-VISTORIA:', 15, currentY + 4);
+        // L. FALLBACK UNIVERSAL PARA QUALQUER ARRAY DE DADOS (CRÍTICO: NUNCA DEIXA VAZIO!)
+        else if (Array.isArray(dadosItem) && dadosItem.length > 0) {
+          const primeiroItem = dadosItem[0];
+          if (typeof primeiroItem === 'object' && primeiroItem !== null) {
+            const chavesUteis = Object.keys(primeiroItem)
+              .filter((k) => !['id', '_id', 'status', 'sucesso', 'codigo', 'produto_id', 'imagens'].includes(k))
+              .slice(0, 4);
 
-          doc.setFontSize(6);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(15, 23, 42);
-          doc.text(String(item.respostaInfoSinistros).slice(0, 130), 15, currentY + 8);
+            if (chavesUteis.length > 0) {
+              const cabecalho = chavesUteis.map((k) => k.replace(/_/g, ' ').toUpperCase());
+              const bodyData = dadosItem.map((row: any) =>
+                chavesUteis.map((k) => {
+                  const v = row[k];
+                  if (v === null || v === undefined) return '-';
+                  if (typeof v === 'object') return JSON.stringify(v);
+                  return String(v);
+                })
+              );
 
-          currentY += 14;
-        } else if (typeof dadosItem === 'object' && dadosItem !== null && !Array.isArray(dadosItem)) {
+              autoTable(doc, {
+                startY: currentY,
+                margin: { left: 12, right: 12 },
+                head: [cabecalho],
+                body: bodyData,
+                theme: 'striped',
+                headStyles: {
+                  fillColor: [30, 58, 138],
+                  textColor: [255, 255, 255],
+                  fontSize: 6,
+                  fontStyle: 'bold',
+                  cellPadding: 1.8
+                },
+                bodyStyles: {
+                  fontSize: 5.5,
+                  textColor: [30, 41, 59],
+                  cellPadding: 1.8
+                },
+                alternateRowStyles: {
+                  fillColor: [248, 250, 252]
+                }
+              });
+
+              currentY = (doc as any).lastAutoTable.finalY + 4;
+            }
+          }
+        }
+
+        // M. FALLBACK UNIVERSAL PARA QUALQUER OBJETO DE DADOS
+        else if (typeof dadosItem === 'object' && dadosItem !== null && !Array.isArray(dadosItem)) {
           const entries = Object.entries(dadosItem)
             .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !['id', '_id', 'status', 'sucesso', 'codigo', 'produto_id', 'imagens'].includes(k))
-            .slice(0, 8);
+            .slice(0, 10);
 
           if (entries.length > 0) {
             const bodyData = entries.map(([k, v]) => [
@@ -816,25 +1026,50 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
             autoTable(doc, {
               startY: currentY,
               margin: { left: 12, right: 12 },
-              head: [['CAMPO AUDITADO', 'VALOR REGISTRADO']],
+              head: [['CAMPO AUDITADO', 'VALOR REGISTRADO NA BASE']],
               body: bodyData,
               theme: 'striped',
               headStyles: {
-                fillColor: [51, 65, 85],
+                fillColor: [30, 58, 138],
                 textColor: [255, 255, 255],
                 fontSize: 6,
                 fontStyle: 'bold',
-                cellPadding: 1.5
+                cellPadding: 1.8
               },
               bodyStyles: {
                 fontSize: 5.5,
                 textColor: [30, 41, 59],
-                cellPadding: 1.5
+                cellPadding: 1.8
+              },
+              alternateRowStyles: {
+                fillColor: [248, 250, 252]
               }
             });
 
             currentY = (doc as any).lastAutoTable.finalY + 4;
           }
+        }
+
+        // N. FALLBACK UNIVERSAL PARA TEXTO
+        else if (typeof item.respostaInfoSinistros === 'string' && item.respostaInfoSinistros.trim().length > 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(226, 232, 240);
+          doc.roundedRect(12, currentY, 186, 11, 1, 1, 'FD');
+
+          doc.setFillColor(30, 58, 138); // Friso Royal Blue
+          doc.roundedRect(12, currentY, 2, 11, 1, 0, 'F');
+
+          doc.setFontSize(5.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(71, 85, 105);
+          doc.text('RESPOSTA REGISTRADA NA BASE DE PRÉ-VISTORIA:', 17, currentY + 4);
+
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(15, 23, 42);
+          doc.text(String(item.respostaInfoSinistros).slice(0, 140), 17, currentY + 8);
+
+          currentY += 14;
         }
       }
     }

@@ -1252,118 +1252,128 @@ export const E20PreVistoriaLaudo: React.FC<{
     );
   };
 
-  const azulInfosinistros = '#223D63';
-  const laranjaKarfex = '#FF8C00';
-
   const anosStr = (veiculo.anoFabricacao && veiculo.anoModelo)
     ? `${veiculo.anoFabricacao} / ${veiculo.anoModelo}`
     : (veiculo.anoFabricacao || veiculo.anoModelo || '');
 
   return (
     <div className="space-y-4">
-      {/* 1. SEÇÃO RESUMO - LAYOUT OFICIAL INFOSINISTROS */}
-      <div
-        className="bg-white border-2 rounded overflow-hidden"
-        style={{ borderColor: azulInfosinistros }}
-      >
-        <div className="rounded-t px-4 py-2" style={{ backgroundColor: azulInfosinistros }}>
-          <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: laranjaKarfex }}>
-            Resumo
-          </h3>
-        </div>
-        <div className="p-3 sm:p-4 flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-start">
-          {/* Logo da Marca / Ícone de Carro */}
-          <div className="flex-shrink-0 mx-auto sm:mx-0">
-            {dados?.dados_veiculo?.logo || veiculo?.logo ? (
-              <img
-                src={dados?.dados_veiculo?.logo || veiculo?.logo}
-                alt="Logo Montadora"
-                className="w-12 h-12 sm:w-16 sm:h-16 object-contain bg-gray-100 rounded p-2 border border-gray-200"
-              />
-            ) : (
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded flex items-center justify-center border border-gray-300">
-                <Car className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500" />
-              </div>
-            )}
-          </div>
-
-          {/* Dados Principais do Veículo */}
-          <div className="flex-1 text-center sm:text-left min-w-0">
-            <h3 className="text-base sm:text-lg font-bold text-black mb-2 uppercase tracking-tight">
-              {veiculo.marcaModelo || `${veiculo.marca || ''} ${veiculo.modelo || ''}`.trim() || 'VEÍCULO CADASTRADO NA BASE'} {anosStr ? `${anosStr}` : ''}
+      {/* 1. SEÇÃO RESUMO DO VEÍCULO - PADRÃO EXECUTIVO RENACRED (UX PRO) */}
+      <div className="bg-white border border-slate-200/90 rounded-xl overflow-hidden shadow-xs">
+        <div className="bg-slate-900 px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Car className="w-4 h-4 text-slate-300" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+              Resumo do Veículo
             </h3>
-            <div className="space-y-1 text-xs sm:text-sm">
-              <p>
-                <span className="font-bold text-black">Placa:</span>{' '}
-                <span className="font-bold text-black font-mono">{formatPlaca(placa)}</span>
-              </p>
-              <p>
-                <span className="font-bold text-black">Cor:</span>{' '}
-                <span className="font-bold text-black">{String(veiculo.cor || '-').toUpperCase()}</span>
-              </p>
-              <p>
-                <span className="font-bold text-black">Chassi:</span>{' '}
-                <span className="font-bold text-black font-mono">{String(chassi || '-').toUpperCase()}</span>
-              </p>
+          </div>
+          <span className="text-[10px] font-mono font-medium text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/60">
+            BASE BIN FABRIL AUDITADA
+          </span>
+        </div>
+        <div className="p-4 sm:p-5 flex flex-col lg:flex-row gap-5 items-stretch justify-between">
+          {/* Logo da Marca / Ícone de Carro e Dados Principais */}
+          <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start flex-1 min-w-0">
+            <div className="shrink-0">
+              {dados?.dados_veiculo?.logo || veiculo?.logo ? (
+                <img
+                  src={dados?.dados_veiculo?.logo || veiculo?.logo}
+                  alt="Logo Montadora"
+                  className="w-14 h-14 sm:w-16 sm:h-16 object-contain bg-slate-50 rounded-xl p-2.5 border border-slate-200/90 shadow-2xs"
+                />
+              ) : (
+                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200/90 shadow-2xs">
+                  <Car className="w-7 h-7 text-slate-500" />
+                </div>
+              )}
+            </div>
+
+            {/* Dados Principais do Veículo */}
+            <div className="flex-1 text-center sm:text-left min-w-0 space-y-2">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tight leading-snug">
+                  {veiculo.marcaModelo || `${veiculo.marca || ''} ${veiculo.modelo || ''}`.trim() || 'VEÍCULO CADASTRADO NA BASE'}
+                </h3>
+                {anosStr && (
+                  <span className="inline-block text-xs font-mono font-bold text-slate-500 mt-0.5">
+                    Ano Fab/Mod: {anosStr}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1 text-xs">
+                <div className="flex items-center gap-1.5 bg-slate-900 text-white font-mono font-bold px-2.5 py-1 rounded-md shadow-2xs">
+                  <span className="text-[10px] text-slate-400 font-sans font-medium uppercase">Placa:</span>
+                  <span>{formatPlaca(placa)}</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md border border-slate-200 font-medium">
+                  <span className="text-[10px] text-slate-400 uppercase">Cor:</span>
+                  <span className="font-bold">{String(veiculo.cor || '-').toUpperCase()}</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md border border-slate-200 font-mono text-[11px]">
+                  <span className="text-[10px] text-slate-400 font-sans uppercase">Chassi:</span>
+                  <span className="font-bold">{String(chassi || '-').toUpperCase()}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Bloco à direita: Card Importante (critérios das seguradoras) */}
-          <div className="flex-shrink-0 w-full sm:w-80">
-            <div className="bg-red-50 border-2 border-red-300 rounded p-2 sm:p-3">
-              <h4 className="text-red-700 font-bold text-xs mb-1.5 uppercase">Importante:</h4>
-              <p className="text-[8.5px] sm:text-[9.5px] text-gray-700 leading-tight">
-                As seguradoras possuem critérios próprios para análise e aceitação de risco,
-                que são verificados não somente pelo histórico do veículo a ser segurado, mas
-                também pelo perfil do condutor, tipo e frequência de multas, outros sinistros
-                em que o cliente esteve envolvido, além da precificação e tarifação que sejam
-                permitidas do veículo, considerando os índices de roubos e furtos na região.
+          {/* Bloco à direita: Card Importante (critérios técnicos e regulatórios das seguradoras) */}
+          <div className="w-full lg:w-80 shrink-0">
+            <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-3 sm:p-3.5 space-y-1.5 h-full flex flex-col justify-center">
+              <div className="flex items-center gap-1.5 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+                <span>Critérios de Análise de Risco:</span>
+              </div>
+              <p className="text-[10px] sm:text-[10.5px] text-slate-600 leading-relaxed font-normal">
+                As seguradoras possuem critérios próprios para aceitação de risco, verificando histórico veicular,
+                perfil de condutores, apontamentos de sinistros, precificação FIPE e índices de sinistralidade regional.
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 2. SEÇÃO DADOS INFORMADOS - LAYOUT OFICIAL INFOSINISTROS */}
-      <div
-        className="bg-white border-2 rounded overflow-hidden"
-        style={{ borderColor: azulInfosinistros }}
-      >
-        <div className="rounded-t px-4 py-2" style={{ backgroundColor: azulInfosinistros }}>
-          <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: laranjaKarfex }}>
-            Dados Informados
+      {/* 2. SEÇÃO DADOS INFORMADOS DA CONSULTA - PADRÃO EXECUTIVO RENACRED */}
+      <div className="bg-white border border-slate-200/90 rounded-xl overflow-hidden shadow-xs">
+        <div className="bg-slate-900 px-4 py-2.5 flex items-center justify-between">
+          <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+            Dados Informados da Consulta
           </h3>
+          <span className="text-[10px] font-mono text-slate-400">
+            AUTENTICAÇÃO FÉ PÚBLICA
+          </span>
         </div>
-        <div className="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-xs">
-          <div>
-            <p className="text-[10px] font-normal mb-0.5" style={{ color: '#6B7280' }}>
-              Data / hora da consulta:
+        <div className="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-200/70">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">
+              Data / Hora da Consulta:
             </p>
-            <p className="text-xs font-bold text-black">
+            <p className="text-xs font-bold text-slate-900 font-mono">
               {dados?.criado_em || dados?.consultadoEm ? new Date(dados.criado_em || dados.consultadoEm).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}
             </p>
           </div>
-          <div>
-            <p className="text-[10px] font-normal mb-0.5" style={{ color: '#6B7280' }}>
-              Placa:
+          <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-200/70">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">
+              Placa Auditada:
             </p>
-            <p className="text-xs font-bold text-black font-mono">
+            <p className="text-xs font-bold text-slate-900 font-mono">
               {formatPlaca(placa)}
             </p>
           </div>
-          <div>
-            <p className="text-[10px] font-normal mb-0.5" style={{ color: '#6B7280' }}>
+          <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-200/70">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">
               Chassi:
             </p>
-            <p className="text-xs font-bold text-black font-mono">
+            <p className="text-xs font-bold text-slate-900 font-mono truncate" title={String(chassi || '-')}>
               {String(chassi || '-').toUpperCase()}
             </p>
           </div>
-          <div>
-            <p className="text-[10px] font-normal mb-0.5" style={{ color: '#6B7280' }}>
+          <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-200/70">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">
               Código RENAVAM:
             </p>
-            <p className="text-xs font-bold text-black font-mono">
+            <p className="text-xs font-bold text-slate-900 font-mono">
               {String(renavam || '-').toUpperCase()}
             </p>
           </div>
