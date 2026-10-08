@@ -583,7 +583,9 @@ export const E20PreVistoriaLaudo: React.FC<{
       }
     }
 
-    return CATALOGO_P1_P36.map((cat) => {
+    return CATALOGO_P1_P36
+      .filter((cat) => cat.chave !== 'P35')
+      .map((cat) => {
       const achado = mapaBackend[cat.chave];
       if (achado) {
         const isPos = achado.consta || achado.status === 'positivo' || achado.status === 'POSITIVO';
@@ -639,10 +641,70 @@ export const E20PreVistoriaLaudo: React.FC<{
           return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indenização integral por seguradora' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.seguradoras?.registros, conteudo: dados?.seguradoras?.registros };
         }
         case 'P17': {
-          const listaProp = [
-            ...(Array.isArray(proprietarios.historico) ? proprietarios.historico : []),
-            ...(proprietarios.proprietario_atual ? [{ ...proprietarios.proprietario_atual, isVigente: true, atual: true }] : [])
-          ];
+          const historicoCru = Array.isArray(proprietarios.historico) ? proprietarios.historico : [];
+          const propAtual = proprietarios.proprietario_atual;
+
+          const candidatos: any[] = [...historicoCru];
+          if (propAtual) {
+            const docAtual = String(propAtual.documento || '').replace(/\D/g, '');
+            const nomeAtual = String(propAtual.nome || propAtual.razao_social || '').trim().toUpperCase();
+            const jaExiste = candidatos.some((item) => {
+              const docItem = String(item.documento || '').replace(/\D/g, '');
+              const nomeItem = String(item.nome || item.razao_social || '').trim().toUpperCase();
+              if (docAtual && docItem && docAtual.slice(-8) === docItem.slice(-8)) return true;
+              if (nomeAtual && nomeItem && (nomeAtual === nomeItem || nomeAtual.includes(nomeItem) || nomeItem.includes(nomeAtual))) return true;
+              return false;
+            });
+            if (!jaExiste) {
+              candidatos.push({ ...propAtual, isVigente: true, atual: true });
+            } else {
+              candidatos.forEach((item) => {
+                const docItem = String(item.documento || '').replace(/\D/g, '');
+                const nomeItem = String(item.nome || item.razao_social || '').trim().toUpperCase();
+                if ((docAtual && docItem && docAtual.slice(-8) === docItem.slice(-8)) || (nomeAtual && nomeItem && nomeAtual === nomeItem)) {
+                  item.isVigente = true;
+                  item.atual = true;
+                }
+              });
+            }
+          }
+
+          // Deduplicação estrita de proprietários para evitar linhas repetidas
+          const listaDeduplicada: any[] = [];
+          for (const prop of candidatos) {
+            const docP = String(prop.documento || '').replace(/\D/g, '');
+            const nomeP = String(prop.nome || prop.razao_social || '').trim().toUpperCase();
+            const indexExistente = listaDeduplicada.findIndex((exist) => {
+              const docExist = String(exist.documento || '').replace(/\D/g, '');
+              const nomeExist = String(exist.nome || exist.razao_social || '').trim().toUpperCase();
+              if (docP && docExist && docP.length >= 8 && docExist.length >= 8 && docP.slice(-8) === docExist.slice(-8)) return true;
+              if (nomeP && nomeExist && nomeP.length > 4 && nomeExist.length > 4 && (nomeP === nomeExist || nomeP.includes(nomeExist) || nomeExist.includes(nomeP))) return true;
+              return false;
+            });
+
+            if (indexExistente === -1) {
+              listaDeduplicada.push({ ...prop });
+            } else {
+              const exist = listaDeduplicada[indexExistente];
+              if (prop.isVigente || prop.atual) {
+                exist.isVigente = true;
+                exist.atual = true;
+              }
+              const tempoExist = String(exist.tempoDePosse || exist.tempoPosse || '');
+              const tempoNovo = String(prop.tempoDePosse || prop.tempoPosse || '');
+              if (tempoExist.toLowerCase().includes('menos de 1 mês') && !tempoNovo.toLowerCase().includes('menos de 1 mês')) {
+                exist.tempoDePosse = tempoNovo;
+                exist.tempoPosse = tempoNovo;
+              }
+              if (prop.municipio_uf && !exist.municipio_uf) exist.municipio_uf = prop.municipio_uf;
+            }
+          }
+
+          const listaProp = listaDeduplicada.map((p, idx) => ({
+            ...p,
+            ordem: idx + 1
+          }));
+
           const pos = listaProp.length > 0;
           return {
             chave: cat.chave,
@@ -667,10 +729,6 @@ export const E20PreVistoriaLaudo: React.FC<{
           const mov = dados?.outros_produtos?.movimentacao || dados?.movimentacao;
           const pos = Boolean(mov?.insercao_renavam);
           return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'ALTERAÇÕES CADASTRAIS REGISTRADAS' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: mov, conteudo: mov };
-        }
-        case 'P35': {
-          const pos = Boolean(veiculo.marcaModelo || veiculo.modelo || veiculo.placa);
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${veiculo.marcaModelo || veiculo.modelo || 'CADASTRO LOCALIZADO'} (Ano ${veiculo.anoFabricacao || '-'}/${veiculo.anoModelo || '-'}, Cor ${veiculo.cor || '-'})` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: veiculo, conteudo: veiculo };
         }
         case 'P36': {
           const pos = !!outros?.fipe;
@@ -846,72 +904,105 @@ export const E20PreVistoriaLaudo: React.FC<{
         )}
 
         {/* 6. Histórico de Proprietários Pagantes do DPVAT - Base Interna (P17) */}
-        {item.chave === 'P17' && Array.isArray(dados) && dados.length > 0 && (
-          <div className="space-y-2">
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
-              <table className="w-full text-xs text-left text-slate-800">
-                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10.5px]">
-                  <tr>
-                    <th className="px-3.5 py-2.5 w-16 text-center">Ordem</th>
-                    <th className="px-3.5 py-2.5">Proprietário</th>
-                    <th className="px-3.5 py-2.5 w-36">Documento</th>
-                    <th className="px-3.5 py-2.5 w-28">Data da Posse</th>
-                    <th className="px-3.5 py-2.5 w-36">Tempo de Posse</th>
-                    <th className="px-3.5 py-2.5 w-36">Município / UF</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {dados.map((prop: any, pIdx: number) => {
-                    const ordemLabel = prop.ordem ? `${prop.ordem}º` : `#${pIdx + 1}`;
-                    const nomeProp = prop.nome || prop.razao_social || 'NÃO INFORMADO';
-                    const doc = prop.documento ? formatDocumento(prop.documento) : '-';
-                    const dataPosse = prop.data ? formatDateBR(prop.data) : (prop.ano ? String(prop.ano) : '-');
-                    const tempoPosse = prop.tempoDePosse || prop.tempo_posse || '-';
-                    const municipioUf = prop.municipio_uf || (prop.municipio ? `${prop.municipio}${prop.uf ? `/${prop.uf}` : ''}` : '-');
-                    const isVigente = prop.isVigente || prop.atual || false;
+        {item.chave === 'P17' && Array.isArray(dados) && dados.length > 0 && (() => {
+          // Deduplica de forma estrita qualquer duplicata residual por nome ou documento
+          const proprietariosLimpos: any[] = [];
+          for (const prop of dados) {
+            const docP = String(prop.documento || '').replace(/\D/g, '');
+            const nomeP = String(prop.nome || prop.razao_social || '').trim().toUpperCase();
+            const indexExistente = proprietariosLimpos.findIndex((exist) => {
+              const docExist = String(exist.documento || '').replace(/\D/g, '');
+              const nomeExist = String(exist.nome || exist.razao_social || '').trim().toUpperCase();
+              if (docP && docExist && docP.length >= 8 && docExist.length >= 8 && docP.slice(-8) === docExist.slice(-8)) return true;
+              if (nomeP && nomeExist && nomeP.length > 4 && nomeExist.length > 4 && (nomeP === nomeExist || nomeP.includes(nomeExist) || nomeExist.includes(nomeP))) return true;
+              return false;
+            });
 
-                    return (
-                      <tr key={`prop-${pIdx}`} className={`hover:bg-slate-50/80 transition-colors ${isVigente ? 'bg-emerald-50/30' : ''}`}>
-                        <td className="px-3.5 py-2.5 font-mono font-bold text-center text-slate-900 text-xs">
-                          {ordemLabel}
-                        </td>
-                        <td className="px-3.5 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900 text-xs">{nomeProp}</span>
-                            {isVigente && (
-                              <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                VIGENTE
-                              </span>
-                            )}
-                          </div>
-                          {prop.cnae_descricao && (
-                            <div className="text-[10px] text-slate-400 font-normal mt-0.5">
-                              CNAE: {prop.cnae ? `${prop.cnae} - ` : ''}{prop.cnae_descricao}
+            if (indexExistente === -1) {
+              proprietariosLimpos.push({ ...prop });
+            } else {
+              const exist = proprietariosLimpos[indexExistente];
+              if (prop.isVigente || prop.atual) {
+                exist.isVigente = true;
+                exist.atual = true;
+              }
+              const tempoExist = String(exist.tempoDePosse || exist.tempoPosse || '');
+              const tempoNovo = String(prop.tempoDePosse || prop.tempoPosse || '');
+              if (tempoExist.toLowerCase().includes('menos de 1 mês') && !tempoNovo.toLowerCase().includes('menos de 1 mês')) {
+                exist.tempoDePosse = tempoNovo;
+                exist.tempoPosse = tempoNovo;
+              }
+              if (prop.municipio_uf && !exist.municipio_uf) exist.municipio_uf = prop.municipio_uf;
+            }
+          }
+
+          return (
+            <div className="space-y-2">
+              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                <table className="w-full text-xs text-left text-slate-800">
+                  <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10.5px]">
+                    <tr>
+                      <th className="px-3.5 py-2.5 w-16 text-center">Ordem</th>
+                      <th className="px-3.5 py-2.5">Proprietário</th>
+                      <th className="px-3.5 py-2.5 w-36">Documento</th>
+                      <th className="px-3.5 py-2.5 w-28">Data da Posse</th>
+                      <th className="px-3.5 py-2.5 w-36">Tempo de Posse</th>
+                      <th className="px-3.5 py-2.5 w-36">Município / UF</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {proprietariosLimpos.map((prop: any, pIdx: number) => {
+                      const ordemLabel = `${pIdx + 1}º`;
+                      const nomeProp = prop.nome || prop.razao_social || 'NÃO INFORMADO';
+                      const doc = prop.documento ? formatDocumento(prop.documento) : '-';
+                      const dataPosse = prop.data ? formatDateBR(prop.data) : (prop.ano ? String(prop.ano) : '-');
+                      const tempoPosse = prop.tempoDePosse || prop.tempoPosse || '-';
+                      const municipioUf = prop.municipio_uf || (prop.municipio ? `${prop.municipio}${prop.uf ? `/${prop.uf}` : ''}` : '-');
+                      const isVigente = prop.isVigente || prop.atual || false;
+
+                      return (
+                        <tr key={`prop-${pIdx}`} className={`hover:bg-slate-50/80 transition-colors ${isVigente ? 'bg-emerald-50/30' : ''}`}>
+                          <td className="px-3.5 py-2.5 font-mono font-bold text-center text-slate-900 text-xs">
+                            {ordemLabel}
+                          </td>
+                          <td className="px-3.5 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 text-xs">{nomeProp}</span>
+                              {isVigente && (
+                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                  VIGENTE
+                                </span>
+                              )}
                             </div>
-                          )}
-                        </td>
-                        <td className="px-3.5 py-2.5 font-mono text-slate-600 text-xs">
-                          {doc}
-                        </td>
-                        <td className="px-3.5 py-2.5 font-mono text-slate-700 text-xs font-semibold">
-                          {dataPosse}
-                        </td>
-                        <td className="px-3.5 py-2.5 text-xs">
-                          <span className={`font-semibold ${isVigente ? 'text-emerald-700 font-bold' : 'text-slate-700'}`}>
-                            {tempoPosse}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-2.5 text-slate-600 text-xs font-medium">
-                          {municipioUf}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            {prop.cnae_descricao && (
+                              <div className="text-[10px] text-slate-400 font-normal mt-0.5">
+                                CNAE: {prop.cnae ? `${prop.cnae} - ` : ''}{prop.cnae_descricao}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-2.5 font-mono text-slate-600 text-xs">
+                            {doc}
+                          </td>
+                          <td className="px-3.5 py-2.5 font-mono text-slate-700 text-xs font-semibold">
+                            {dataPosse}
+                          </td>
+                          <td className="px-3.5 py-2.5 text-xs">
+                            <span className={`font-semibold ${isVigente ? 'text-emerald-700 font-bold' : 'text-slate-700'}`}>
+                              {tempoPosse}
+                            </span>
+                          </td>
+                          <td className="px-3.5 py-2.5 text-slate-600 text-xs font-medium">
+                            {municipioUf}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* 7. Venda Direta / Remarketing por Bancos / Financeiras (P7) e Entidades Similares (P1, P3, P4, P5, P6, P8, P14) */}
         {['P7', 'P1', 'P3', 'P4', 'P5', 'P6', 'P8', 'P14'].includes(item.chave) && Array.isArray(dados) && dados.length > 0 && (
@@ -1065,14 +1156,80 @@ export const E20PreVistoriaLaudo: React.FC<{
           </div>
         )}
 
+        {/* 8.5. Galeria de Imagens de Flagrantes de Trânsito (P25) */}
+        {(item.chave === 'P25' || (dados && (Array.isArray(dados.imagens) || (typeof dados === 'object' && dados.imagens)))) && (() => {
+          const listaImgs: string[] = [];
+          if (Array.isArray(dados)) {
+            dados.forEach((d: any) => {
+              if (typeof d === 'string' && (d.startsWith('data:image') || d.startsWith('http') || d.startsWith('/'))) {
+                listaImgs.push(d);
+              } else if (d && typeof d === 'object') {
+                if (Array.isArray(d.imagens)) listaImgs.push(...d.imagens);
+                ['url', 'imagem', 'base64', 'imagem_base64', 'path', 'imagem1', 'imagem2', 'imagem3'].forEach((k) => {
+                  if (d[k] && typeof d[k] === 'string') listaImgs.push(d[k]);
+                });
+              }
+            });
+          } else if (dados && typeof dados === 'object') {
+            if (Array.isArray(dados.imagens)) {
+              listaImgs.push(...dados.imagens);
+            }
+            ['url', 'imagem', 'base64', 'imagem_base64', 'path', 'imagem1', 'imagem2', 'imagem3'].forEach((k) => {
+              if (dados[k] && typeof dados[k] === 'string') listaImgs.push(dados[k]);
+            });
+          }
+
+          return (
+            <div className="space-y-3 pt-1">
+              {listaImgs.length > 0 ? (
+                <div>
+                  <div className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                    <span>Registros Fotográficos Capturados na Base ({listaImgs.length} foto(s)):</span>
+                    <span className="text-[9.5px] text-slate-500 font-normal">Clique na imagem para abrir em tela cheia</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {listaImgs.map((imgSrc: string, iIdx: number) => (
+                      <div
+                        key={iIdx}
+                        className="group relative bg-slate-900 border border-slate-300 rounded-lg overflow-hidden shadow-xs hover:shadow-md transition cursor-pointer"
+                        onClick={() => {
+                          const w = window.open('');
+                          if (w) {
+                            w.document.write(`<title>Flagrante de Trânsito #${iIdx + 1}</title><body style="margin:0;background:#0f172a;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${imgSrc}" style="max-width:98vw;max-height:98vh;object-fit:contain;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.5);"/></body>`);
+                          }
+                        }}
+                      >
+                        <img
+                          src={imgSrc}
+                          alt={`Flagrante de Trânsito ${iIdx + 1}`}
+                          className="w-full h-44 sm:h-52 object-cover group-hover:scale-102 transition-transform duration-200"
+                          loading="lazy"
+                        />
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent p-2.5 text-white flex items-center justify-between text-[11px]">
+                          <span className="font-semibold font-mono">Flagrante #{iIdx + 1}</span>
+                          <span className="text-[10px] text-emerald-300 font-medium">Ampliar Foto ↗</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-50 rounded text-center text-slate-400 text-xs italic">
+                  Nenhum registro fotográfico disponível para exibição direta
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* 9. Fallback Genérico para Objetos da Base (P11 Leilão, P12 Acidentes, P30 CSV, etc.) */}
-        {dados && typeof dados === 'object' && !Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && (
+        {dados && typeof dados === 'object' && !Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P25', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && (
           <div className="p-2.5 bg-white rounded-md border border-slate-200 text-[11px] space-y-1">
             <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider pb-1 border-b border-slate-100">
               Dados Registrados na Base:
             </div>
             {Object.entries(dados)
-              .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !['id', '_id', 'status', 'sucesso', 'codigo', 'produto_id'].includes(k))
+              .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !['id', '_id', 'status', 'sucesso', 'codigo', 'produto_id', 'imagens'].includes(k))
               .map(([key, val]: [string, any], kIdx: number) => {
                 const label = key
                   .replace(/_/g, ' ')
@@ -1095,109 +1252,120 @@ export const E20PreVistoriaLaudo: React.FC<{
     );
   };
 
+  const azulInfosinistros = '#223D63';
+  const laranjaKarfex = '#FF8C00';
+
+  const anosStr = (veiculo.anoFabricacao && veiculo.anoModelo)
+    ? `${veiculo.anoFabricacao} / ${veiculo.anoModelo}`
+    : (veiculo.anoFabricacao || veiculo.anoModelo || '');
+
   return (
-    <div className="space-y-5">
-      {/* 1. HEADER EXECUTIVO DE IDENTIFICAÇÃO VEICULAR & BIN FABRIL */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 sm:p-6 text-white shadow-sm relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-md text-xs font-bold font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                PLACA: {formatPlaca(placa)}
-              </span>
-              {dados?.contingenciaRenavamAplicada && (
-                <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                  ✓ RENAVAM via Contingência E19
-                </span>
-              )}
-              <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-                Ficha Técnica BIN Fabril
-              </span>
-            </div>
+    <div className="space-y-4">
+      {/* 1. SEÇÃO RESUMO - LAYOUT OFICIAL INFOSINISTROS */}
+      <div
+        className="bg-white border-2 rounded overflow-hidden"
+        style={{ borderColor: azulInfosinistros }}
+      >
+        <div className="rounded-t px-4 py-2" style={{ backgroundColor: azulInfosinistros }}>
+          <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: laranjaKarfex }}>
+            Resumo
+          </h3>
+        </div>
+        <div className="p-3 sm:p-4 flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-start">
+          {/* Logo da Marca / Ícone de Carro */}
+          <div className="flex-shrink-0 mx-auto sm:mx-0">
+            {dados?.dados_veiculo?.logo || veiculo?.logo ? (
+              <img
+                src={dados?.dados_veiculo?.logo || veiculo?.logo}
+                alt="Logo Montadora"
+                className="w-12 h-12 sm:w-16 sm:h-16 object-contain bg-gray-100 rounded p-2 border border-gray-200"
+              />
+            ) : (
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded flex items-center justify-center border border-gray-300">
+                <Car className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500" />
+              </div>
+            )}
+          </div>
 
-            <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white mt-2.5">
-              {veiculo.marcaModelo || `${veiculo.marca || ''} ${veiculo.modelo || ''}`.trim() || 'VEÍCULO NÃO IDENTIFICADO'}
+          {/* Dados Principais do Veículo */}
+          <div className="flex-1 text-center sm:text-left min-w-0">
+            <h3 className="text-base sm:text-lg font-bold text-black mb-2 uppercase tracking-tight">
+              {veiculo.marcaModelo || `${veiculo.marca || ''} ${veiculo.modelo || ''}`.trim() || 'VEÍCULO CADASTRADO NA BASE'} {anosStr ? `${anosStr}` : ''}
             </h3>
-
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300 mt-2">
-              <span>Ano: <strong className="text-white font-mono">{veiculo.anoFabricacao || '-'}/{veiculo.anoModelo || '-'}</strong></span>
-              <span>•</span>
-              <span>Cor: <strong className="text-white">{veiculo.cor || '-'}</strong></span>
-              <span>•</span>
-              <span>Combustível: <strong className="text-white">{veiculo.combustivel || '-'}</strong></span>
-              <span>•</span>
-              <span>Município: <strong className="text-white">{veiculo.municipio || '-'}{veiculo.uf ? `/${veiculo.uf}` : ''}</strong></span>
+            <div className="space-y-1 text-xs sm:text-sm">
+              <p>
+                <span className="font-bold text-black">Placa:</span>{' '}
+                <span className="font-bold text-black font-mono">{formatPlaca(placa)}</span>
+              </p>
+              <p>
+                <span className="font-bold text-black">Cor:</span>{' '}
+                <span className="font-bold text-black">{String(veiculo.cor || '-').toUpperCase()}</span>
+              </p>
+              <p>
+                <span className="font-bold text-black">Chassi:</span>{' '}
+                <span className="font-bold text-black font-mono">{String(chassi || '-').toUpperCase()}</span>
+              </p>
             </div>
           </div>
 
-          {/* Chaves Primárias: RENAVAM e Chassi */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 shrink-0 min-w-[270px]">
-            {/* RENAVAM */}
-            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between gap-3">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider block">Código RENAVAM</span>
-                <span className="font-mono text-sm font-bold text-emerald-400 block mt-0.5 select-all">{renavam}</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyRenavam}
-                disabled={!renavam || renavam === '-'}
-                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md transition border border-slate-700 cursor-pointer disabled:opacity-40"
-                title="Copiar RENAVAM"
-              >
-                {copiedRenavam ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-
-            {/* Chassi */}
-            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between gap-3">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider block">Número do Chassi</span>
-                <span className="font-mono text-xs font-bold text-slate-200 block mt-0.5 select-all truncate max-w-[180px]">{chassi}</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyChassi}
-                disabled={!chassi || chassi === '-'}
-                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md transition border border-slate-700 cursor-pointer disabled:opacity-40"
-                title="Copiar Chassi"
-              >
-                {copiedChassi ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
+          {/* Bloco à direita: Card Importante (critérios das seguradoras) */}
+          <div className="flex-shrink-0 w-full sm:w-80">
+            <div className="bg-red-50 border-2 border-red-300 rounded p-2 sm:p-3">
+              <h4 className="text-red-700 font-bold text-xs mb-1.5 uppercase">Importante:</h4>
+              <p className="text-[8.5px] sm:text-[9.5px] text-gray-700 leading-tight">
+                As seguradoras possuem critérios próprios para análise e aceitação de risco,
+                que são verificados não somente pelo histórico do veículo a ser segurado, mas
+                também pelo perfil do condutor, tipo e frequência de multas, outros sinistros
+                em que o cliente esteve envolvido, além da precificação e tarifação que sejam
+                permitidas do veículo, considerando os índices de roubos e furtos na região.
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Grid de Especificações Mecânicas e Cadastrais */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs space-y-2.5">
-        <div className="text-xs font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-100">
-          Especificações Técnicas e Cadastrais da BIN Fabril
+      {/* 2. SEÇÃO DADOS INFORMADOS - LAYOUT OFICIAL INFOSINISTROS */}
+      <div
+        className="bg-white border-2 rounded overflow-hidden"
+        style={{ borderColor: azulInfosinistros }}
+      >
+        <div className="rounded-t px-4 py-2" style={{ backgroundColor: azulInfosinistros }}>
+          <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: laranjaKarfex }}>
+            Dados Informados
+          </h3>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs">
-          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
-            <span className="text-[10px] text-slate-400 block font-medium">Motor</span>
-            <span className="font-mono font-bold text-slate-800 truncate block mt-0.5">{veiculo.motor || '-'}</span>
+        <div className="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-xs">
+          <div>
+            <p className="text-[10px] font-normal mb-0.5" style={{ color: '#6B7280' }}>
+              Data / hora da consulta:
+            </p>
+            <p className="text-xs font-bold text-black">
+              {dados?.criado_em || dados?.consultadoEm ? new Date(dados.criado_em || dados.consultadoEm).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}
+            </p>
           </div>
-          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
-            <span className="text-[10px] text-slate-400 block font-medium">Potência / Cilindradas</span>
-            <span className="font-bold text-slate-800 block mt-0.5">{veiculo.potencia ? `${veiculo.potencia} cv` : '-'} / {veiculo.cilindradas ? `${veiculo.cilindradas} cc` : '-'}</span>
+          <div>
+            <p className="text-[10px] font-normal mb-0.5" style={{ color: '#6B7280' }}>
+              Placa:
+            </p>
+            <p className="text-xs font-bold text-black font-mono">
+              {formatPlaca(placa)}
+            </p>
           </div>
-          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
-            <span className="text-[10px] text-slate-400 block font-medium">Tipo / Espécie</span>
-            <span className="font-medium text-slate-800 block mt-0.5">{veiculo.tipoVeiculo || '-'} / {veiculo.especieVeiculo || '-'}</span>
+          <div>
+            <p className="text-[10px] font-normal mb-0.5" style={{ color: '#6B7280' }}>
+              Chassi:
+            </p>
+            <p className="text-xs font-bold text-black font-mono">
+              {String(chassi || '-').toUpperCase()}
+            </p>
           </div>
-          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
-            <span className="text-[10px] text-slate-400 block font-medium">Carroceria</span>
-            <span className="font-medium text-slate-800 block mt-0.5">{veiculo.carroceria || '-'}</span>
-          </div>
-          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
-            <span className="text-[10px] text-slate-400 block font-medium">Situação do Chassi</span>
-            <span className="font-medium text-slate-800 block mt-0.5">{veiculo.situacaoChassi || 'NORMAL'}</span>
-          </div>
-          <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
-            <span className="text-[10px] text-slate-400 block font-medium">Situação do Veículo</span>
-            <span className="font-bold text-emerald-700 block mt-0.5">{veiculo.situacaoVeiculo || 'CIRCULAÇÃO'}</span>
+          <div>
+            <p className="text-[10px] font-normal mb-0.5" style={{ color: '#6B7280' }}>
+              Código RENAVAM:
+            </p>
+            <p className="text-xs font-bold text-black font-mono">
+              {String(renavam || '-').toUpperCase()}
+            </p>
           </div>
         </div>
       </div>

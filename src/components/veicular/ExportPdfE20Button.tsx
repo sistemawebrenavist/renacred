@@ -200,10 +200,70 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           return { chave: cat.chave, numero: cat.numero, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indenização integral por seguradora' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.seguradoras?.registros };
         }
         case 'P17': {
-          const listaProp = [
-            ...(Array.isArray(proprietarios.historico) ? proprietarios.historico : []),
-            ...(proprietarios.proprietario_atual ? [{ ...proprietarios.proprietario_atual, isVigente: true, atual: true }] : [])
-          ];
+          const historicoCru = Array.isArray(proprietarios.historico) ? proprietarios.historico : [];
+          const propAtual = proprietarios.proprietario_atual;
+
+          const candidatos: any[] = [...historicoCru];
+          if (propAtual) {
+            const docAtual = String(propAtual.documento || '').replace(/\D/g, '');
+            const nomeAtual = String(propAtual.nome || propAtual.razao_social || '').trim().toUpperCase();
+            const jaExiste = candidatos.some((item) => {
+              const docItem = String(item.documento || '').replace(/\D/g, '');
+              const nomeItem = String(item.nome || item.razao_social || '').trim().toUpperCase();
+              if (docAtual && docItem && docAtual.slice(-8) === docItem.slice(-8)) return true;
+              if (nomeAtual && nomeItem && (nomeAtual === nomeItem || nomeAtual.includes(nomeItem) || nomeItem.includes(nomeAtual))) return true;
+              return false;
+            });
+            if (!jaExiste) {
+              candidatos.push({ ...propAtual, isVigente: true, atual: true });
+            } else {
+              candidatos.forEach((item) => {
+                const docItem = String(item.documento || '').replace(/\D/g, '');
+                const nomeItem = String(item.nome || item.razao_social || '').trim().toUpperCase();
+                if ((docAtual && docItem && docAtual.slice(-8) === docItem.slice(-8)) || (nomeAtual && nomeItem && nomeAtual === nomeItem)) {
+                  item.isVigente = true;
+                  item.atual = true;
+                }
+              });
+            }
+          }
+
+          // Deduplicação estrita de proprietários
+          const listaDeduplicada: any[] = [];
+          for (const prop of candidatos) {
+            const docP = String(prop.documento || '').replace(/\D/g, '');
+            const nomeP = String(prop.nome || prop.razao_social || '').trim().toUpperCase();
+            const indexExistente = listaDeduplicada.findIndex((exist) => {
+              const docExist = String(exist.documento || '').replace(/\D/g, '');
+              const nomeExist = String(exist.nome || exist.razao_social || '').trim().toUpperCase();
+              if (docP && docExist && docP.length >= 8 && docExist.length >= 8 && docP.slice(-8) === docExist.slice(-8)) return true;
+              if (nomeP && nomeExist && nomeP.length > 4 && nomeExist.length > 4 && (nomeP === nomeExist || nomeP.includes(nomeExist) || nomeExist.includes(nomeP))) return true;
+              return false;
+            });
+
+            if (indexExistente === -1) {
+              listaDeduplicada.push({ ...prop });
+            } else {
+              const exist = listaDeduplicada[indexExistente];
+              if (prop.isVigente || prop.atual) {
+                exist.isVigente = true;
+                exist.atual = true;
+              }
+              const tempoExist = String(exist.tempoDePosse || exist.tempoPosse || '');
+              const tempoNovo = String(prop.tempoDePosse || prop.tempoPosse || '');
+              if (tempoExist.toLowerCase().includes('menos de 1 mês') && !tempoNovo.toLowerCase().includes('menos de 1 mês')) {
+                exist.tempoDePosse = tempoNovo;
+                exist.tempoPosse = tempoNovo;
+              }
+              if (prop.municipio_uf && !exist.municipio_uf) exist.municipio_uf = prop.municipio_uf;
+            }
+          }
+
+          const listaProp = listaDeduplicada.map((p, idx) => ({
+            ...p,
+            ordem: idx + 1
+          }));
+
           const pos = listaProp.length > 0;
           return { chave: cat.chave, numero: cat.numero, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `CADEIA DOMINIAL AUDITADA (${listaProp.length} proprietário(s))` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: listaProp };
         }
@@ -523,8 +583,33 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
         }
         // C. Proprietários DPVAT / Cadeia Dominial (P17)
         else if (item.chave === 'P17' && Array.isArray(dadosItem) && dadosItem.length > 0) {
-          const bodyData = dadosItem.map((prop: any, pIdx: number) => [
-            prop.ordem ? `${prop.ordem}º` : `#${pIdx + 1}`,
+          // Garante deduplicação estrita das linhas de proprietários no PDF
+          const propsUnicosPdf: any[] = [];
+          for (const prop of dadosItem) {
+            const docP = String(prop.documento || '').replace(/\D/g, '');
+            const nomeP = String(prop.nome || prop.razao_social || '').trim().toUpperCase();
+            const jaTem = propsUnicosPdf.find((exist) => {
+              const docExist = String(exist.documento || '').replace(/\D/g, '');
+              const nomeExist = String(exist.nome || exist.razao_social || '').trim().toUpperCase();
+              if (docP && docExist && docP.length >= 8 && docExist.length >= 8 && docP.slice(-8) === docExist.slice(-8)) return true;
+              if (nomeP && nomeExist && (nomeP === nomeExist || nomeP.includes(nomeExist) || nomeExist.includes(nomeP))) return true;
+              return false;
+            });
+            if (!jaTem) {
+              propsUnicosPdf.push(prop);
+            } else {
+              if (prop.isVigente || prop.atual) jaTem.isVigente = true;
+              const tExist = String(jaTem.tempoDePosse || jaTem.tempoPosse || '');
+              const tNovo = String(prop.tempoDePosse || prop.tempoPosse || '');
+              if (tExist.toLowerCase().includes('menos de 1 mês') && !tNovo.toLowerCase().includes('menos de 1 mês')) {
+                jaTem.tempoDePosse = tNovo;
+                jaTem.tempoPosse = tNovo;
+              }
+            }
+          }
+
+          const bodyData = propsUnicosPdf.map((prop: any, pIdx: number) => [
+            `${pIdx + 1}º`,
             prop.nome || prop.razao_social || 'NÃO INFORMADO',
             prop.documento ? formatDocumento(prop.documento) : '-',
             prop.data ? formatDateBR(prop.data) : (prop.ano ? String(prop.ano) : '-'),
@@ -650,7 +735,57 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
           currentY = (doc as any).lastAutoTable.finalY + 4;
         }
-        // G. Resposta em Texto Oficial ou Objeto Genérico
+        // G. Banco de Imagens de Flagrantes de Trânsito (P25)
+        else if (item.chave === 'P25') {
+          const listaImgs: string[] = [];
+          if (Array.isArray(dadosItem)) {
+            dadosItem.forEach((d: any) => {
+              if (typeof d === 'string' && (d.startsWith('data:image') || d.startsWith('http'))) listaImgs.push(d);
+              else if (d?.imagens && Array.isArray(d.imagens)) listaImgs.push(...d.imagens);
+            });
+          } else if (dadosItem && typeof dadosItem === 'object') {
+            if (Array.isArray(dadosItem.imagens)) listaImgs.push(...dadosItem.imagens);
+            ['url', 'imagem', 'base64', 'imagem_base64'].forEach((k) => {
+              if (dadosItem[k] && typeof dadosItem[k] === 'string') listaImgs.push(dadosItem[k]);
+            });
+          }
+
+          if (listaImgs.length > 0) {
+            doc.setFontSize(6);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(15, 23, 42);
+            doc.text(`Registros Fotográficos Oficiais (${listaImgs.length} imagem(ns) capturada(s)):`, 14, currentY);
+            currentY += 3;
+
+            let imgX = 14;
+            const imgW = 42;
+            const imgH = 30;
+
+            for (let i = 0; i < Math.min(listaImgs.length, 4); i++) {
+              const src = listaImgs[i];
+              if (src.startsWith('data:image')) {
+                try {
+                  doc.addImage(src, 'JPEG', imgX, currentY, imgW, imgH);
+                  imgX += imgW + 4;
+                  if (imgX + imgW > 196) {
+                    imgX = 14;
+                    currentY += imgH + 4;
+                  }
+                } catch {
+                  // fallback se base64 for corrompido
+                }
+              }
+            }
+            currentY += imgH + 4;
+          } else {
+            doc.setFontSize(6);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(100, 116, 139);
+            doc.text('Imagens armazenadas na base de dados pericial.', 14, currentY + 3);
+            currentY += 6;
+          }
+        }
+        // H. Resposta em Texto Oficial ou Objeto Genérico
         else if (typeof item.respostaInfoSinistros === 'string' && item.respostaInfoSinistros.trim().length > 0) {
           doc.setFillColor(248, 250, 252);
           doc.setDrawColor(226, 232, 240);
@@ -669,7 +804,7 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           currentY += 14;
         } else if (typeof dadosItem === 'object' && dadosItem !== null && !Array.isArray(dadosItem)) {
           const entries = Object.entries(dadosItem)
-            .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !['id', '_id', 'status', 'sucesso', 'codigo', 'produto_id'].includes(k))
+            .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !['id', '_id', 'status', 'sucesso', 'codigo', 'produto_id', 'imagens'].includes(k))
             .slice(0, 8);
 
           if (entries.length > 0) {

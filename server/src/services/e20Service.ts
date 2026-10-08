@@ -574,15 +574,25 @@ export class E20Service {
     for (const cand of candidatosBrutos) {
       const nomeCand = String(cand.nome || cand.razao_social || '').trim().toUpperCase();
       const docLimpo = String(cand.documento || '').replace(/\D/g, '');
-      const dataStr = String(cand.data || '').trim();
 
       const jaExiste = proprietariosDeduplicados.find((p) => {
         const docExist = String(p.documento || '').replace(/\D/g, '');
-        if (docLimpo && docExist && docLimpo.length >= 11 && docExist.length >= 11) {
-          return docLimpo === docExist;
+        // 1. Coincidência de documento (se ambos tiverem dígitos significativos)
+        if (docLimpo && docExist) {
+          if (docLimpo === docExist) return true;
+          // Se um tiver zeros à esquerda ou máscara parcial, compara os últimos 8 dígitos
+          if (docLimpo.length >= 8 && docExist.length >= 8) {
+            if (docLimpo.slice(-8) === docExist.slice(-8)) return true;
+          }
         }
+        // 2. Coincidência de nome completo (se tiver mais de 4 caracteres)
         const nomeExist = String(p.nome || p.razao_social || '').trim().toUpperCase();
-        return nomeCand && nomeExist && nomeCand === nomeExist && (dataStr === String(p.data || '').trim() || !dataStr || !p.data);
+        if (nomeCand && nomeExist && nomeCand.length > 4 && nomeExist.length > 4) {
+          if (nomeCand === nomeExist) return true;
+          // Substring significativa (ex: abreviações leves)
+          if (nomeCand.includes(nomeExist) || nomeExist.includes(nomeCand)) return true;
+        }
+        return false;
       });
 
       if (!jaExiste) {
@@ -686,10 +696,32 @@ export class E20Service {
       return tA - tB;
     });
 
+    // Deduplicação pós-ordenação rigorosa para eliminar qualquer duplicata consecutiva por nome ou documento
+    const proprietariosFiltradosUnicos: any[] = [];
+    for (const p of proprietariosParaP17) {
+      const nomeP = String(p.nome || p.razao_social || '').trim().toUpperCase();
+      const docP = String(p.documento || '').replace(/\D/g, '');
+      const jaAdicionado = proprietariosFiltradosUnicos.find((exist) => {
+        const nomeExist = String(exist.nome || exist.razao_social || '').trim().toUpperCase();
+        const docExist = String(exist.documento || '').replace(/\D/g, '');
+        if (nomeP && nomeExist && nomeP === nomeExist) return true;
+        if (docP && docExist && docP.length >= 8 && docExist.length >= 8 && docP.slice(-8) === docExist.slice(-8)) return true;
+        return false;
+      });
+
+      if (!jaAdicionado) {
+        proprietariosFiltradosUnicos.push(p);
+      } else {
+        if (p.atual) jaAdicionado.atual = true;
+        if (p.municipio && !jaAdicionado.municipio) jaAdicionado.municipio = p.municipio;
+        if (p.uf && !jaAdicionado.uf) jaAdicionado.uf = p.uf;
+      }
+    }
+
     // Calcular tempo de posse e formatar a lista final de P17
-    const historicoFormatadoP17 = proprietariosParaP17.map((item, idx) => {
-      const proximo = proprietariosParaP17[idx + 1];
-      const isUltimo = idx === proprietariosParaP17.length - 1;
+    const historicoFormatadoP17 = proprietariosFiltradosUnicos.map((item, idx) => {
+      const proximo = proprietariosFiltradosUnicos[idx + 1];
+      const isUltimo = idx === proprietariosFiltradosUnicos.length - 1;
       const tempoPosseCalc = isUltimo
         ? `${calcularTempoDePosse(item.data)}${item.atual ? ' (Vigente)' : ''}`
         : calcularTempoDePosse(item.data, proximo?.data);
