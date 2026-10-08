@@ -4,6 +4,7 @@ import { Clock, User, MapPin, Building, Calendar, FileText, CheckCircle2, Shield
 import { ProprietarioTimelineCard } from '../veicular/ProprietarioTimelineCard';
 import { processarHistoricoProprietarios } from '../../utils/veicularUtils';
 import { ExportPdfVeicularButton } from '../veicular/ExportPdfVeicularButton';
+import { ExportPdfE20Button } from '../veicular/ExportPdfE20Button';
 import { ExportExcelVeicularButton } from '../veicular/ExportExcelVeicularButton';
 import { DeclaracaoCard } from '../imobiliario/DeclaracaoCard';
 import { ExportPdfButton } from '../imobiliario/ExportPdfButton';
@@ -183,12 +184,21 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
         </div>
 
         <div className="flex items-center space-x-2 shrink-0 print:hidden">
-          <button
-            onClick={handleImprimir}
-            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition cursor-pointer"
-          >
-            Imprimir / Salvar PDF
-          </button>
+          {produto.code === 'E20' ? (
+            <ExportPdfE20Button
+              dados={dados}
+              identifier={identifier}
+              hash={hash}
+              consultadoEm={consultadoEm}
+            />
+          ) : (
+            <button
+              onClick={handleImprimir}
+              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition cursor-pointer"
+            >
+              Imprimir / Salvar PDF
+            </button>
+          )}
         </div>
       </div>
 
@@ -407,7 +417,7 @@ const E19RenavamCard: React.FC<{
  * Componente Pericial Completo do Produto E20 (Pré Vistoria Veicular Consolidada)
  * Consolida 100% da Pré Vistoria InfoSinistros + E5 (Roubo/Furto) + E2 (Proprietários) + Contingência E19 (RENAVAM)
  */
-const E20PreVistoriaLaudo: React.FC<{
+export const E20PreVistoriaLaudo: React.FC<{
   dados: any;
   identifier: string;
 }> = ({ dados, identifier }) => {
@@ -439,78 +449,78 @@ const E20PreVistoriaLaudo: React.FC<{
     }
   };
 
-  // Higieniza qualquer título removendo prefixos como "P1 | ", "P2 | ", etc.
+  // Higieniza qualquer título removendo rigorosamente prefixos como "P1 | ", "P07 -", "P7:", etc.
   const sanitizeTituloIndicador = (titulo?: string) => {
     if (!titulo) return '';
-    return titulo.replace(/^P\d+\s*\|\s*/i, '').trim();
+    return titulo.replace(/^P\d+\s*[\-\|:]\s*/i, '').replace(/^P\d+\s+/i, '').trim();
   };
 
   const getBadgeEntidade = (tipo?: string) => {
     switch (tipo) {
       case 'locadora':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
             LOCADORA DE VEÍCULOS
           </span>
         );
       case 'seguradora':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-900 border border-blue-200">
             CIA SEGURADORA
           </span>
         );
       case 'frota_publica':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
             ÓRGÃO PÚBLICO
           </span>
         );
       case 'viatura':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-900 border border-red-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-900 border border-rose-200">
             VIATURA POLICIAL
           </span>
         );
       case 'financeira':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-900 border border-slate-300">
             BANCO / FINANCEIRA / LEASING
           </span>
         );
       case 'concessionaria':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
             COMÉRCIO / CONCESSIONÁRIA
           </span>
         );
       case 'seguranca_privada':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-900 border border-orange-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
             SEGURANÇA PRIVADA
           </span>
         );
       case 'religiosa':
       case 'entidade_religiosa':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-900 border border-teal-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
             ENTIDADE RELIGIOSA
           </span>
         );
       case 'empresa_privada':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-800 border border-slate-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
             EMPRESA PRIVADA
           </span>
         );
       case 'salvados':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
             LOJA DE SALVADOS
           </span>
         );
       case 'taxi_pcd':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-900 border border-yellow-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
             TÁXI / ISENÇÃO PCD
           </span>
         );
@@ -685,12 +695,11 @@ const E20PreVistoriaLaudo: React.FC<{
 
     return (
       <div className="space-y-2 pt-0.5">
-        {/* 1. Resposta Oficial em Texto da API InfoSinistros */}
+        {/* 1. Resposta Oficial em Texto da Base Pericial */}
         {infoRaw && typeof infoRaw === 'string' && infoRaw.trim().length > 0 && infoRaw.trim() !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' && (
-          <div className="p-2.5 bg-amber-100/80 border border-amber-300/90 rounded-md text-[11px] space-y-1 shadow-2xs">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-950 uppercase tracking-wider">
-              <CheckCircle2 className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-              <span>Resposta Oficial da API InfoSinistros:</span>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-[11px] space-y-1">
+            <div className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">
+              Resposta Registrada na Base de Pré-Vistoria:
             </div>
             <p className="text-slate-800 leading-relaxed font-medium select-text">
               {infoRaw}
@@ -698,7 +707,7 @@ const E20PreVistoriaLaudo: React.FC<{
           </div>
         )}
 
-        {/* 2. Roubo e Furto (P10) */}
+        {/* 2. Roubo e Furto */}
         {item.chave === 'P10' && Array.isArray(dados) && dados.length > 0 && (
           <div className="space-y-1.5 pt-0.5">
             {dados.map((oc: any, oIdx: number) => (
@@ -722,11 +731,11 @@ const E20PreVistoriaLaudo: React.FC<{
           </div>
         )}
 
-        {/* 3. FIPE (P36) */}
+        {/* 3. FIPE */}
         {item.chave === 'P36' && dados && (
-          <div className="p-2.5 bg-white rounded-md border border-amber-200 text-xs flex items-center justify-between shadow-2xs">
+          <div className="p-2.5 bg-slate-50/60 rounded-md border border-slate-200 text-xs flex items-center justify-between">
             <div>
-              <span className="text-[10px] text-slate-400 block uppercase font-semibold">Valor Médio FIPE</span>
+              <span className="text-[10px] text-slate-500 block uppercase font-semibold">Valor Médio FIPE</span>
               <span className="font-extrabold text-slate-900 text-sm">
                 {dados.valor_medio_fipe || dados.valor || dados.preco || item.mensagem}
               </span>
@@ -983,7 +992,7 @@ const E20PreVistoriaLaudo: React.FC<{
               if (!nomeEntidade && !reg.documento) {
                 if (typeof reg === 'object' && reg !== null) {
                   return (
-                    <div key={rIdx} className="p-2.5 bg-white rounded-md border border-amber-200 shadow-2xs space-y-1 text-[11px]">
+                    <div key={rIdx} className="p-2.5 bg-white rounded-md border border-slate-200 space-y-1 text-[11px]">
                       {Object.entries(reg)
                         .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !['id', '_id', 'status'].includes(k))
                         .map(([k, v], vIdx) => (
@@ -1005,7 +1014,7 @@ const E20PreVistoriaLaudo: React.FC<{
                  item.chave === 'P27' ? 'taxi_pcd' : undefined);
 
               return (
-                <div key={rIdx} className="p-2.5 bg-white rounded-md border border-amber-200/90 shadow-2xs space-y-1 text-[11px]">
+                <div key={rIdx} className="p-2.5 bg-white rounded-md border border-slate-200 space-y-1 text-[11px]">
                   <div className="flex flex-wrap items-center justify-between gap-1">
                     <span className="font-bold text-slate-900 leading-snug">
                       {nomeEntidade || 'REGISTRO IDENTIFICADO'}
@@ -1056,12 +1065,11 @@ const E20PreVistoriaLaudo: React.FC<{
           </div>
         )}
 
-        {/* 9. Fallback Genérico para Objetos da API InfoSinistros (P11 Leilão, P12 Acidentes, P30 CSV, etc.) */}
+        {/* 9. Fallback Genérico para Objetos da Base (P11 Leilão, P12 Acidentes, P30 CSV, etc.) */}
         {dados && typeof dados === 'object' && !Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && (
-          <div className="p-2.5 bg-white rounded-md border border-amber-200 text-[11px] space-y-1 shadow-2xs">
-            <div className="text-[10px] font-bold text-amber-950 uppercase tracking-wider pb-1 border-b border-amber-100 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-              <span>Dados Oficiais InfoSinistros:</span>
+          <div className="p-2.5 bg-white rounded-md border border-slate-200 text-[11px] space-y-1">
+            <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider pb-1 border-b border-slate-100">
+              Dados Registrados na Base:
             </div>
             {Object.entries(dados)
               .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !['id', '_id', 'status', 'sucesso', 'codigo', 'produto_id'].includes(k))
@@ -1163,9 +1171,8 @@ const E20PreVistoriaLaudo: React.FC<{
 
       {/* Grid de Especificações Mecânicas e Cadastrais */}
       <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs space-y-2.5">
-        <div className="text-xs font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center space-x-2">
-          <Car className="w-3.5 h-3.5 text-slate-600" />
-          <span>Especificações Técnicas e Cadastrais da BIN Fabril</span>
+        <div className="text-xs font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-100">
+          Especificações Técnicas e Cadastrais da BIN Fabril
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs">
           <div className="p-2 bg-slate-50 rounded border border-slate-200/80">
@@ -1195,11 +1202,10 @@ const E20PreVistoriaLaudo: React.FC<{
         </div>
       </div>
 
-      {/* 2. QUADRO DE INDICADORES PERICIAIS DA PRÉ-VISTORIA (LAYOUT INFOSINISTROS VERTICAL CONSOLIDADO) */}
+      {/* 2. QUADRO DE INDICADORES PERICIAIS DA PRÉ-VISTORIA (LAYOUT INSTITUCIONAL CONSOLIDADO) */}
       <div className="space-y-3.5">
         <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
-          <div className="flex items-center space-x-2">
-            <Layers className="w-4 h-4 text-indigo-600" />
+          <div>
             <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">
               Indicadores Periciais da Pré-Vistoria (Base Consolidada)
             </h4>
@@ -1223,11 +1229,11 @@ const E20PreVistoriaLaudo: React.FC<{
                   isAlertaCritico
                     ? 'border-rose-300 bg-white'
                     : isPositivo
-                    ? 'border-amber-300 bg-white'
+                    ? 'border-slate-300 bg-white'
                     : 'border-slate-200 bg-white'
                 }`}
               >
-                {/* Cabeçalho do Produto - Padrão InfoSinistros com identidade Renacred */}
+                {/* Cabeçalho do Produto - Padrão Pericial Institucional */}
                 <div
                   className={`px-4 py-2.5 flex items-center justify-between gap-3 border-b ${
                     isAlertaCritico
@@ -1241,17 +1247,6 @@ const E20PreVistoriaLaudo: React.FC<{
                     <span className="text-[11px] font-mono font-bold text-slate-400 shrink-0">
                       #{numeroItem < 10 ? `0${numeroItem}` : numeroItem}
                     </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${
-                        isAlertaCritico
-                          ? 'bg-rose-700 text-white border border-rose-500'
-                          : isPositivo
-                          ? 'bg-amber-400 text-slate-950 border border-amber-300'
-                          : 'bg-slate-700 text-slate-200 border border-slate-600'
-                      }`}
-                    >
-                      {item.chave}
-                    </span>
                     <h5 className="font-bold text-xs sm:text-sm tracking-wide uppercase truncate text-white">
                       {titulo}
                     </h5>
@@ -1260,9 +1255,9 @@ const E20PreVistoriaLaudo: React.FC<{
                   <span
                     className={`px-2.5 py-0.5 rounded text-[10px] font-bold shrink-0 tracking-wider uppercase ${
                       isAlertaCritico
-                        ? 'bg-rose-600 text-white animate-pulse'
+                        ? 'bg-rose-600 text-white'
                         : isPositivo
-                        ? 'bg-amber-400 text-slate-950 font-extrabold'
+                        ? 'bg-slate-100 text-slate-900 font-extrabold border border-slate-300'
                         : 'bg-slate-700 text-slate-300 border border-slate-600'
                     }`}
                   >
@@ -1272,21 +1267,20 @@ const E20PreVistoriaLaudo: React.FC<{
 
                 {/* Conteúdo do Produto */}
                 {!isPositivo ? (
-                  <div className="px-4 py-3 bg-slate-50/70 flex items-center justify-between text-xs">
-                    <span className="font-mono font-medium text-slate-500">
+                  <div className="px-4 py-2.5 bg-slate-50/70 flex items-center justify-between text-xs">
+                    <span className="font-mono text-slate-500 text-[11px]">
                       NENHUM REGISTRO LOCALIZADO NA BASE INTERNA
                     </span>
-                    <span className="text-emerald-600 font-semibold text-xs flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="text-emerald-700 font-semibold text-xs">
                       Regular
                     </span>
                   </div>
                 ) : (
                   <div className="p-3.5 sm:p-4 bg-white space-y-3">
                     {(!item.respostaInfoSinistros || typeof item.respostaInfoSinistros !== 'string' || item.respostaInfoSinistros.trim() !== item.mensagem?.trim() || item.respostaInfoSinistros.trim() === 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA') && item.mensagem && (
-                      <p className="text-xs font-semibold text-slate-800 leading-relaxed bg-amber-50/60 border border-amber-200/60 p-2.5 rounded-md">
+                      <div className="text-xs font-semibold text-slate-800 leading-relaxed pb-0.5">
                         {item.mensagem}
-                      </p>
+                      </div>
                     )}
 
                     {renderRespostaPositivaIndicador(item)}

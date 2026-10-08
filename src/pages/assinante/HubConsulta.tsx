@@ -11,6 +11,8 @@ import {
 } from '../../config/productsCatalog';
 import { SeletorProdutoModal } from '../../components/consultas/SeletorProdutoModal';
 import { LaudoPericialUniversal } from '../../components/consultas/LaudoPericialUniversal';
+import { E20Modal } from '../../components/veicular/E20Modal';
+import { ExportPdfE20Button } from '../../components/veicular/ExportPdfE20Button';
 import {
   maskPlaca,
   isValidPlaca,
@@ -42,6 +44,7 @@ export default function HubConsulta() {
 
   // Estados principais
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [isE20ModalOpen, setIsE20ModalOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
@@ -142,6 +145,9 @@ export default function HubConsulta() {
     if (sessionHubCache.has(cacheKey)) {
       const cached = sessionHubCache.get(cacheKey);
       setResult(cached);
+      if (currentProduct.code === 'E20') {
+        setIsE20ModalOpen(true);
+      }
       toast.success('Laudo recuperado instantaneamente da sessão.');
       return;
     }
@@ -171,6 +177,10 @@ export default function HubConsulta() {
 
         sessionHubCache.set(cacheKey, resultObject);
         setResult(resultObject);
+
+        if (currentProduct.code === 'E20') {
+          setIsE20ModalOpen(true);
+        }
 
         if (payload.total_registros > 0) {
           toast.success(`Consulta realizada com sucesso: ${payload.total_registros} registro(s) localizado(s).`);
@@ -298,6 +308,9 @@ export default function HubConsulta() {
       consultadoEm: item.createdAt,
       tempoRespostaMs: item.processingTimeMs
     });
+    if (currentProduct.code === 'E20') {
+      setIsE20ModalOpen(true);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -509,7 +522,41 @@ export default function HubConsulta() {
 
       {/* Exibição do Laudo Pericial Oficial */}
       {result && (
-        <div className="animate-in fade-in duration-200 print:w-full print:m-0 print:p-0">
+        <div className="space-y-4 animate-in fade-in duration-200 print:w-full print:m-0 print:p-0">
+          {/* Barra de Ações Executivas Exclusiva do Produto E20 */}
+          {currentProduct.code === 'E20' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm print:hidden">
+              <div className="flex items-center gap-3">
+                <span className="px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-300 font-mono font-bold text-xs border border-indigo-400/30">
+                  {result.identifier}
+                </span>
+                <div>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Pré-Vistoria Veicular Consolidada (E20)
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Visualização executiva em modal dedicado e exportação pericial de resultados
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsE20ModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+                >
+                  Visualizar Laudo no Modal
+                </button>
+                <ExportPdfE20Button
+                  dados={result.dados}
+                  identifier={result.identifier}
+                  hash={result.hash}
+                  consultadoEm={result.consultadoEm}
+                />
+              </div>
+            </div>
+          )}
+
           <LaudoPericialUniversal
             produto={currentProduct}
             identifier={result.identifier}
@@ -621,6 +668,18 @@ export default function HubConsulta() {
         onSelect={handleSelectProduct}
         currentCode={currentProduct.code}
       />
+
+      {/* Modal Executivo do Produto E20 */}
+      {result && currentProduct.code === 'E20' && (
+        <E20Modal
+          isOpen={isE20ModalOpen}
+          onClose={() => setIsE20ModalOpen(false)}
+          dados={result.dados}
+          identifier={result.identifier}
+          hash={result.hash}
+          consultadoEm={result.consultadoEm}
+        />
+      )}
     </div>
   );
 }
