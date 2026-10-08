@@ -166,7 +166,7 @@ export const INFOSINISTROS_TITULOS: Record<string, string> = {
   P14: 'INDENIZAÇÃO INTEGRAL POR CIA SEGURADORA',
   P15: 'HISTÓRICO DE DANOS E AVARIAS',
   P16: 'SUSPEITA DE CHASSI ADULTERADO',
-  P17: 'HISTÓRICO DE PROPRIETÁRIOS',
+  P17: 'HISTÓRICO DE ALGUNS PROPRIETÁRIOS PAGANTES DO DPVAT',
   P18: 'VEÍCULO UTILIZADO PARA COMETIMENTO DE CRIMES',
   P19: 'HISTÓRICO DE RECUPERADO DE SINISTRO (BRF)',
   P20: 'HISTÓRICO DE SINISTRO RECUPERADO (ACT)',
@@ -185,9 +185,111 @@ export const INFOSINISTROS_TITULOS: Record<string, string> = {
   P33: 'VERIFICAÇÃO DE ALTERAÇÃO DE CARACTERÍSTICAS',
   P34: 'INDÍCIO DE GRANDES FROTISTAS',
   P35: 'FICHA TÉCNICA E CADASTRO BIN FABRIL',
-  P36: 'HISTÓRICO DE VALOR DE MERCADO (FIPE)',
-  P37: 'HISTÓRICO DE PROPRIETÁRIOS PAGANTES DO DPVAT (ONLINE)'
+  P36: 'HISTÓRICO DE VALOR DE MERCADO (FIPE)'
 };
+
+/**
+ * Utilitários de normalização de datas e cálculo de cronologia / tempo de posse
+ */
+export function parseDateToTimestamp(dInput: any): number {
+  if (!dInput) return 0;
+  if (dInput instanceof Date) return dInput.getTime();
+  const str = String(dInput).trim();
+  const brMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (brMatch) {
+    const dia = parseInt(brMatch[1], 10);
+    const mes = parseInt(brMatch[2], 10) - 1;
+    const ano = parseInt(brMatch[3], 10);
+    return new Date(Date.UTC(ano, mes, dia)).getTime();
+  }
+  const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const ano = parseInt(isoMatch[1], 10);
+    const mes = parseInt(isoMatch[2], 10) - 1;
+    const dia = parseInt(isoMatch[3], 10);
+    return new Date(Date.UTC(ano, mes, dia)).getTime();
+  }
+  const yearMatch = str.match(/^(\d{4})$/);
+  if (yearMatch) {
+    const ano = parseInt(yearMatch[1], 10);
+    return new Date(Date.UTC(ano, 0, 1)).getTime();
+  }
+  const parsed = new Date(str).getTime();
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+export function formatarDataBR(dInput: any): string | null {
+  if (!dInput) return null;
+  const str = String(dInput).trim();
+  const brMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (brMatch) {
+    return `${brMatch[1].padStart(2, '0')}/${brMatch[2].padStart(2, '0')}/${brMatch[3]}`;
+  }
+  const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    return `${isoMatch[3].padStart(2, '0')}/${isoMatch[2].padStart(2, '0')}/${isoMatch[1]}`;
+  }
+  const yearMatch = str.match(/^(\d{4})$/);
+  if (yearMatch) {
+    return `01/01/${yearMatch[1]}`;
+  }
+  const d = new Date(dInput);
+  if (!isNaN(d.getTime())) {
+    const dia = String(d.getUTCDate()).padStart(2, '0');
+    const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const ano = d.getUTCFullYear();
+    return `${dia}/${mes}/${ano}`;
+  }
+  return null;
+}
+
+export function calcularTempoDePosse(dataInicio: any, dataFim?: any): string {
+  const tInicio = parseDateToTimestamp(dataInicio);
+  if (!tInicio) return 'Tempo não informado';
+
+  const dInicio = new Date(tInicio);
+  const tFim = dataFim ? parseDateToTimestamp(dataFim) : Date.now();
+  const dFim = new Date(tFim || Date.now());
+
+  if (dFim.getTime() < dInicio.getTime()) {
+    return 'Menos de 1 mês';
+  }
+
+  let anos = dFim.getUTCFullYear() - dInicio.getUTCFullYear();
+  let meses = dFim.getUTCMonth() - dInicio.getUTCMonth();
+  let dias = dFim.getUTCDate() - dInicio.getUTCDate();
+
+  if (dias < 0) {
+    meses -= 1;
+  }
+  if (meses < 0) {
+    anos -= 1;
+    meses += 12;
+  }
+
+  if (anos <= 0 && meses <= 0) {
+    return 'Menos de 1 mês';
+  }
+  if (anos === 0) {
+    return `${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+  }
+  if (meses === 0) {
+    return `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
+  }
+  return `${anos} ${anos === 1 ? 'ano' : 'anos'} e ${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+}
+
+export function mascararDocumento(docRaw?: string): string {
+  if (!docRaw) return 'NÃO DIVULGADO';
+  const limpo = String(docRaw).replace(/\D/g, '');
+  if (limpo.length === 11) {
+    return `***.${limpo.substring(3, 6)}.${limpo.substring(6, 9)}-**`;
+  }
+  if (limpo.length === 14) {
+    return limpo.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  }
+  return String(docRaw).trim();
+}
 
 /**
  * Classificador inteligente de entidades a partir de nomes, documentos e CNAE de proprietários
@@ -227,15 +329,15 @@ export function classificarEntidadeProprietario(
   }
 
   // 3. Seguradoras (P1, P14)
-  const regexSeguradora = /\b(SEGURADORA|SEGUROS|COMPANHIA DE SEGUROS|CIA DE SEGUROS|PORTO SEGURO|BRADESCO AUTO|BRADESCO SEGUROS|TOKIO MARINE|AZUL SEGUROS|MAPFRE|ALLIANZ|SUL AMERICA|SULAMERICA|HDI SEGUROS|LIBERTY|SOMPO|ZURICH|CHUBB|ITAU SEGUROS|CAIXA SEGURADORA|ALFA SEGUROS|SUHAI)\b/i;
+  const regexSeguradora = /\b(SEGURADORA|SEGUROS|COMPANHIA DE SEGUROS|CIA DE SEGUROS|PORTO SEGURO|BRADESCO AUTO|BRADESCO SEGUROS|TOKIO MARINE|AZUL SEGUROS|MAPFRE|ALLIANZ|SUL AMERICA|SULAMERICA|HDI SEGUROS|HDI|LIBERTY|SOMPO|ZURICH|CHUBB|ITAU SEGUROS|CAIXA SEGURADORA|ALFA SEGUROS|SUHAI|BB SEGUROS|YOUSE|WIZE)\b/i;
   const isCnaeSeguradora = cnae.startsWith('6511') || cnae.startsWith('6512') || cnaeDesc.includes('SEGURO');
   if (regexSeguradora.test(nome) || isCnaeSeguradora) {
     return 'seguradora';
   }
 
   // 4. Bancos, Financeiras & Leasing (P7)
-  const regexFinanceira = /\b(BANCO|FINANCEIRA|LEASING|ARRENDAMENTO MERCANTIL|BV FINANCEIRA|SANTANDER|ITAU|BRADESCO FINANCIAMENTOS|SAFRA|PANAMERICANO|BANCO PAN|OMNI|AYMORE|CREDITAS|DIBENS LEASING|FINANCIAMENTO)\b/i;
-  const isCnaeFinanceira = cnae.startsWith('6491') || cnae.startsWith('6422') || cnae.startsWith('6424') || cnae.startsWith('6431') || cnae.startsWith('6432') || cnaeDesc.includes('ARRENDAMENTO MERCANTIL') || cnaeDesc.includes('LEASING') || cnaeDesc.includes('FINANCEIRA');
+  const regexFinanceira = /\b(BANCO|FINANCEIRA|LEASING|ARRENDAMENTO MERCANTIL|ARRENDAMENTO|BV FINANCEIRA|SANTANDER|ITAU|BRADESCO FINANCIAMENTOS|SAFRA|PANAMERICANO|BANCO PAN|OMNI|AYMORE|CREDITAS|DIBENS LEASING|FINANCIAMENTO|CREDITO|CRÉDITO|CONSORCIO|CONSÓRCIO|PORTOSEG|GMAC|TOYOTA|HONDA|SICREDI|CFI|BCO)\b/i;
+  const isCnaeFinanceira = cnae.startsWith('6491') || cnae.startsWith('6422') || cnae.startsWith('6424') || cnae.startsWith('6431') || cnae.startsWith('6432') || cnae.startsWith('6436') || cnae.startsWith('6470') || cnae.startsWith('6492') || cnae.startsWith('6493') || cnaeDesc.includes('ARRENDAMENTO MERCANTIL') || cnaeDesc.includes('LEASING') || cnaeDesc.includes('FINANCEIRA') || cnaeDesc.includes('CONSORCIO');
   if (regexFinanceira.test(nome) || isCnaeFinanceira) {
     return 'financeira';
   }
@@ -262,7 +364,7 @@ export function classificarEntidadeProprietario(
   }
 
   // 8. Lojas de Salvados (P8)
-  const regexSalvados = /\b(SALVADOS|AUTO SALVADOS|COMERCIO DE SALVADOS|PECAS SALVADOS)\b/i;
+  const regexSalvados = /\b(SALVADOS|AUTO SALVADOS|COMERCIO DE SALVADOS|PECAS SALVADOS|SUCATA|SUCATAS|DESMANCHE|SINISTRADOS|SINISTRADO|BATIDOS|BATIDO)\b/i;
   if (regexSalvados.test(nome) || cnaeDesc.includes('SALVADOS')) {
     return 'salvados';
   }
@@ -389,13 +491,13 @@ export class E20Service {
       dataAtualizacao: p35Bruto.dataAtualizacao || null
     };
 
-    // 4. Analisador da Cadeia Dominial do E2 para Distribuição nos Cards e De/Para
+    // 4. Analisador da Cadeia Dominial Unificada (E2 Oficial + InfoSinistros P17/P37)
     const historicoE2: any[] = Array.isArray(e2Result?.normalized?.dados?.historico)
       ? e2Result.normalized.dados.historico
       : [];
     const propAtualE2 = e2Result?.normalized?.dados?.proprietario_atual || null;
 
-    // Detectores de entidades
+    // Detectores de entidades especializadas
     const locadorasDetectadas: E20EntidadeDetectada[] = [];
     const seguradorasDetectadas: E20EntidadeDetectada[] = [];
     const financeirasDetectadas: E20EntidadeDetectada[] = [];
@@ -407,65 +509,224 @@ export class E20Service {
     const taxiPcdDetectados: E20EntidadeDetectada[] = [];
     const empresasPrivadasDetectadas: E20EntidadeDetectada[] = [];
 
-    const registrarEntidade = (classif: TipoEntidadeClassificada, item: E20EntidadeDetectada) => {
-      switch (classif) {
-        case 'locadora': locadorasDetectadas.push(item); break;
-        case 'seguradora': seguradorasDetectadas.push(item); break;
-        case 'financeira': financeirasDetectadas.push(item); break;
-        case 'viatura': viaturasDetectadas.push(item); break;
-        case 'frota_publica': frotasPublicasDetectadas.push(item); break;
-        case 'religiosa': religiosasDetectadas.push(item); break;
-        case 'seguranca_privada': segurancaPrivadaDetectadas.push(item); break;
-        case 'salvados': salvadosDetectados.push(item); break;
-        case 'taxi_pcd': taxiPcdDetectados.push(item); break;
-        case 'empresa_privada': empresasPrivadasDetectadas.push(item); break;
+    // Coleta preliminar de todos os candidatos de proprietários
+    const candidatosBrutos: any[] = [];
+
+    if (propAtualE2) {
+      candidatosBrutos.push({
+        ...propAtualE2,
+        atual: true
+      });
+    }
+
+    for (const h of historicoE2) {
+      candidatosBrutos.push({
+        ...h,
+        atual: Boolean(h.atual)
+      });
+    }
+
+    // Integrar registros da InfoSinistros P37 (DPVAT Online incorporado na base interna)
+    if (infoResult?.resultados?.P37?.conteudo) {
+      const dpvatItens = Array.isArray(infoResult.resultados.P37.conteudo)
+        ? infoResult.resultados.P37.conteudo
+        : [infoResult.resultados.P37.conteudo];
+
+      for (const d of dpvatItens) {
+        if (!d) continue;
+        candidatosBrutos.push({
+          nome: d.nome || d.proprietario || 'PROPRIETÁRIO REGISTRADO',
+          razao_social: d.razao_social || d.nome,
+          documento: d.documento || d.cpfcnpj || d.cpf_cnpj,
+          data: d.data,
+          municipio: d.municipio || d.municipio_uf?.split('/')[0]?.trim(),
+          uf: d.uf || d.municipio_uf?.split('/')[1]?.trim(),
+          atual: Boolean(d.atual)
+        });
       }
+    }
+
+    // Integrar registros de proprietários de P17 da InfoSinistros caso existam
+    const p17Raw = infoResult?.resultados?.P17?.conteudo;
+    if (p17Raw) {
+      const p17Lista = Array.isArray(p17Raw)
+        ? p17Raw
+        : Array.isArray(p17Raw.proprietarios)
+          ? p17Raw.proprietarios
+          : [p17Raw];
+
+      for (const p of p17Lista) {
+        if (!p || typeof p !== 'object') continue;
+        candidatosBrutos.push({
+          nome: p.nome || p.razao_social || p.proprietario,
+          razao_social: p.razao_social || p.nome,
+          documento: p.documento || p.cpfcnpj || p.cpf_cnpj,
+          data: p.data || p.anopropriedade || p.ano,
+          municipio: p.municipio || p.municipio_uf?.split('/')[0]?.trim(),
+          uf: p.uf || p.municipio_uf?.split('/')[1]?.trim(),
+          atual: Boolean(p.atual)
+        });
+      }
+    }
+
+    // Deduplicação dos proprietários
+    const proprietariosDeduplicados: any[] = [];
+    for (const cand of candidatosBrutos) {
+      const nomeCand = String(cand.nome || cand.razao_social || '').trim().toUpperCase();
+      const docLimpo = String(cand.documento || '').replace(/\D/g, '');
+      const dataStr = String(cand.data || '').trim();
+
+      const jaExiste = proprietariosDeduplicados.find((p) => {
+        const docExist = String(p.documento || '').replace(/\D/g, '');
+        if (docLimpo && docExist && docLimpo.length >= 11 && docExist.length >= 11) {
+          return docLimpo === docExist;
+        }
+        const nomeExist = String(p.nome || p.razao_social || '').trim().toUpperCase();
+        return nomeCand && nomeExist && nomeCand === nomeExist && (dataStr === String(p.data || '').trim() || !dataStr || !p.data);
+      });
+
+      if (!jaExiste) {
+        proprietariosDeduplicados.push(cand);
+      } else {
+        // Enriquecer dados se o novo candidato trouxer campos mais completos
+        if (!jaExiste.municipio && cand.municipio) jaExiste.municipio = cand.municipio;
+        if (!jaExiste.uf && cand.uf) jaExiste.uf = cand.uf;
+        if (!jaExiste.data && cand.data) jaExiste.data = cand.data;
+        if (!jaExiste.cnae && cand.cnae) jaExiste.cnae = cand.cnae;
+        if (!jaExiste.cnae_descricao && cand.cnae_descricao) jaExiste.cnae_descricao = cand.cnae_descricao;
+        if (cand.atual) jaExiste.atual = true;
+      }
+    }
+
+    // 5. Classificação Dominial e Extração de Entidades (Bancos P7, Seguradoras P1/P14, Locadoras P4, Frotas P2/P3, Salvados P8)
+    const proprietariosRegulares: any[] = [];
+
+    for (const p of proprietariosDeduplicados) {
+      const nomeProp = p.nome || p.razao_social || 'NÃO INFORMADO';
+      const classif = classificarEntidadeProprietario(
+        nomeProp,
+        p.documento,
+        p.cnae,
+        p.cnae_descricao
+      );
+
+      const entidadeItem: E20EntidadeDetectada = {
+        nome: nomeProp,
+        documento: p.documento,
+        tipoDocumento: p.tipo,
+        tipoEntidade: classif,
+        cnae: p.cnae,
+        cnaeDescricao: p.cnae_descricao,
+        data: p.data,
+        atual: Boolean(p.atual)
+      };
+
+      let isEntidadeEspecial = false;
+
+      switch (classif) {
+        case 'financeira':
+          financeirasDetectadas.push(entidadeItem);
+          isEntidadeEspecial = true;
+          break;
+        case 'seguradora':
+          seguradorasDetectadas.push(entidadeItem);
+          isEntidadeEspecial = true;
+          break;
+        case 'locadora':
+          locadorasDetectadas.push(entidadeItem);
+          isEntidadeEspecial = true;
+          break;
+        case 'viatura':
+          viaturasDetectadas.push(entidadeItem);
+          isEntidadeEspecial = true;
+          break;
+        case 'frota_publica':
+          frotasPublicasDetectadas.push(entidadeItem);
+          isEntidadeEspecial = true;
+          break;
+        case 'salvados':
+          salvadosDetectados.push(entidadeItem);
+          isEntidadeEspecial = true;
+          break;
+        case 'religiosa':
+          religiosasDetectadas.push(entidadeItem);
+          break;
+        case 'seguranca_privada':
+          segurancaPrivadaDetectadas.push(entidadeItem);
+          break;
+        case 'taxi_pcd':
+          taxiPcdDetectados.push(entidadeItem);
+          break;
+        case 'empresa_privada':
+          empresasPrivadasDetectadas.push(entidadeItem);
+          break;
+      }
+
+      // Regra de Negócio InfoSinistros: Entidades com cards dedicados (P7, P1, P4, P2/P3, P8) são filtradas da lista regular P17
+      if (!isEntidadeEspecial) {
+        proprietariosRegulares.push({
+          ...p,
+          classificacaoEntidade: classif
+        });
+      }
+    }
+
+    // Safety guard: Se todos os proprietários fossem filtrados, manter os originais para evitar tabela vazia
+    const proprietariosParaP17 = proprietariosRegulares.length > 0
+      ? proprietariosRegulares
+      : proprietariosDeduplicados.map((p) => ({
+        ...p,
+        classificacaoEntidade: classificarEntidadeProprietario(p.nome, p.documento, p.cnae, p.cnae_descricao)
+      }));
+
+    // Ordenação cronológica por data (do mais antigo para o mais recente / atual)
+    proprietariosParaP17.sort((a, b) => {
+      const tA = parseDateToTimestamp(a.data);
+      const tB = parseDateToTimestamp(b.data);
+      return tA - tB;
+    });
+
+    // Calcular tempo de posse e formatar a lista final de P17
+    const historicoFormatadoP17 = proprietariosParaP17.map((item, idx) => {
+      const proximo = proprietariosParaP17[idx + 1];
+      const isUltimo = idx === proprietariosParaP17.length - 1;
+      const tempoPosseCalc = isUltimo
+        ? `${calcularTempoDePosse(item.data)}${item.atual ? ' (Vigente)' : ''}`
+        : calcularTempoDePosse(item.data, proximo?.data);
+
+      const docMascarado = mascararDocumento(item.documento);
+      const dataFormatada = formatarDataBR(item.data) || item.data || '-';
+
+      return {
+        ordem: idx + 1,
+        nome: item.nome || item.razao_social || 'PROPRIETÁRIO REGISTRADO',
+        razao_social: item.nome || item.razao_social,
+        documento: docMascarado,
+        documentoOriginal: item.documento,
+        tipo: item.tipo || (String(item.documento || '').replace(/\D/g, '').length === 14 ? 'Pessoa jurídica' : 'Pessoa física'),
+        data: dataFormatada,
+        dataRaw: item.data,
+        tempoDePosse: tempoPosseCalc,
+        tempoPosse: tempoPosseCalc,
+        municipio: item.municipio || null,
+        uf: item.uf || null,
+        municipio_uf: item.municipio && item.uf ? `${item.municipio}/${item.uf}` : (item.municipio || item.uf || null),
+        atual: isUltimo ? true : Boolean(item.atual),
+        classificacaoEntidade: item.classificacaoEntidade || 'particular',
+        cnae: item.cnae,
+        cnae_descricao: item.cnae_descricao
+      };
+    });
+
+    const propAtualFinal = historicoFormatadoP17.find((p) => p.atual) || historicoFormatadoP17[historicoFormatadoP17.length - 1] || null;
+
+    const cardProprietarios = {
+      total: historicoFormatadoP17.length,
+      proprietario_atual: propAtualFinal,
+      historico: historicoFormatadoP17
     };
 
-    // Avaliar proprietário atual
-    if (propAtualE2) {
-      const classif = classificarEntidadeProprietario(
-        propAtualE2.nome || propAtualE2.razao_social,
-        propAtualE2.documento,
-        propAtualE2.cnae,
-        propAtualE2.cnae_descricao
-      );
-      const item: E20EntidadeDetectada = {
-        nome: propAtualE2.nome || propAtualE2.razao_social || 'NÃO INFORMADO',
-        documento: propAtualE2.documento,
-        tipoDocumento: propAtualE2.tipo,
-        tipoEntidade: classif,
-        cnae: propAtualE2.cnae,
-        cnaeDescricao: propAtualE2.cnae_descricao,
-        data: propAtualE2.data,
-        atual: true
-      };
-      registrarEntidade(classif, item);
-    }
-
-    // Avaliar histórico anterior
-    for (const h of historicoE2) {
-      const classif = classificarEntidadeProprietario(
-        h.nome || h.razao_social,
-        h.documento,
-        h.cnae,
-        h.cnae_descricao
-      );
-      const item: E20EntidadeDetectada = {
-        nome: h.nome || h.razao_social || 'NÃO INFORMADO',
-        documento: h.documento,
-        tipoDocumento: h.tipo,
-        tipoEntidade: classif,
-        cnae: h.cnae,
-        cnaeDescricao: h.cnae_descricao,
-        data: h.data,
-        ordem: h.ordem,
-        atual: Boolean(h.atual)
-      };
-      registrarEntidade(classif, item);
-    }
-
-    // 5. CARD DE ROUBO E FURTO (E5 + P10 CONSOLIDADOS)
+    // 6. CARD DE ROUBO E FURTO (E5 + P10 CONSOLIDADOS)
     const ocorrenciasE5: any[] = Array.isArray(e5Result?.normalized?.dados?.ocorrencias)
       ? e5Result.normalized.dados.ocorrencias
       : [];
@@ -521,8 +782,8 @@ export class E20Service {
     const statusRouboFurto: 'alerta' | 'recuperado' | 'regular' = temAlertaAtivo
       ? 'alerta'
       : temRecuperado
-      ? 'recuperado'
-      : 'regular';
+        ? 'recuperado'
+        : 'regular';
 
     const cardRouboFurto = {
       status: statusRouboFurto,
@@ -530,64 +791,14 @@ export class E20Service {
       mensagem: temAlertaAtivo
         ? 'CONSTAM OCORRÊNCIAS DE ROUBO OU FURTO ATIVAS'
         : temRecuperado
-        ? 'OCORRÊNCIA DE ROUBO/FURTO COM RECUPERAÇÃO REGISTRADA'
-        : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
+          ? 'OCORRÊNCIA DE ROUBO/FURTO COM RECUPERAÇÃO REGISTRADA'
+          : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
       totalOcorrencias: listaOcorrenciasConsolidada.length,
       ocorrencias: listaOcorrenciasConsolidada
     };
 
-    // 6. CARD DE PROPRIETÁRIOS (P17) FORMATADO
-    const historicoFormatado = historicoE2.map((item) => {
-      const classif = classificarEntidadeProprietario(
-        item.nome || item.razao_social,
-        item.documento,
-        item.cnae,
-        item.cnae_descricao
-      );
-      return {
-        ...item,
-        classificacaoEntidade: classif
-      };
-    });
-
-    const propAtualFormatado = propAtualE2 ? {
-      ...propAtualE2,
-      classificacaoEntidade: classificarEntidadeProprietario(
-        propAtualE2.nome || propAtualE2.razao_social,
-        propAtualE2.documento,
-        propAtualE2.cnae,
-        propAtualE2.cnae_descricao
-      )
-    } : null;
-
-    // Se o E2 não retornou proprietários, verificar se a InfoSinistros tem P37 ou P17
-    let totalProprietarios = historicoFormatado.length;
-    let listaProprietariosConsolidada = historicoFormatado;
-    if (totalProprietarios === 0 && infoResult?.resultados?.P37?.conteudo) {
-      const dpvatItens = Array.isArray(infoResult.resultados.P37.conteudo)
-        ? infoResult.resultados.P37.conteudo
-        : [infoResult.resultados.P37.conteudo];
-      listaProprietariosConsolidada = dpvatItens.map((d: any, idx: number) => ({
-        ordem: d.ordem || idx + 1,
-        nome: d.nome || 'PROPRIETÁRIO REGISTRADO',
-        documento: d.documento,
-        data: d.data,
-        municipio: d.municipio_uf?.split('/')[0]?.trim(),
-        uf: d.municipio_uf?.split('/')[1]?.trim(),
-        atual: Boolean(d.atual),
-        classificacaoEntidade: classificarEntidadeProprietario(d.nome, d.documento)
-      }));
-      totalProprietarios = listaProprietariosConsolidada.length;
-    }
-
-    const cardProprietarios = {
-      total: totalProprietarios,
-      proprietario_atual: propAtualFormatado || (listaProprietariosConsolidada.find(p => p.atual) || listaProprietariosConsolidada[0] || null),
-      historico: listaProprietariosConsolidada
-    };
-
-    // 7. REGISTROS ESPECÍFICOS DE LOCADORAS, SEGURADORAS, FROTAS E FINANCEIRAS
-    // Locadoras (P4 + E2)
+    // 7. REGISTROS ESPECÍFICOS DE LOCADORAS, SEGURADORAS, FROTAS E BANCOS/FINANCEIRAS
+    // Locadoras (P4)
     const registrosLocadoras: any[] = [];
     const p4Info = infoResult?.resultados?.P4;
     if (p4Info && p4Info.status === 'positivo' && p4Info.conteudo) {
@@ -604,7 +815,7 @@ export class E20Service {
       }
     }
     for (const loc of locadorasDetectadas) {
-      const jaExiste = registrosLocadoras.some(r => (loc.documento && r.documento === loc.documento) || r.empresa?.includes(loc.nome?.substring(0, 8)));
+      const jaExiste = registrosLocadoras.some((r) => (loc.documento && r.documento === loc.documento) || r.empresa?.includes(loc.nome?.substring(0, 8)));
       if (!jaExiste) {
         registrosLocadoras.push({
           empresa: loc.nome,
@@ -614,12 +825,12 @@ export class E20Service {
           cnae: loc.cnae,
           cnaeDescricao: loc.cnaeDescricao,
           detalhes: loc.atual ? 'Titular Vigente' : 'Proprietário Anterior',
-          fonte: 'Histórico Dominial E2'
+          fonte: 'Histórico Dominial'
         });
       }
     }
 
-    // Seguradoras (P1 + P14 + E2)
+    // Seguradoras (P1 + P14)
     const registrosSeguradoras: any[] = [];
     let indenizacaoIntegral = false;
     const p1Info = infoResult?.resultados?.P1;
@@ -654,7 +865,7 @@ export class E20Service {
       }
     }
     for (const seg of seguradorasDetectadas) {
-      const jaExiste = registrosSeguradoras.some(r => (seg.documento && r.documento === seg.documento) || r.seguradora?.includes(seg.nome?.substring(0, 8)));
+      const jaExiste = registrosSeguradoras.some((r) => (seg.documento && r.documento === seg.documento) || r.seguradora?.includes(seg.nome?.substring(0, 8)));
       if (!jaExiste) {
         registrosSeguradoras.push({
           seguradora: seg.nome,
@@ -665,12 +876,12 @@ export class E20Service {
           cnae: seg.cnae,
           cnaeDescricao: seg.cnaeDescricao,
           detalhes: seg.atual ? 'Titular Vigente' : 'Proprietário Anterior',
-          fonte: 'Histórico Dominial E2'
+          fonte: 'Histórico Dominial'
         });
       }
     }
 
-    // Frotas Públicas e Viaturas (P2 + P3 + E2)
+    // Frotas Públicas e Viaturas (P2 + P3)
     const registrosFrotaPublica: any[] = [];
     let isViatura = viaturasDetectadas.length > 0;
     const p2Info = infoResult?.resultados?.P2;
@@ -706,7 +917,7 @@ export class E20Service {
         data: v.data,
         cnae: v.cnae,
         cnaeDescricao: v.cnaeDescricao,
-        fonte: 'Histórico Dominial E2'
+        fonte: 'Histórico Dominial'
       });
     }
     for (const pub of frotasPublicasDetectadas) {
@@ -718,19 +929,23 @@ export class E20Service {
         data: pub.data,
         cnae: pub.cnae,
         cnaeDescricao: pub.cnaeDescricao,
-        fonte: 'Histórico Dominial E2'
+        fonte: 'Histórico Dominial'
       });
     }
 
-    // Bancos / Financeiras / Leasing (P7 + E2)
+    // Bancos / Financeiras / Leasing (P7) - Layout Oficial de 2 Colunas: Ano | Razão Social
     const registrosFinanceiras: any[] = [];
     const p7Info = infoResult?.resultados?.P7;
     if (p7Info && p7Info.status === 'positivo' && p7Info.conteudo) {
       const itens = Array.isArray(p7Info.conteudo) ? p7Info.conteudo : [p7Info.conteudo];
       for (const it of itens) {
         if (!it) continue;
+        const anoCalc = it.ano || (it.data ? formatarDataBR(it.data)?.split('/')[2] || it.data : dadosVeiculo.anoModelo || '-');
+        const razaoCalc = it.razao_social || it.instituicao || it.banco || it.nome || 'INSTITUIÇÃO FINANCEIRA';
         registrosFinanceiras.push({
-          instituicao: typeof it === 'string' ? it : it.instituicao || it.banco || 'BANCO / FINANCEIRA',
+          ano: String(anoCalc),
+          razao_social: String(razaoCalc).toUpperCase(),
+          instituicao: String(razaoCalc).toUpperCase(),
           tipoEntidade: 'financeira',
           tipo: 'Venda Direta / Remarketing por Financeira',
           data: it.ano || it.data,
@@ -739,22 +954,117 @@ export class E20Service {
       }
     }
     for (const fin of financeirasDetectadas) {
-      registrosFinanceiras.push({
-        instituicao: fin.nome,
-        documento: fin.documento,
-        tipoEntidade: 'financeira',
-        tipo: 'Instituição Financeira / Leasing na Cadeia Dominial',
-        data: fin.data,
-        cnae: fin.cnae,
-        cnaeDescricao: fin.cnaeDescricao,
-        fonte: 'Histórico Dominial E2'
+      const anoCalc = fin.data ? formatarDataBR(fin.data)?.split('/')[2] || fin.data : (dadosVeiculo.anoModelo || '-');
+      const jaExiste = registrosFinanceiras.some(
+        (r) => (fin.documento && r.documento === fin.documento) || r.razao_social?.includes(fin.nome?.substring(0, 8))
+      );
+      if (!jaExiste) {
+        registrosFinanceiras.push({
+          ano: String(anoCalc),
+          razao_social: String(fin.nome).toUpperCase(),
+          instituicao: String(fin.nome).toUpperCase(),
+          documento: fin.documento,
+          tipoEntidade: 'financeira',
+          tipo: 'Instituição Financeira / Leasing na Cadeia Dominial',
+          data: fin.data,
+          cnae: fin.cnae,
+          cnaeDescricao: fin.cnaeDescricao,
+          fonte: 'Histórico Dominial'
+        });
+      }
+    }
+
+    // 8. HISTÓRICO DE CIRCULAÇÃO (P31) - ENRIQUECIDO COM CIDADES/UFS DOS PROPRIETÁRIOS
+    const p31Info = infoResult?.resultados?.P31?.conteudo || {};
+    const ufFaturado = dadosVeiculo.ufFaturado || dadosVeiculo.uf || p31Info.adquirido_0km || null;
+    const adquirido0km = ufFaturado ? String(ufFaturado).toUpperCase().trim() : null;
+
+    // Obter cidades distintas da cadeia dominial
+    const cidadesDominio: Array<{ municipio: string; uf: string }> = [];
+    for (const p of historicoFormatadoP17) {
+      if (p.municipio && p.uf) {
+        const munNorm = String(p.municipio).toUpperCase().trim();
+        const ufNorm = String(p.uf).toUpperCase().trim();
+        if (!cidadesDominio.some((c) => c.municipio === munNorm && c.uf === ufNorm)) {
+          cidadesDominio.push({ municipio: munNorm, uf: ufNorm });
+        }
+      }
+    }
+    if (cidadesDominio.length === 0 && dadosVeiculo.municipio && dadosVeiculo.uf) {
+      cidadesDominio.push({
+        municipio: String(dadosVeiculo.municipio).toUpperCase().trim(),
+        uf: String(dadosVeiculo.uf).toUpperCase().trim()
       });
     }
 
-    // 8. MOTOR DE CONSOLIDAÇÃO DOS 37 INDICADORES PERICIAIS (P1 a P37)
-    // Títulos limpos sem "P1 | ", layout elegante e padronizado:
-    // Se negativo: 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA'
-    // Se positivo: detalhes oficiais consolidados da API InfoSinistros e bases enriquecidas
+    const formatarLic = (mun?: string | null, uf?: string | null): string | null => {
+      if (mun && uf) return `DETRAN - ${mun.toUpperCase().trim()} - ${uf.toUpperCase().trim()}`;
+      if (mun) return `DETRAN - ${mun.toUpperCase().trim()}`;
+      if (uf) return `DETRAN - ${uf.toUpperCase().trim()}`;
+      return null;
+    };
+
+    const lic1 = cidadesDominio[0]
+      ? formatarLic(cidadesDominio[0].municipio, cidadesDominio[0].uf)
+      : (p31Info.licenciamento_1 || formatarLic(dadosVeiculo.municipio, dadosVeiculo.uf));
+
+    const lic2 = cidadesDominio[1]
+      ? formatarLic(cidadesDominio[1].municipio, cidadesDominio[1].uf)
+      : (p31Info.licenciamento_2 || null);
+
+    const lic3 = cidadesDominio[2]
+      ? formatarLic(cidadesDominio[2].municipio, cidadesDominio[2].uf)
+      : (p31Info.licenciamento_3 || null);
+
+    const cardCirculacao = {
+      adquirido_0km: adquirido0km,
+      licenciamento_1: lic1,
+      licenciamento_2: lic2,
+      licenciamento_3: lic3
+    };
+
+    // 9. HISTÓRICO DE MOVIMENTAÇÃO / ALTERAÇÃO DE CADASTRO (P32) - ENRIQUECIDO COM DATAS DOMINIAIS
+    const p32Info = infoResult?.resultados?.P32?.conteudo || {};
+    const datasParaMovimentacao: string[] = [];
+
+    if (p32Info.insercao_renavam) {
+      const d = formatarDataBR(p32Info.insercao_renavam);
+      if (d) datasParaMovimentacao.push(d);
+    }
+    if (Array.isArray(p32Info.alteracoes)) {
+      for (const alt of p32Info.alteracoes) {
+        const d = formatarDataBR(alt.data || alt);
+        if (d) datasParaMovimentacao.push(d);
+      }
+    }
+    if (dadosVeiculo.dataAtualizacao) {
+      const d = formatarDataBR(dadosVeiculo.dataAtualizacao);
+      if (d) datasParaMovimentacao.push(d);
+    }
+    for (const cand of proprietariosDeduplicados) {
+      if (cand.data) {
+        const d = formatarDataBR(cand.data);
+        if (d) datasParaMovimentacao.push(d);
+      }
+    }
+
+    const datasMovUnicas = Array.from(new Set(datasParaMovimentacao))
+      .sort((a, b) => parseDateToTimestamp(a) - parseDateToTimestamp(b));
+
+    let cardMovimentacao: any = null;
+    if (datasMovUnicas.length > 0) {
+      const insercaoRenavam = datasMovUnicas[0];
+      const alteracoes = datasMovUnicas.slice(1).map((d, idx) => ({
+        item: `DATA DE ALTERAÇÃO ${String(idx + 1).padStart(2, '0')}`,
+        data: d
+      }));
+      cardMovimentacao = {
+        insercao_renavam: insercaoRenavam,
+        alteracoes
+      };
+    }
+
+    // 10. MOTOR DE CONSOLIDAÇÃO DOS INDICADORES PERICIAIS (P1 a P36)
     const montarIndicadorInterno = (codigo: string): E20IndicadorItem => {
       const titulo = INFOSINISTROS_TITULOS[codigo] || `INDICADOR ${codigo}`;
       const itemInfo = infoResult?.resultados ? infoResult.resultados[codigo] : null;
@@ -765,7 +1075,6 @@ export class E20Service {
         itemInfo?.conteudo !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
       const rawInfoConteudo = hasInfoSinistros ? itemInfo?.conteudo : null;
 
-      // Casos com De/Para Especializado ou Fontes Oficiais Cruzadas:
       switch (codigo) {
         case 'P1': { // HISTÓRICO DE VENDA DIRETA/REMARKETING (SEGURADORAS)
           const positivo = registrosSeguradoras.length > 0 || hasInfoSinistros;
@@ -775,8 +1084,8 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
-                  ? rawInfoConteudo
-                  : `IDENTIFICADO REGISTRO DE SEGURADORA / REMARKETING (${registrosSeguradoras.length || 1} ocorrência(s))`)
+                ? rawInfoConteudo
+                : `IDENTIFICADO REGISTRO DE SEGURADORA / REMARKETING (${registrosSeguradoras.length || 1} ocorrência(s))`)
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (registrosSeguradoras.length > 0 ? registrosSeguradoras : rawInfoConteudo) : null,
             detalhes: positivo ? (registrosSeguradoras.length > 0 ? registrosSeguradoras : rawInfoConteudo) : null,
@@ -793,8 +1102,8 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
-                  ? rawInfoConteudo
-                  : 'IDENTIFICADA OPERAÇÃO SEVERA COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA')
+                ? rawInfoConteudo
+                : 'IDENTIFICADA OPERAÇÃO SEVERA COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (viaturasDetectadas.length > 0 ? viaturasDetectadas : rawInfoConteudo) : null,
             detalhes: positivo ? (viaturasDetectadas.length > 0 ? viaturasDetectadas : rawInfoConteudo) : null,
@@ -810,8 +1119,8 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
-                  ? rawInfoConteudo
-                  : `IDENTIFICADO USO PÚBLICO GOVERNAMENTAL (${frotasPublicasDetectadas.length || 1} registro(s))`)
+                ? rawInfoConteudo
+                : `IDENTIFICADO USO PÚBLICO GOVERNAMENTAL (${frotasPublicasDetectadas.length || 1} registro(s))`)
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (frotasPublicasDetectadas.length > 0 ? frotasPublicasDetectadas : rawInfoConteudo) : null,
             detalhes: positivo ? (frotasPublicasDetectadas.length > 0 ? frotasPublicasDetectadas : rawInfoConteudo) : null,
@@ -827,8 +1136,8 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
-                  ? rawInfoConteudo
-                  : `IDENTIFICADO REGISTRO DE EX-FROTA DE LOCADORA (${registrosLocadoras.length || 1} registro(s))`)
+                ? rawInfoConteudo
+                : `IDENTIFICADO REGISTRO DE EX-FROTA DE LOCADORA (${registrosLocadoras.length || 1} registro(s))`)
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (registrosLocadoras.length > 0 ? registrosLocadoras : rawInfoConteudo) : null,
             detalhes: positivo ? (registrosLocadoras.length > 0 ? registrosLocadoras : rawInfoConteudo) : null,
@@ -845,8 +1154,8 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
-                  ? rawInfoConteudo
-                  : 'IDENTIFICADA TITULARIDADE DE ENTIDADE RELIGIOSA NA CADEIA DOMINIAL')
+                ? rawInfoConteudo
+                : 'IDENTIFICADA TITULARIDADE DE ENTIDADE RELIGIOSA NA CADEIA DOMINIAL')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (religiosasDetectadas.length > 0 ? religiosasDetectadas : rawInfoConteudo) : null,
             detalhes: positivo ? (religiosasDetectadas.length > 0 ? religiosasDetectadas : rawInfoConteudo) : null,
@@ -862,8 +1171,8 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
-                  ? rawInfoConteudo
-                  : 'IDENTIFICADA OPERAÇÃO POR EMPRESA DE SEGURANÇA PRIVADA / VIGILÂNCIA')
+                ? rawInfoConteudo
+                : 'IDENTIFICADA OPERAÇÃO POR EMPRESA DE SEGURANÇA PRIVADA / VIGILÂNCIA')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (segurancaPrivadaDetectadas.length > 0 ? segurancaPrivadaDetectadas : rawInfoConteudo) : null,
             detalhes: positivo ? (segurancaPrivadaDetectadas.length > 0 ? segurancaPrivadaDetectadas : rawInfoConteudo) : null,
@@ -871,7 +1180,7 @@ export class E20Service {
           };
         }
 
-        case 'P7': { // HISTÓRICO DE VENDA DIRETA / REMARKETING POR BANCOS / FINANCEIRAS
+        case 'P7': { // HISTÓRICO DE VENDA DIRETA / REMARKETING POR BANCOS / FINANCEIRAS (Layout 2 Colunas: Ano | Razão Social)
           const positivo = registrosFinanceiras.length > 0 || hasInfoSinistros;
           return {
             codigo,
@@ -879,8 +1188,8 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
               ? (registrosFinanceiras.length > 0
-                  ? `IDENTIFICADA INSTITUIÇÃO FINANCEIRA OU LEASING (${registrosFinanceiras.length} registro(s))`
-                  : (typeof rawInfoConteudo === 'string' ? rawInfoConteudo : 'IDENTIFICADA INSTITUIÇÃO FINANCEIRA OU LEASING'))
+                ? `IDENTIFICADA INSTITUIÇÃO FINANCEIRA OU LEASING (${registrosFinanceiras.length} registro(s))`
+                : (typeof rawInfoConteudo === 'string' ? rawInfoConteudo : 'IDENTIFICADA INSTITUIÇÃO FINANCEIRA OU LEASING'))
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (registrosFinanceiras.length > 0 ? registrosFinanceiras : rawInfoConteudo) : null,
             detalhes: positivo ? (registrosFinanceiras.length > 0 ? registrosFinanceiras : rawInfoConteudo) : null,
@@ -897,8 +1206,8 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
-                  ? rawInfoConteudo
-                  : 'IDENTIFICADO HISTÓRICO DE COMERCIALIZAÇÃO EM LOJAS DE SALVADOS')
+                ? rawInfoConteudo
+                : 'IDENTIFICADO HISTÓRICO DE COMERCIALIZAÇÃO EM LOJAS DE SALVADOS')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (salvadosDetectados.length > 0 ? salvadosDetectados : rawInfoConteudo) : null,
             detalhes: positivo ? (salvadosDetectados.length > 0 ? salvadosDetectados : rawInfoConteudo) : null,
@@ -928,8 +1237,8 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
-                  ? rawInfoConteudo
-                  : 'IDENTIFICADA INDENIZAÇÃO INTEGRAL POR COMPANHIA SEGURADORA')
+                ? rawInfoConteudo
+                : 'IDENTIFICADA INDENIZAÇÃO INTEGRAL POR COMPANHIA SEGURADORA')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (rawInfoConteudo || 'Registro de Indenização Integral detectado') : null,
             detalhes: positivo ? (rawInfoConteudo || 'Registro de Indenização Integral detectado') : null,
@@ -937,7 +1246,7 @@ export class E20Service {
           };
         }
 
-        case 'P17': { // HISTÓRICO DE PROPRIETÁRIOS
+        case 'P17': { // HISTÓRICO DE ALGUNS PROPRIETÁRIOS PAGANTES DO DPVAT - BASE INTERNA
           const positivo = cardProprietarios.total > 0;
           return {
             codigo,
@@ -978,11 +1287,43 @@ export class E20Service {
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
-                  ? rawInfoConteudo
-                  : 'IDENTIFICADO INDÍCIO DE USO COMO TÁXI OU ISENÇÃO PCD')
+                ? rawInfoConteudo
+                : 'IDENTIFICADO INDÍCIO DE USO COMO TÁXI OU ISENÇÃO PCD')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (taxiPcdDetectados.length > 0 ? taxiPcdDetectados : rawInfoConteudo) : null,
             detalhes: positivo ? (taxiPcdDetectados.length > 0 ? taxiPcdDetectados : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo
+          };
+        }
+
+        case 'P31': { // HISTÓRICO DE CIRCULAÇÃO
+          const temCirculacao = Boolean(cardCirculacao.adquirido_0km || cardCirculacao.licenciamento_1 || cardCirculacao.licenciamento_2);
+          const positivo = temCirculacao || hasInfoSinistros;
+          return {
+            codigo,
+            titulo,
+            status: positivo ? 'positivo' : 'negativo',
+            mensagem: positivo
+              ? 'HISTÓRICO DE CIRCULAÇÃO E EMPLACAMENTO LOCALIZADO'
+              : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
+            conteudo: positivo ? cardCirculacao : null,
+            detalhes: positivo ? cardCirculacao : null,
+            respostaInfoSinistros: rawInfoConteudo
+          };
+        }
+
+        case 'P32': { // HISTÓRICO DE MOVIMENTAÇÃO / ALTERAÇÃO DE CADASTRO
+          const temMov = Boolean(cardMovimentacao?.insercao_renavam);
+          const positivo = temMov || hasInfoSinistros;
+          return {
+            codigo,
+            titulo,
+            status: positivo ? 'positivo' : 'negativo',
+            mensagem: positivo
+              ? `ALTERAÇÕES CADASTRAIS REGISTRADAS (${(cardMovimentacao?.alteracoes?.length || 0) + 1} evento(s))`
+              : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
+            conteudo: positivo ? (cardMovimentacao || rawInfoConteudo) : null,
+            detalhes: positivo ? (cardMovimentacao || rawInfoConteudo) : null,
             respostaInfoSinistros: rawInfoConteudo
           };
         }
@@ -1019,27 +1360,8 @@ export class E20Service {
           };
         }
 
-        case 'P37': { // HISTÓRICO DE PROPRIETÁRIOS PAGANTES DO DPVAT (ONLINE)
-          const positivo = hasInfoSinistros;
-          const qtd = Array.isArray(rawInfoConteudo) ? rawInfoConteudo.length : 0;
-          return {
-            codigo,
-            titulo,
-            status: positivo ? 'positivo' : 'negativo',
-            mensagem: positivo
-              ? (typeof rawInfoConteudo === 'string'
-                  ? rawInfoConteudo
-                  : (qtd > 0 ? `IDENTIFICADOS ${qtd} APONTAMENTO(S) NA BASE ONLINE DPVAT` : 'REGISTRO IDENTIFICADO NA BASE INTERNA'))
-              : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? rawInfoConteudo : null,
-            detalhes: positivo ? rawInfoConteudo : null,
-            respostaInfoSinistros: rawInfoConteudo,
-            total: qtd
-          };
-        }
-
         default: {
-          // Indicadores nativos da InfoSinistros (P9, P11, P12, P13, P15, P16, P18-P22, P24-P26, P28-P34)
+          // Indicadores nativos da InfoSinistros (P9, P11, P12, P13, P15, P16, P18-P22, P24-P26, P28-P30, P33, P34)
           const positivo = hasInfoSinistros;
           let msg = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
           if (positivo) {
@@ -1074,7 +1396,7 @@ export class E20Service {
       };
     };
 
-    // 9. Dados Complementares: FIPE (P36)
+    // 11. Dados Complementares: FIPE (P36)
     const p36Info = infoResult?.resultados?.P36;
     const dadosFipe = p36Info?.status === 'positivo' && p36Info.conteudo ? {
       mesReferencia: p36Info.conteudo.mes_referencia || p36Info.conteudo.mesReferencia,
@@ -1083,12 +1405,12 @@ export class E20Service {
       dataConsulta: p36Info.conteudo.data_consulta || p36Info.conteudo.dataConsulta
     } : null;
 
-    // Montar a lista sequencial de indicadores de P1 a P37 completa
+    // Catálogo Oficial Consolidado de P1 a P36 (sem P37 online, incorporado em P17)
     const codigosIndicadores = [
       'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10',
       'P11', 'P12', 'P13', 'P14', 'P15', 'P16', 'P17', 'P18', 'P19', 'P20',
       'P21', 'P22', 'P23', 'P24', 'P25', 'P26', 'P27', 'P28', 'P29', 'P30',
-      'P31', 'P32', 'P33', 'P34', 'P35', 'P36', 'P37'
+      'P31', 'P32', 'P33', 'P34', 'P35', 'P36'
     ];
 
     const listaIndicadores = codigosIndicadores.map(construirIndicador);

@@ -523,8 +523,8 @@ const E20PreVistoriaLaudo: React.FC<{
     }
   };
 
-  // Catálogo Oficial completo de P1 a P37 da InfoSinistros
-  const CATALOGO_P1_P37 = React.useMemo(() => [
+  // Catálogo Oficial consolidado de P1 a P36 da InfoSinistros (P37 incorporado em P17)
+  const CATALOGO_P1_P36 = React.useMemo(() => [
     { chave: 'P1', titulo: 'HISTÓRICO DE VENDA DIRETA/REMARKETING (SEGURADORAS)' },
     { chave: 'P2', titulo: 'HISTÓRICO DE OPERAÇÃO/USO COMO VIATURA POLICIAL (PM, PC, PF, GM)' },
     { chave: 'P3', titulo: 'HISTÓRICO DE EX-FROTA PÚBLICA' },
@@ -541,7 +541,7 @@ const E20PreVistoriaLaudo: React.FC<{
     { chave: 'P14', titulo: 'INDENIZAÇÃO INTEGRAL POR CIA SEGURADORA' },
     { chave: 'P15', titulo: 'HISTÓRICO DE DANOS E AVARIAS' },
     { chave: 'P16', titulo: 'SUSPEITA DE CHASSI ADULTERADO' },
-    { chave: 'P17', titulo: 'HISTÓRICO DE PROPRIETÁRIOS DO VEÍCULO' },
+    { chave: 'P17', titulo: 'HISTÓRICO DE ALGUNS PROPRIETÁRIOS PAGANTES DO DPVAT - BASE INTERNA' },
     { chave: 'P18', titulo: 'VEÍCULO UTILIZADO PARA COMETIMENTO DE CRIMES' },
     { chave: 'P19', titulo: 'HISTÓRICO DE RECUPERADO DE SINISTRO (BRF)' },
     { chave: 'P20', titulo: 'HISTÓRICO DE SINISTRO RECUPERADO (ACT)' },
@@ -560,11 +560,10 @@ const E20PreVistoriaLaudo: React.FC<{
     { chave: 'P33', titulo: 'VERIFICAÇÃO DE ALTERAÇÃO DE CARACTERÍSTICAS' },
     { chave: 'P34', titulo: 'INDÍCIO DE GRANDES FROTISTAS' },
     { chave: 'P35', titulo: 'FICHA TÉCNICA E CADASTRO BIN FABRIL' },
-    { chave: 'P36', titulo: 'HISTÓRICO DE VALOR DE MERCADO (FIPE)' },
-    { chave: 'P37', titulo: 'HISTÓRICO DE PROPRIETÁRIOS PAGANTES DO DPVAT (ONLINE)' }
+    { chave: 'P36', titulo: 'HISTÓRICO DE VALOR DE MERCADO (FIPE)' }
   ], []);
 
-  // Garante a exibição estrita dos 37 indicadores (P1 ao P37) mesmo que não haja registros
+  // Garante a exibição estrita dos 36 indicadores (P1 ao P36) mesmo que não haja registros
   const indicadoresGrid: any[] = React.useMemo(() => {
     const mapaBackend: Record<string, any> = {};
     if (Array.isArray(dados?.indicadores)) {
@@ -574,7 +573,7 @@ const E20PreVistoriaLaudo: React.FC<{
       }
     }
 
-    return CATALOGO_P1_P37.map((cat) => {
+    return CATALOGO_P1_P36.map((cat) => {
       const achado = mapaBackend[cat.chave];
       if (achado) {
         const isPos = achado.consta || achado.status === 'positivo' || achado.status === 'POSITIVO';
@@ -610,8 +609,8 @@ const E20PreVistoriaLaudo: React.FC<{
           return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.locadoras.total} registro(s) de locadora` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.locadoras?.registros, conteudo: dados?.locadoras?.registros };
         }
         case 'P7': {
-          const pos = !!dados?.financeiras?.total;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${dados.financeiras.total} registro(s) de financeira/leasing` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.financeiras?.registros, conteudo: dados?.financeiras?.registros };
+          const pos = !!dados?.financeiras?.total || (Array.isArray(dados?.financeiras?.registros) && dados.financeiras.registros.length > 0);
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'IDENTIFICADA INSTITUIÇÃO FINANCEIRA OU LEASING' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.financeiras?.registros, conteudo: dados?.financeiras?.registros };
         }
         case 'P8': {
           const pos = !!outros?.salvados;
@@ -630,13 +629,34 @@ const E20PreVistoriaLaudo: React.FC<{
           return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indenização integral por seguradora' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.seguradoras?.registros, conteudo: dados?.seguradoras?.registros };
         }
         case 'P17': {
-          const totalProp = proprietarios.total || (proprietarios.historico ? proprietarios.historico.length : 0);
-          const pos = totalProp > 0;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? `${totalProp} proprietário(s) registrado(s)` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: proprietarios.historico, conteudo: proprietarios.historico };
+          const listaProp = [
+            ...(Array.isArray(proprietarios.historico) ? proprietarios.historico : []),
+            ...(proprietarios.proprietario_atual ? [{ ...proprietarios.proprietario_atual, isVigente: true, atual: true }] : [])
+          ];
+          const pos = listaProp.length > 0;
+          return {
+            chave: cat.chave,
+            titulo: cat.titulo,
+            consta: pos,
+            status: pos ? 'POSITIVO' : 'NEGATIVO',
+            mensagem: pos ? `CADEIA DOMINIAL AUDITADA (${listaProp.length} proprietário(s) registrado(s))` : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
+            detalhes: listaProp,
+            conteudo: listaProp
+          };
         }
         case 'P19': {
           const pos = !!outros?.sinistro_recuperado;
           return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Consta registro de recuperado de sinistro' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: outros?.sinistro_recuperado, conteudo: outros?.sinistro_recuperado };
+        }
+        case 'P31': {
+          const circ = dados?.outros_produtos?.circulacao || dados?.circulacao;
+          const pos = Boolean(circ?.adquirido_0km || circ?.licenciamento_1);
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'HISTÓRICO DE CIRCULAÇÃO LOCALIZADO' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: circ, conteudo: circ };
+        }
+        case 'P32': {
+          const mov = dados?.outros_produtos?.movimentacao || dados?.movimentacao;
+          const pos = Boolean(mov?.insercao_renavam);
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'ALTERAÇÕES CADASTRAIS REGISTRADAS' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: mov, conteudo: mov };
         }
         case 'P35': {
           const pos = Boolean(veiculo.marcaModelo || veiculo.modelo || veiculo.placa);
@@ -656,7 +676,7 @@ const E20PreVistoriaLaudo: React.FC<{
           };
       }
     });
-  }, [dados, rouboFurto, outros, proprietarios, veiculo, CATALOGO_P1_P37]);
+  }, [dados, rouboFurto, outros, proprietarios, veiculo, CATALOGO_P1_P36]);
 
   // Renderizador especializado para exibir a resposta rica da API InfoSinistros e bases consolidadas
   const renderRespostaPositivaIndicador = (item: any) => {
@@ -719,74 +739,230 @@ const E20PreVistoriaLaudo: React.FC<{
         )}
 
         {/* 4. Histórico de Circulação (P31) */}
-        {item.chave === 'P31' && dados && typeof dados === 'object' && !Array.isArray(dados) && (
-          <div className="p-2.5 bg-white rounded-md border border-amber-200 text-[11px] space-y-1.5 shadow-2xs">
-            {dados.adquirido_0km && (
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Adquirido 0km:</span>
-                <strong className="font-bold text-slate-900">{dados.adquirido_0km}</strong>
-              </div>
-            )}
-            {dados.licenciamento_1 && (
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">1º Licenciamento:</span>
-                <span className="font-semibold text-slate-800">{dados.licenciamento_1}</span>
-              </div>
-            )}
-            {dados.licenciamento_2 && (
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">2º Licenciamento:</span>
-                <span className="font-semibold text-slate-800">{dados.licenciamento_2}</span>
-              </div>
-            )}
+        {item.chave === 'P31' && dados && (
+          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <table className="w-full text-xs text-left text-slate-800">
+              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="px-4 py-2.5 w-1/2">Etapa do Histórico de Circulação</th>
+                  <th className="px-4 py-2.5 w-1/2">Localização Registrada</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {dados.adquirido_0km && (
+                  <tr className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-slate-700">Faturamento Fabril (Adquirido 0km)</td>
+                    <td className="px-4 py-2.5 font-mono font-bold text-slate-900">{dados.adquirido_0km}</td>
+                  </tr>
+                )}
+                {dados.licenciamento_1 && (
+                  <tr className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-slate-700">1º Município de Licenciamento</td>
+                    <td className="px-4 py-2.5 font-semibold text-slate-900">{dados.licenciamento_1}</td>
+                  </tr>
+                )}
+                {dados.licenciamento_2 && (
+                  <tr className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-slate-700">2º Município de Licenciamento</td>
+                    <td className="px-4 py-2.5 font-semibold text-slate-900">{dados.licenciamento_2}</td>
+                  </tr>
+                )}
+                {dados.licenciamento_3 && (
+                  <tr className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-slate-700">3º Município de Licenciamento</td>
+                    <td className="px-4 py-2.5 font-semibold text-slate-900">{dados.licenciamento_3}</td>
+                  </tr>
+                )}
+                {Array.isArray(dados.registros) && dados.registros.map((reg: any, rIdx: number) => (
+                  <tr key={`r-${rIdx}`} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-slate-700">{reg.etapa || reg.descricao || `Etapa #${rIdx + 1}`}</td>
+                    <td className="px-4 py-2.5 font-semibold text-slate-900">{reg.local || reg.municipio_uf || reg.cidade || '-'}</td>
+                  </tr>
+                ))}
+                {Array.isArray(dados) && dados.map((circ: any, cIdx: number) => (
+                  <tr key={`c-${cIdx}`} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-slate-700">{circ.descricao || circ.etapa || `Registro #${cIdx + 1}`}</td>
+                    <td className="px-4 py-2.5 font-semibold text-slate-900">{circ.local || circ.municipio || circ.cidade || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
         {/* 5. Histórico de Movimentação / Alteração de Cadastro (P32) */}
-        {item.chave === 'P32' && dados && typeof dados === 'object' && !Array.isArray(dados) && (
-          <div className="p-2.5 bg-white rounded-md border border-amber-200 text-[11px] space-y-1.5 shadow-2xs">
-            {dados.insercao_renavam && (
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Inserção RENAVAM:</span>
-                <strong className="font-mono text-slate-900">{dados.insercao_renavam}</strong>
-              </div>
-            )}
-            {Array.isArray(dados.alteracoes) && dados.alteracoes.length > 0 && (
-              <div className="space-y-1 pt-1 border-t border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Alterações Cadastrais:
-                </span>
-                {dados.alteracoes.map((alt: any, aIdx: number) => (
-                  <div key={aIdx} className="flex items-center justify-between text-[10.5px]">
-                    <span className="text-slate-700">{alt.item || `Alteração #${aIdx + 1}`}</span>
-                    <span className="font-mono font-semibold text-slate-900">{alt.data ? formatDateBR(alt.data) : '-'}</span>
-                  </div>
+        {item.chave === 'P32' && dados && (
+          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <table className="w-full text-xs text-left text-slate-800">
+              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="px-4 py-2.5 w-2/3">Evento / Registro Cadastral</th>
+                  <th className="px-4 py-2.5 w-1/3">Data do Registro</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {dados.insercao_renavam && (
+                  <tr className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-slate-800">
+                      Inserção na Base RENAVAM / Cadastro Inicial Fabril
+                    </td>
+                    <td className="px-4 py-2.5 font-mono font-bold text-slate-900">
+                      {formatDateBR(dados.insercao_renavam)}
+                    </td>
+                  </tr>
+                )}
+                {Array.isArray(dados.alteracoes) && dados.alteracoes.map((alt: any, aIdx: number) => (
+                  <tr key={`alt-${aIdx}`} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-slate-700">
+                      {alt.item || alt.descricao || `Alteração #${aIdx + 1}`}
+                    </td>
+                    <td className="px-4 py-2.5 font-mono font-bold text-slate-900">
+                      {alt.data ? formatDateBR(alt.data) : '-'}
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            )}
+                {Array.isArray(dados) && dados.map((mov: any, mIdx: number) => (
+                  <tr key={`mov-${mIdx}`} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-slate-700">
+                      {mov.item || mov.descricao || mov.evento || `Movimentação #${mIdx + 1}`}
+                    </td>
+                    <td className="px-4 py-2.5 font-mono font-bold text-slate-900">
+                      {mov.data ? formatDateBR(mov.data) : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* 6. Histórico de Proprietários Pagantes DPVAT Online (P37) */}
-        {item.chave === 'P37' && Array.isArray(dados) && dados.length > 0 && (
-          <div className="space-y-1 max-h-56 overflow-y-auto pt-0.5">
-            {dados.map((dp: any, dIdx: number) => (
-              <div key={dIdx} className="p-2 bg-white rounded-md border border-amber-200 text-[11px] space-y-0.5 shadow-2xs">
-                <div className="flex items-center justify-between font-semibold">
-                  <span className="text-slate-900 truncate max-w-[200px]">{dp.nome || 'Proprietário Registrado'}</span>
-                  <span className="text-[10px] font-mono text-slate-500">{dp.data ? formatDateBR(dp.data) : (dp.ordem ? `${dp.ordem}º` : '')}</span>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] text-slate-500">
-                  {dp.documento && <span className="font-mono">{formatDocumento(dp.documento)}</span>}
-                  {dp.municipio_uf && <span>{dp.municipio_uf}</span>}
-                </div>
-              </div>
-            ))}
+        {/* 6. Histórico de Proprietários Pagantes do DPVAT - Base Interna (P17) */}
+        {item.chave === 'P17' && Array.isArray(dados) && dados.length > 0 && (
+          <div className="space-y-2">
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="w-full text-xs text-left text-slate-800">
+                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10.5px]">
+                  <tr>
+                    <th className="px-3.5 py-2.5 w-16 text-center">Ordem</th>
+                    <th className="px-3.5 py-2.5">Proprietário</th>
+                    <th className="px-3.5 py-2.5 w-36">Documento</th>
+                    <th className="px-3.5 py-2.5 w-28">Data da Posse</th>
+                    <th className="px-3.5 py-2.5 w-36">Tempo de Posse</th>
+                    <th className="px-3.5 py-2.5 w-36">Município / UF</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {dados.map((prop: any, pIdx: number) => {
+                    const ordemLabel = prop.ordem ? `${prop.ordem}º` : `#${pIdx + 1}`;
+                    const nomeProp = prop.nome || prop.razao_social || 'NÃO INFORMADO';
+                    const doc = prop.documento ? formatDocumento(prop.documento) : '-';
+                    const dataPosse = prop.data ? formatDateBR(prop.data) : (prop.ano ? String(prop.ano) : '-');
+                    const tempoPosse = prop.tempoDePosse || prop.tempo_posse || '-';
+                    const municipioUf = prop.municipio_uf || (prop.municipio ? `${prop.municipio}${prop.uf ? `/${prop.uf}` : ''}` : '-');
+                    const isVigente = prop.isVigente || prop.atual || false;
+
+                    return (
+                      <tr key={`prop-${pIdx}`} className={`hover:bg-slate-50/80 transition-colors ${isVigente ? 'bg-emerald-50/30' : ''}`}>
+                        <td className="px-3.5 py-2.5 font-mono font-bold text-center text-slate-900 text-xs">
+                          {ordemLabel}
+                        </td>
+                        <td className="px-3.5 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 text-xs">{nomeProp}</span>
+                            {isVigente && (
+                              <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                VIGENTE
+                              </span>
+                            )}
+                          </div>
+                          {prop.cnae_descricao && (
+                            <div className="text-[10px] text-slate-400 font-normal mt-0.5">
+                              CNAE: {prop.cnae ? `${prop.cnae} - ` : ''}{prop.cnae_descricao}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-2.5 font-mono text-slate-600 text-xs">
+                          {doc}
+                        </td>
+                        <td className="px-3.5 py-2.5 font-mono text-slate-700 text-xs font-semibold">
+                          {dataPosse}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-xs">
+                          <span className={`font-semibold ${isVigente ? 'text-emerald-700 font-bold' : 'text-slate-700'}`}>
+                            {tempoPosse}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-slate-600 text-xs font-medium">
+                          {municipioUf}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
-        {/* 7. Entidades e Registros Cadastrais (P1 Seguradoras, P4 Locadoras, P7 Bancos/Financeiras, P23 Frotas, P2, P3, P5, P6, P8, P27) */}
-        {Array.isArray(dados) && !['P10', 'P31', 'P32', 'P35', 'P36', 'P37'].includes(item.chave) && dados.length > 0 && (
+        {/* 7. Venda Direta / Remarketing por Bancos / Financeiras (P7) e Entidades Similares (P1, P3, P4, P5, P6, P8, P14) */}
+        {['P7', 'P1', 'P3', 'P4', 'P5', 'P6', 'P8', 'P14'].includes(item.chave) && Array.isArray(dados) && dados.length > 0 && (
+          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <table className="w-full text-xs text-left text-slate-800">
+              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="px-4 py-2.5 w-32 sm:w-40">Ano</th>
+                  <th className="px-4 py-2.5">
+                    {item.chave === 'P3'
+                      ? 'Órgão Público'
+                      : item.chave === 'P1' || item.chave === 'P14'
+                      ? 'Seguradora'
+                      : 'Razão Social'}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {dados.map((reg: any, rIdx: number) => {
+                  const ano = reg.ano || (reg.data ? formatDateBR(reg.data) : '-');
+                  const razaoSocial =
+                    reg.razao_social ||
+                    reg.instituicao ||
+                    reg.seguradora ||
+                    reg.orgao ||
+                    reg.empresa ||
+                    reg.nome ||
+                    '-';
+
+                  return (
+                    <tr key={`tab-${rIdx}`} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-2.5 font-mono font-bold text-slate-900 text-xs">
+                        {ano}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="font-bold text-slate-900 text-xs">{razaoSocial}</div>
+                        {(reg.documento || reg.cnae || reg.tipoEntidade) && (
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[10.5px] text-slate-500">
+                            {reg.documento && (
+                              <span>
+                                Doc: <strong className="font-mono text-slate-700">{formatDocumento(reg.documento)}</strong>
+                              </span>
+                            )}
+                            {reg.cnae && (
+                              <span>• CNAE: <span className="font-mono">{reg.cnae}</span></span>
+                            )}
+                            {reg.tipoEntidade && getBadgeEntidade(reg.tipoEntidade)}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 8. Demais Entidades e Registros Cadastrais (P2, P23, P27 e outros genéricos) */}
+        {Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && dados.length > 0 && (
           <div className="space-y-1.5 pt-0.5 max-h-60 overflow-y-auto">
             {dados.map((reg: any, rIdx: number) => {
               const nomeEntidade =
@@ -824,14 +1000,7 @@ const E20PreVistoriaLaudo: React.FC<{
 
               const tipoInferido =
                 reg.tipoEntidade ||
-                (item.chave === 'P7' ? 'financeira' :
-                 item.chave === 'P4' ? 'locadora' :
-                 item.chave === 'P1' ? 'seguradora' :
-                 item.chave === 'P2' ? 'viatura' :
-                 item.chave === 'P3' ? 'frota_publica' :
-                 item.chave === 'P5' ? 'religiosa' :
-                 item.chave === 'P6' ? 'seguranca_privada' :
-                 item.chave === 'P8' ? 'salvados' :
+                (item.chave === 'P2' ? 'viatura' :
                  item.chave === 'P23' ? 'empresa_privada' :
                  item.chave === 'P27' ? 'taxi_pcd' : undefined);
 
@@ -887,8 +1056,8 @@ const E20PreVistoriaLaudo: React.FC<{
           </div>
         )}
 
-        {/* 8. Fallback Genérico para Objetos da API InfoSinistros (P11 Leilão, P12 Acidentes, P30 CSV, etc.) */}
-        {dados && typeof dados === 'object' && !Array.isArray(dados) && !['P10', 'P31', 'P32', 'P35', 'P36', 'P37'].includes(item.chave) && (
+        {/* 9. Fallback Genérico para Objetos da API InfoSinistros (P11 Leilão, P12 Acidentes, P30 CSV, etc.) */}
+        {dados && typeof dados === 'object' && !Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && (
           <div className="p-2.5 bg-white rounded-md border border-amber-200 text-[11px] space-y-1 shadow-2xs">
             <div className="text-[10px] font-bold text-amber-950 uppercase tracking-wider pb-1 border-b border-amber-100 flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-amber-700 shrink-0" />
@@ -1026,165 +1195,107 @@ const E20PreVistoriaLaudo: React.FC<{
         </div>
       </div>
 
-      {/* 2. CARD DESTAQUE: HISTÓRICO DOMINIAL DE PROPRIETÁRIOS (CARD P17 INTEGRADO) */}
-      <div className="border border-slate-200 rounded-lg p-4 sm:p-5 bg-white space-y-3.5 shadow-2xs">
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+      {/* 2. QUADRO DE INDICADORES PERICIAIS DA PRÉ-VISTORIA (LAYOUT INFOSINISTROS VERTICAL CONSOLIDADO) */}
+      <div className="space-y-3.5">
+        <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
           <div className="flex items-center space-x-2">
-            <Clock className="w-4 h-4 text-indigo-600" />
-            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Histórico de Proprietários do Veículo
+            <Layers className="w-4 h-4 text-indigo-600" />
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">
+              Indicadores Periciais da Pré-Vistoria (Base Consolidada)
             </h4>
           </div>
-          <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 font-mono">
-            {proprietarios.total || (proprietarios.historico ? proprietarios.historico.length : 0)} proprietário(s) registrado(s)
+          <span className="text-[11px] font-bold text-slate-600 font-mono bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+            {indicadoresGrid.length} produtos auditados
           </span>
         </div>
 
-        {proprietarios.proprietario_atual && (
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center space-x-2">
-                <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded font-mono">
-                  TITULAR VIGENTE
-                </span>
-                <span className="font-bold text-slate-900 text-sm">
-                  {proprietarios.proprietario_atual.nome || proprietarios.proprietario_atual.razao_social || 'NÃO INFORMADO'}
-                </span>
-              </div>
-              {getBadgeEntidade(proprietarios.proprietario_atual.classificacaoEntidade)}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-600 pt-1">
-              <p><span className="text-slate-400">Documento:</span> <strong className="text-slate-800 font-mono">{formatDocumento(proprietarios.proprietario_atual.documento)}</strong></p>
-              <p><span className="text-slate-400">Tipo:</span> <strong className="text-slate-800">{proprietarios.proprietario_atual.tipo || '-'}</strong></p>
-              <p><span className="text-slate-400">Data Aquisição:</span> <strong className="text-slate-800 font-mono">{formatDateBR(proprietarios.proprietario_atual.data)}</strong></p>
-            </div>
-            {proprietarios.proprietario_atual.cnae_descricao && (
-              <p className="text-[11px] text-slate-500 pt-0.5 font-medium">
-                CNAE: {proprietarios.proprietario_atual.cnae} - {proprietarios.proprietario_atual.cnae_descricao}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Tabela de Histórico Anterior */}
-        {proprietarios.historico && proprietarios.historico.length > 0 ? (
-          <div className="overflow-x-auto pt-1">
-            <table className="w-full text-xs text-left text-slate-700">
-              <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                <tr>
-                  <th className="px-3 py-2">Ordem</th>
-                  <th className="px-3 py-2">Nome / Razão Social</th>
-                  <th className="px-3 py-2">Documento</th>
-                  <th className="px-3 py-2">Perfil / Segmento</th>
-                  <th className="px-3 py-2">Data da Posse</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {proprietarios.historico.map((h: any, idx: number) => (
-                  <tr key={idx} className="hover:bg-slate-50/70">
-                    <td className="px-3 py-2 font-mono font-bold text-slate-800">
-                      {h.ordem ? `${h.ordem}º` : `#${idx + 1}`}
-                    </td>
-                    <td className="px-3 py-2 font-semibold text-slate-900">
-                      <div>{h.nome || h.razao_social || 'NÃO INFORMADO'}</div>
-                      {h.cnae_descricao && (
-                        <div className="text-[10px] text-slate-400 font-normal">CNAE: {h.cnae} ({h.cnae_descricao})</div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-slate-600">
-                      {formatDocumento(h.documento)}
-                    </td>
-                    <td className="px-3 py-2">
-                      {getBadgeEntidade(h.classificacaoEntidade)}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-slate-600">
-                      {formatDateBR(h.data)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-3 bg-slate-50 rounded border border-slate-200 text-xs">
-            <p className="font-mono text-slate-500">NENHUM REGISTRO LOCALIZADO NA BASE INTERNA</p>
-          </div>
-        )}
-      </div>
-
-      {/* 3. QUADRO DE INDICADORES PERICIAIS (INFOSINISTROS CONSOLIDADA) - LAYOUT MINIMALISTA */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-          <div className="flex items-center space-x-2">
-            <Layers className="w-4 h-4 text-slate-700" />
-            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Indicadores Periciais da Pré-Vistoria
-            </h4>
-          </div>
-          <span className="text-[11px] font-medium text-slate-500 font-mono">
-            {indicadoresGrid.length} itens auditados
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+        <div className="space-y-3">
           {indicadoresGrid.map((item: any, idx: number) => {
             const isPositivo = item.consta || item.status === 'POSITIVO';
             const isAlertaCritico = isPositivo && (item.chave === 'P10' || item.chave === 'P14' || item.chave === 'P16' || item.chave === 'P18');
             const titulo = sanitizeTituloIndicador(item.titulo);
+            const numeroItem = idx + 1;
 
             return (
               <div
                 key={item.chave || idx}
-                className={`border rounded-lg p-3 transition-all text-xs flex flex-col justify-between ${
+                className={`border rounded-lg overflow-hidden shadow-2xs transition-all ${
                   isAlertaCritico
-                    ? 'bg-rose-50/60 border-rose-300'
+                    ? 'border-rose-300 bg-white'
                     : isPositivo
-                    ? 'bg-amber-50/50 border-amber-300'
-                    : 'bg-white border-slate-200/90'
+                    ? 'border-amber-300 bg-white'
+                    : 'border-slate-200 bg-white'
                 }`}
               >
-                <div>
-                  <div className="flex items-start justify-between gap-2 pb-1.5 border-b border-slate-100">
-                    <span className={`font-bold tracking-tight uppercase leading-snug ${
-                      isAlertaCritico ? 'text-rose-950' : isPositivo ? 'text-slate-900' : 'text-slate-700'
-                    }`}>
-                      {titulo}
+                {/* Cabeçalho do Produto - Padrão InfoSinistros com identidade Renacred */}
+                <div
+                  className={`px-4 py-2.5 flex items-center justify-between gap-3 border-b ${
+                    isAlertaCritico
+                      ? 'bg-rose-900 text-white border-rose-950'
+                      : isPositivo
+                      ? 'bg-slate-900 text-white border-slate-800'
+                      : 'bg-slate-800 text-slate-100 border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-[11px] font-mono font-bold text-slate-400 shrink-0">
+                      #{numeroItem < 10 ? `0${numeroItem}` : numeroItem}
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded text-[9.5px] font-bold shrink-0 tracking-wider ${
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${
                         isAlertaCritico
-                          ? 'bg-rose-600 text-white'
+                          ? 'bg-rose-700 text-white border border-rose-500'
                           : isPositivo
-                          ? 'bg-amber-500 text-slate-950 font-extrabold'
-                          : 'bg-slate-100 text-slate-500 border border-slate-200'
+                          ? 'bg-amber-400 text-slate-950 border border-amber-300'
+                          : 'bg-slate-700 text-slate-200 border border-slate-600'
                       }`}
                     >
-                      {isAlertaCritico ? 'ALERTA ATIVO' : isPositivo ? 'CONSTA REGISTRO' : 'NADA CONSTA'}
+                      {item.chave}
                     </span>
+                    <h5 className="font-bold text-xs sm:text-sm tracking-wide uppercase truncate text-white">
+                      {titulo}
+                    </h5>
                   </div>
 
-                  <div className="pt-2">
-                    {!isPositivo ? (
-                      <p className="text-[11px] font-mono text-slate-500 leading-relaxed">
-                        NENHUM REGISTRO LOCALIZADO NA BASE INTERNA
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {(!item.respostaInfoSinistros || typeof item.respostaInfoSinistros !== 'string' || item.respostaInfoSinistros.trim() !== item.mensagem?.trim() || item.respostaInfoSinistros.trim() === 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA') && (
-                          <p className="text-[11.5px] font-semibold text-slate-800 leading-relaxed">
-                            {item.mensagem}
-                          </p>
-                        )}
-
-                        {renderRespostaPositivaIndicador(item)}
-                      </div>
-                    )}
-                  </div>
+                  <span
+                    className={`px-2.5 py-0.5 rounded text-[10px] font-bold shrink-0 tracking-wider uppercase ${
+                      isAlertaCritico
+                        ? 'bg-rose-600 text-white animate-pulse'
+                        : isPositivo
+                        ? 'bg-amber-400 text-slate-950 font-extrabold'
+                        : 'bg-slate-700 text-slate-300 border border-slate-600'
+                    }`}
+                  >
+                    {isAlertaCritico ? 'ALERTA ATIVO' : isPositivo ? 'CONSTA REGISTRO' : 'NADA CONSTA'}
+                  </span>
                 </div>
 
-                {item.fonte && (
-                  <div className="mt-2 pt-1 border-t border-slate-100/60 flex items-center justify-between text-[10px] text-slate-400">
-                    <span>Fonte: {item.fonte}</span>
+                {/* Conteúdo do Produto */}
+                {!isPositivo ? (
+                  <div className="px-4 py-3 bg-slate-50/70 flex items-center justify-between text-xs">
+                    <span className="font-mono font-medium text-slate-500">
+                      NENHUM REGISTRO LOCALIZADO NA BASE INTERNA
+                    </span>
+                    <span className="text-emerald-600 font-semibold text-xs flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                      Regular
+                    </span>
+                  </div>
+                ) : (
+                  <div className="p-3.5 sm:p-4 bg-white space-y-3">
+                    {(!item.respostaInfoSinistros || typeof item.respostaInfoSinistros !== 'string' || item.respostaInfoSinistros.trim() !== item.mensagem?.trim() || item.respostaInfoSinistros.trim() === 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA') && item.mensagem && (
+                      <p className="text-xs font-semibold text-slate-800 leading-relaxed bg-amber-50/60 border border-amber-200/60 p-2.5 rounded-md">
+                        {item.mensagem}
+                      </p>
+                    )}
+
+                    {renderRespostaPositivaIndicador(item)}
+
+                    {item.fonte && (
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                        <span>Fonte: {item.fonte}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
