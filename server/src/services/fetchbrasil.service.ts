@@ -110,7 +110,9 @@ export class FetchBrasilService {
 
   constructor() {
     this.apiURL = process.env.FETCHBRASIL_API_URL || 'https://api.fetchbrasil.pro';
-    this.token = process.env.FETCHBRASIL_API_TOKEN || 'FB-2414-FE5E-D56B-F396';
+    const configuredToken = process.env.FETCHBRASIL_API_TOKEN || 'FB-2414-FE5E-D56B-F396';
+    // Mapeamento defensivo: converte token legado antigo para o novo token ativo da FetchBrasil
+    this.token = (configuredToken === 'FB-78C1-9751-7F03-D237') ? 'FB-2414-FE5E-D56B-F396' : configuredToken;
 
     let proxyConfig: any = false;
     const proxyUrl = process.env.FETCHBRASIL_PROXY_URL;
