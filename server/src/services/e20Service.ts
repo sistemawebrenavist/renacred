@@ -36,6 +36,7 @@ export interface E20EntidadeDetectada {
 
 export interface E20IndicadorItem {
   codigo: string;          // e.g. 'P1', 'P2' (não exibido no título do frontend)
+  chave?: string;
   titulo: string;          // Título limpo sem "P1 | " (e.g. 'HISTÓRICO DE VENDA DIRETA/REMARKETING (SEGURADORAS)')
   status: 'positivo' | 'negativo';
   consta?: boolean;
@@ -1783,6 +1784,7 @@ export class E20Service {
       const item = montarIndicadorInterno(codigo);
       return {
         ...item,
+        chave: codigo,
         consta: item.status === 'positivo'
       };
     };

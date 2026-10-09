@@ -597,7 +597,7 @@ export class FetchBrasilService {
                 api: 'ocorrencias_senatran',
                 query: cleanQuery
               },
-              timeout: 10000
+              timeout: 15000
             });
             const listaSena = Array.isArray(senaRes?.data?.ocorrencias) ? senaRes.data.ocorrencias : [];
             for (const s of listaSena) {

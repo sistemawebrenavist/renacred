@@ -11,6 +11,7 @@ export interface InfoSinistrosProdutoItem {
 
 export interface InfoSinistrosPreVistoriaResponse {
   sucesso: boolean;
+  codigo?: number | string;
   cliente?: string;
   ambiente?: string;
   query_fornecida?: string;
@@ -18,6 +19,7 @@ export interface InfoSinistrosPreVistoriaResponse {
   produtosContratados?: string[];
   resultados?: Record<string, InfoSinistrosProdutoItem>;
   mensagem?: string;
+  [key: string]: any;
 }
 
 export class InfoSinistrosService {

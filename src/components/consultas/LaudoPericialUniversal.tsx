@@ -856,10 +856,10 @@ export const E20PreVistoriaLaudo: React.FC<{
         {/* 2. Roubo e Furto */}
         {item.chave === 'P10' && Array.isArray(dados) && dados.length > 0 && (
           <div className="space-y-1.5 pt-0.5">
-            {item.tempoRoubado && (
+            {(item as any)?.tempoRoubado && (
               <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-md text-[11px] text-rose-900 flex flex-wrap items-center justify-between gap-1 shadow-2xs">
                 <span className="font-semibold text-rose-800">Tempo sob queixa de roubo/furto:</span>
-                <span className="font-bold text-rose-950">{item.tempoRoubado}</span>
+                <span className="font-bold text-rose-950">{(item as any)?.tempoRoubado}</span>
               </div>
             )}
             {dados.map((oc: any, oIdx: number) => (
