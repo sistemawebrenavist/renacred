@@ -433,6 +433,56 @@ export const E20PreVistoriaLaudo: React.FC<{
   const renavam = veiculo.renavam || '-';
   const chassi = veiculo.chassi || '-';
 
+  // Consolidação universal dos dados da BIN (Base Interna) no padrão E12
+  const binData = React.useMemo(() => {
+    const v = dados?.veiculo || {};
+    const b = dados?.bin || {};
+    const p35 = dados?.indicadores?.find((i: any) => (i.chave === 'P35' || i.codigo === 'P35'))?.conteudo || {};
+    const pAtual = dados?.proprietarios?.proprietario_atual || (Array.isArray(dados?.proprietarios?.historico) ? (dados.proprietarios.historico.find((p: any) => p.atual) || dados.proprietarios.historico[dados.proprietarios.historico.length - 1]) : null) || {};
+
+    return {
+      placa: b.placa || v.placa || identifier,
+      placa_modelo_antigo: b.placa_modelo_antigo || v.placaModeloAntigo || v.placa || identifier,
+      placa_modelo_novo: b.placa_modelo_novo || v.placaModeloNovo || null,
+      renavam: b.renavam || v.renavam || dados?.renavam || '-',
+      chassi: b.chassi || v.chassi || dados?.chassi || '-',
+      situacao_chassi: b.situacao_chassi || v.situacaoChassi || 'Normal',
+      situacao_veiculo: b.situacao_veiculo || v.situacaoVeiculo || 'Em Circulação',
+      marca: b.marca || v.marca || (v.marcaModelo ? v.marcaModelo.split('/')[0] : '-'),
+      modelo: b.modelo || v.modelo || v.marcaModelo || '-',
+      marca_modelo: b.marca_modelo || v.marcaModelo || '-',
+      submodelo: b.submodelo || v.submodelo || p35.submodelo || p35.grupo || null,
+      versao: b.versao || v.versao || p35.versao || null,
+      ano_fabricacao: b.ano_fabricacao || v.anoFabricacao || '-',
+      ano_modelo: b.ano_modelo || v.anoModelo || v.anoFabricacao || '-',
+      cor: b.cor || v.cor || '-',
+      combustivel: b.combustivel || v.combustivel || '-',
+      municipio: b.municipio || v.municipio || null,
+      uf: b.uf || v.uf || null,
+      motor: b.motor || v.motor || '-',
+      carroceria: b.carroceria || v.carroceria || 'NÃO APLICAVEL',
+      especie: b.especie || v.especieVeiculo || v.especie || 'PASSAGEIRO',
+      segmento: b.segmento || v.segmento || p35.segmento || 'Auto',
+      sub_segmento: b.sub_segmento || v.subSegmento || p35.sub_segmento || null,
+      nacionalidade: b.nacionalidade || v.nacionalidade || 'Nacional',
+      tipo_montagem: b.tipo_montagem || v.tipoMontagem || '1 - Original',
+      tipo_veiculo: b.tipo_veiculo || v.tipoVeiculo || 'AUTOMOVEL',
+      caixa_cambio: b.caixa_cambio || v.caixaCambio || p35.caixa_cambio || null,
+      cilindradas: b.cilindradas || v.cilindradas || p35.cilindradas || null,
+      eixos: b.eixos || v.eixos || p35.eixos || null,
+      peso_bruto_total: b.peso_bruto_total || v.pesoBrutoTotal || p35.peso_bruto_total || null,
+      proprietario_nome: b.proprietario_nome || v.proprietarioNome || p35.proprietario_nome || pAtual.nome || pAtual.razao_social || '-',
+      proprietario_documento: b.proprietario_documento || v.proprietarioDocumento || p35.proprietario_documento || pAtual.documento || pAtual.documentoOriginal || '',
+      tipo_doc_prop: b.tipo_doc_prop || v.tipoDocProp || p35.tipo_doc_prop || pAtual.tipo || (pAtual.documento && String(pAtual.documento).replace(/\D/g, '').length === 14 ? 'JURIDICA' : 'FISICA') || 'FISICA',
+      data_emissao_crv: b.data_emissao_crv || v.dataEmissaoCrv || p35.data_emissao_crv || pAtual.data || null,
+      faturado_documento: b.faturado_documento || v.faturadoCnpj || p35.faturadoCnpj || p35.faturado_documento || '',
+      uf_faturado: b.uf_faturado || v.ufFaturado || p35.ufFaturado || p35.uf_faturado || '-',
+      tipo_doc_faturado: b.tipo_doc_faturado || v.tipoDocFaturado || p35.tipoDocFaturado || p35.tipo_doc_faturado || 'JURIDICA',
+      di: b.di || v.di || p35.di || null,
+      registro_di: b.registro_di || v.registroDi || p35.registro_di || null
+    };
+  }, [dados, identifier]);
+
   const handleCopyRenavam = () => {
     if (renavam && renavam !== '-') {
       navigator.clipboard.writeText(renavam);
@@ -875,50 +925,62 @@ export const E20PreVistoriaLaudo: React.FC<{
         )}
 
         {/* 5. Histórico de Movimentação / Alteração de Cadastro (P32) */}
-        {item.chave === 'P32' && dados && (
-          <div className="overflow-x-auto border border-slate-200 rounded-lg">
-            <table className="w-full text-xs text-left text-slate-800">
-              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="px-4 py-2.5 w-2/3">Evento / Registro Cadastral</th>
-                  <th className="px-4 py-2.5 w-1/3">Data do Registro</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {dados.insercao_renavam && (
-                  <tr className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-2.5 font-semibold text-slate-800">
-                      Inserção na Base RENAVAM / Cadastro Inicial Fabril
-                    </td>
-                    <td className="px-4 py-2.5 font-mono font-bold text-slate-900">
-                      {formatDateBR(dados.insercao_renavam)}
-                    </td>
+        {item.chave === 'P32' && dados && (() => {
+          const dataSys = veiculo?.dataAtualizacao || dados?.dataAtualizacao;
+          const dataSysBR = dataSys ? formatDateBR(dataSys) : null;
+
+          const rawAlts = Array.isArray(dados.alteracoes) ? dados.alteracoes : [];
+          const alteracoesLimpas = rawAlts.filter((alt: any) => {
+            const dt = alt.data ? formatDateBR(alt.data) : null;
+            if (dataSysBR && dt === dataSysBR) return false;
+            return true;
+          });
+
+          return (
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="w-full text-xs text-left text-slate-800">
+                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="px-4 py-2.5 w-2/3">Evento / Registro Cadastral</th>
+                    <th className="px-4 py-2.5 w-1/3">Data do Registro</th>
                   </tr>
-                )}
-                {Array.isArray(dados.alteracoes) && dados.alteracoes.map((alt: any, aIdx: number) => (
-                  <tr key={`alt-${aIdx}`} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-2.5 font-semibold text-slate-700">
-                      {alt.item || alt.descricao || `Alteração #${aIdx + 1}`}
-                    </td>
-                    <td className="px-4 py-2.5 font-mono font-bold text-slate-900">
-                      {alt.data ? formatDateBR(alt.data) : '-'}
-                    </td>
-                  </tr>
-                ))}
-                {Array.isArray(dados) && dados.map((mov: any, mIdx: number) => (
-                  <tr key={`mov-${mIdx}`} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-2.5 font-semibold text-slate-700">
-                      {mov.item || mov.descricao || mov.evento || `Movimentação #${mIdx + 1}`}
-                    </td>
-                    <td className="px-4 py-2.5 font-mono font-bold text-slate-900">
-                      {mov.data ? formatDateBR(mov.data) : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {dados.insercao_renavam && (
+                    <tr className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-2.5 font-semibold text-slate-800">
+                        Inserção na Base RENAVAM / Cadastro Inicial Fabril
+                      </td>
+                      <td className="px-4 py-2.5 font-mono font-bold text-slate-900">
+                        {formatDateBR(dados.insercao_renavam)}
+                      </td>
+                    </tr>
+                  )}
+                  {alteracoesLimpas.map((alt: any, aIdx: number) => (
+                    <tr key={`alt-${aIdx}`} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-2.5 font-semibold text-slate-700">
+                        {alt.item || alt.descricao || `DATA DE ALTERAÇÃO ${String(aIdx + 1).padStart(2, '0')}`}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono font-bold text-slate-900">
+                        {alt.data ? formatDateBR(alt.data) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                  {Array.isArray(dados) && dados.map((mov: any, mIdx: number) => (
+                    <tr key={`mov-${mIdx}`} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-2.5 font-semibold text-slate-700">
+                        {mov.item || mov.descricao || mov.evento || `Movimentação #${mIdx + 1}`}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono font-bold text-slate-900">
+                        {mov.data ? formatDateBR(mov.data) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
 
         {/* 6. Histórico de Proprietários Pagantes do DPVAT - Base Interna (P17) */}
         {item.chave === 'P17' && Array.isArray(dados) && dados.length > 0 && (() => {
@@ -1393,6 +1455,217 @@ export const E20PreVistoriaLaudo: React.FC<{
             <p className="text-xs font-bold text-slate-900 font-mono">
               {String(renavam || '-').toUpperCase()}
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. CADASTRO BIN (BASE INTERNA) - LAYOUT OFICIAL E12 */}
+      <div className="space-y-4">
+        {/* Grid de Seções: Identificação do Veículo & Dados Técnicos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Bloco 1: Identificação Cadastral Oficial */}
+          <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Identificação do Veículo
+              </span>
+              <span className="text-[11px] font-mono text-slate-500">Renavam: {binData.renavam || '-'}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-slate-400 font-medium block">Marca:</span>
+                <span className="font-bold text-slate-900 block mt-0.5">{binData.marca || '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Modelo:</span>
+                <span className="font-bold text-slate-900 block mt-0.5">{binData.modelo || binData.marca_modelo || '-'}</span>
+              </div>
+              {binData.submodelo && (
+                <div>
+                  <span className="text-slate-400 font-medium block">Submodelo / Grupo:</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5">{binData.submodelo}</span>
+                </div>
+              )}
+              {binData.versao && (
+                <div>
+                  <span className="text-slate-400 font-medium block">Versão:</span>
+                  <span className="font-semibold text-slate-800 block mt-0.5">{binData.versao}</span>
+                </div>
+              )}
+              <div>
+                <span className="text-slate-400 font-medium block">Ano Fab / Modelo:</span>
+                <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                  {binData.ano_fabricacao} / {binData.ano_modelo || binData.ano_fabricacao}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Cor Predominante:</span>
+                <span className="font-semibold text-slate-800 block mt-0.5 uppercase">{binData.cor || '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Combustível:</span>
+                <span className="font-semibold text-slate-800 block mt-0.5">{binData.combustivel || '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Município / UF Placa:</span>
+                <span className="font-semibold text-slate-900 block mt-0.5">
+                  {binData.municipio ? `${binData.municipio} / ${binData.uf}` : String(binData.uf || '-')}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 text-xs">
+              <span className="text-slate-400 font-medium block">Chassi:</span>
+              <div className="flex items-center justify-between mt-0.5">
+                <span className="font-mono font-bold text-slate-900">{binData.chassi || '-'}</span>
+                <span className="text-[10px] text-slate-500 font-medium bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                  Situação: {binData.situacao_chassi || 'Normal'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 2: Conjunto Mecânico & Engenharia */}
+          <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Mecânica & Conjunto Técnico
+              </span>
+              <span className="text-[11px] font-semibold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 uppercase">
+                {binData.tipo_veiculo || 'Automóvel'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-slate-400 font-medium block">Número do Motor:</span>
+                <span className="font-mono font-bold text-slate-900 block mt-0.5">{binData.motor || '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Número da Carroceria:</span>
+                <span className="font-mono font-semibold text-slate-800 block mt-0.5">{binData.carroceria || 'NÃO APLICAVEL'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Espécie:</span>
+                <span className="font-medium text-slate-800 block mt-0.5">{binData.especie || 'Passageiro'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Segmento:</span>
+                <span className="font-medium text-slate-800 block mt-0.5">
+                  {binData.segmento || 'Auto'} {binData.sub_segmento ? `(${binData.sub_segmento})` : ''}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Nacionalidade:</span>
+                <span className="font-medium text-slate-800 block mt-0.5">{binData.nacionalidade || 'Nacional'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Tipo de Montagem:</span>
+                <span className="font-medium text-slate-800 block mt-0.5">{binData.tipo_montagem || '1 - Original'}</span>
+              </div>
+              {binData.caixa_cambio && (
+                <div>
+                  <span className="text-slate-400 font-medium block">Caixa de Câmbio:</span>
+                  <span className="font-mono text-slate-800 block mt-0.5">{binData.caixa_cambio}</span>
+                </div>
+              )}
+              {binData.cilindradas && (
+                <div>
+                  <span className="text-slate-400 font-medium block">Cilindradas:</span>
+                  <span className="font-mono text-slate-800 block mt-0.5">{binData.cilindradas} cc</span>
+                </div>
+              )}
+              {binData.eixos && (
+                <div>
+                  <span className="text-slate-400 font-medium block">Eixos:</span>
+                  <span className="font-mono text-slate-800 block mt-0.5">{binData.eixos}</span>
+                </div>
+              )}
+              {binData.peso_bruto_total && (
+                <div>
+                  <span className="text-slate-400 font-medium block">Peso Bruto Total (PBT):</span>
+                  <span className="font-mono text-slate-800 block mt-0.5">{binData.peso_bruto_total} kg</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Grid Intermediário: Proprietário Registrado & Faturamento Fiscal de Origem */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Bloco 3: Proprietário Registrado */}
+          <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Proprietário Registrado (BIN / DETRAN)
+              </span>
+              <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 uppercase">
+                {binData.tipo_doc_prop || (binData.proprietario_documento ? (String(binData.proprietario_documento).replace(/\D/g, '').length > 11 ? 'JURIDICA' : 'FISICA') : 'FISICA')}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="sm:col-span-2">
+                <span className="text-slate-400 font-medium block">Nome do Proprietário:</span>
+                <span className="font-bold text-slate-900 block mt-0.5 uppercase tracking-tight">
+                  {binData.proprietario_nome || '-'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Documento (CPF / CNPJ):</span>
+                <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                  {formatDocumento(binData.proprietario_documento || '')}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Data Emissão CRV:</span>
+                <span className="font-mono font-semibold text-slate-800 block mt-0.5">
+                  {formatDateBR(binData.data_emissao_crv)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 4: Dados Fiscais e Faturamento */}
+          <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-3 shadow-xs">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Faturamento & Registro Fiscal de Origem
+              </span>
+              <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                Registro Fiscal
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-slate-400 font-medium block">CNPJ Faturado:</span>
+                <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                  {formatDocumento(binData.faturado_documento || '')}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">UF Faturado:</span>
+                <span className="font-semibold text-slate-800 block mt-0.5">{binData.uf_faturado || '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Tipo Doc Faturado:</span>
+                <span className="font-medium text-slate-800 block mt-0.5">{sanitizeTipoDoc(binData.tipo_doc_faturado) || 'JURIDICA'}</span>
+              </div>
+              {binData.di && (
+                <div>
+                  <span className="text-slate-400 font-medium block">Declaração de Importação (DI):</span>
+                  <span className="font-mono text-slate-800 block mt-0.5">{binData.di}</span>
+                </div>
+              )}
+              {binData.registro_di && (
+                <div>
+                  <span className="text-slate-400 font-medium block">Registro DI:</span>
+                  <span className="font-mono text-slate-800 block mt-0.5">{binData.registro_di}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

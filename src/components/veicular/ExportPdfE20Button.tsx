@@ -80,6 +80,7 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
     const combustivel = veiculo.combustivel || '-';
     const municipioUf = `${veiculo.municipio || '-'}${veiculo.uf ? `/${veiculo.uf}` : ''}`;
     const situacao = veiculo.situacaoVeiculo || 'CIRCULAÇÃO';
+    const motor = veiculo.motor || veiculo.numeroMotor || dados?.bin?.motor || '-';
 
     const authCode = generateAuthHash(cleanPlaca);
     const dataEmissao = consultadoEm ? new Date(consultadoEm) : new Date();
@@ -440,7 +441,7 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 65, 85);
     doc.text(`Ano Fab/Mod: ${anoFabMod}   •   Cor: ${String(cor).toUpperCase()}   •   Combustível: ${String(combustivel).toUpperCase()}`, 17, currentY + 10);
-    doc.text(`Município/UF: ${municipioUf}   •   Situação: ${String(situacao).toUpperCase()}   •   Chassi: ${chassi}`, 17, currentY + 14.5);
+    doc.text(`Município/UF: ${municipioUf}   •   Situação: ${String(situacao).toUpperCase()}   •   Chassi: ${chassi}${motor !== '-' ? `   •   Motor: ${motor}` : ''}`, 17, currentY + 14.5);
     doc.text(`Data/Hora da Emissão: ${dataFormatada} às ${horaFormatada}   •   RENAVAM Oficial: ${renavam}`, 17, currentY + 18.5);
 
     currentY += 24;
@@ -837,9 +838,16 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
         // I. Movimentação Cadastral (P32)
         else if (item.chave === 'P32' && dadosItem) {
           const rowsMov: any[] = [];
-          if (dadosItem.insercao_renavam) rowsMov.push(['Inserção na Base RENAVAM', formatDateBR(dadosItem.insercao_renavam)]);
+          if (dadosItem.insercao_renavam) rowsMov.push(['Inserção na Base RENAVAM / Cadastro Inicial Fabril', formatDateBR(dadosItem.insercao_renavam)]);
           if (Array.isArray(dadosItem.alteracoes)) {
-            dadosItem.alteracoes.forEach((alt: any) => rowsMov.push([alt.item || alt.descricao || 'Alteração', alt.data ? formatDateBR(alt.data) : '-']));
+            const dataAtualizacaoRaw = String(veiculo?.dataAtualizacao || dados?.dadosVeiculo?.dataAtualizacao || '').trim().slice(0, 10);
+            dadosItem.alteracoes
+              .filter((alt: any) => {
+                const altData = String(alt.data || alt.dataAlteracao || '').trim().slice(0, 10);
+                if (dataAtualizacaoRaw && altData === dataAtualizacaoRaw) return false;
+                return true;
+              })
+              .forEach((alt: any) => rowsMov.push([alt.item || alt.descricao || 'Alteração', alt.data ? formatDateBR(alt.data) : '-']));
           }
 
           if (rowsMov.length > 0) {

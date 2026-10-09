@@ -467,6 +467,8 @@ export class E20Service {
       marca: p35Bruto.marca || dadosPlacaDf?.vehicle?.model?.name?.split('/')[0] || null,
       modelo: p35Bruto.modelo || dadosPlacaDf?.vehicle?.model?.name || null,
       marcaModelo: p35Bruto.marcaModelo || dadosPlacaDf?.vehicle?.model?.name || [p35Bruto.marca, p35Bruto.modelo].filter(Boolean).join(' ') || null,
+      submodelo: p35Bruto.submodelo || p35Bruto.grupo || null,
+      versao: p35Bruto.versao || null,
       anoFabricacao: p35Bruto.anoFabricacao || dadosPlacaDf?.vehicle?.model?.yearManufacture || null,
       anoModelo: p35Bruto.anoModelo || dadosPlacaDf?.vehicle?.model?.year || null,
       cor: p35Bruto.cor || dadosPlacaDf?.vehicle?.model?.color || null,
@@ -480,15 +482,26 @@ export class E20Service {
       nacionalidade: p35Bruto.nacionalidade || null,
       especieVeiculo: p35Bruto.especieVeiculo || dadosPlacaDf?.vehicle?.model?.kind || null,
       tipoVeiculo: p35Bruto.tipoVeiculo || dadosPlacaDf?.vehicle?.model?.type || null,
+      segmento: p35Bruto.segmento || null,
+      subSegmento: p35Bruto.subSegmento || p35Bruto.sub_segmento || null,
       carroceria: p35Bruto.carroceria || null,
+      caixaCambio: p35Bruto.caixaCambio || p35Bruto.caixa_cambio || null,
       tipoMontagem: p35Bruto.tipoMontagem || null,
       situacaoChassi: p35Bruto.situacaoChassi || null,
       situacaoVeiculo: p35Bruto.situacaoVeiculo || dadosPlacaDf?.vehicle?.situation || 'CIRCULACAO',
       municipio: p35Bruto.municipio || dadosPlacaDf?.vehicle?.state || null,
       uf: p35Bruto.uf || p35Bruto.ufPlaca || dadosPlacaDf?.vehicle?.state || null,
-      faturadoCnpj: p35Bruto.faturadoCnpj || null,
-      tipoDocFaturado: p35Bruto.tipoDocFaturado || null,
-      ufFaturado: p35Bruto.ufFaturado || null,
+      // Proprietário registrado da BIN
+      proprietarioNome: p35Bruto.proprietario_nome || p35Bruto.nomeProprietario || p35Bruto.proprietario || null,
+      proprietarioDocumento: p35Bruto.proprietario_documento || p35Bruto.documentoProprietario || p35Bruto.niProprietario || null,
+      tipoDocProp: p35Bruto.tipo_doc_prop || p35Bruto.descricaoTipoProprietario || null,
+      dataEmissaoCrv: p35Bruto.data_emissao_crv || p35Bruto.dataEmissaoCrv || null,
+      // Faturamento e dados fiscais de origem
+      faturadoCnpj: p35Bruto.faturadoCnpj || p35Bruto.faturado_documento || p35Bruto.numeroIdFaturamento || p35Bruto.faturado || null,
+      tipoDocFaturado: p35Bruto.tipoDocFaturado || p35Bruto.tipo_doc_faturado || null,
+      ufFaturado: p35Bruto.ufFaturado || p35Bruto.uf_faturado || null,
+      di: p35Bruto.di || null,
+      registroDi: p35Bruto.registroDi || p35Bruto.registro_di || null,
       dataAtualizacao: p35Bruto.dataAtualizacao || null
     };
 
@@ -1083,45 +1096,60 @@ export class E20Service {
       licenciamento_3: lic3
     };
 
-    // 9. HISTÓRICO DE MOVIMENTAÇÃO / ALTERAÇÃO DE CADASTRO (P32) - ENRIQUECIDO COM DATAS DOMINIAIS
+    // 9. HISTÓRICO DE MOVIMENTAÇÃO / ALTERAÇÃO DE CADASTRO (P32) - DADOS OFICIAIS
     const p32Info = infoResult?.resultados?.P32?.conteudo || {};
-    const datasParaMovimentacao: string[] = [];
-
-    if (p32Info.insercao_renavam) {
-      const d = formatarDataBR(p32Info.insercao_renavam);
-      if (d) datasParaMovimentacao.push(d);
-    }
-    if (Array.isArray(p32Info.alteracoes)) {
-      for (const alt of p32Info.alteracoes) {
-        const d = formatarDataBR(alt.data || alt);
-        if (d) datasParaMovimentacao.push(d);
-      }
-    }
-    if (dadosVeiculo.dataAtualizacao) {
-      const d = formatarDataBR(dadosVeiculo.dataAtualizacao);
-      if (d) datasParaMovimentacao.push(d);
-    }
-    for (const cand of proprietariosDeduplicados) {
-      if (cand.data) {
-        const d = formatarDataBR(cand.data);
-        if (d) datasParaMovimentacao.push(d);
-      }
-    }
-
-    const datasMovUnicas = Array.from(new Set(datasParaMovimentacao))
-      .sort((a, b) => parseDateToTimestamp(a) - parseDateToTimestamp(b));
-
     let cardMovimentacao: any = null;
-    if (datasMovUnicas.length > 0) {
-      const insercaoRenavam = datasMovUnicas[0];
-      const alteracoes = datasMovUnicas.slice(1).map((d, idx) => ({
-        item: `DATA DE ALTERAÇÃO ${String(idx + 1).padStart(2, '0')}`,
-        data: d
-      }));
+
+    if (p32Info && (p32Info.insercao_renavam || (Array.isArray(p32Info.alteracoes) && p32Info.alteracoes.length > 0))) {
+      // Prioridade 1: Dados cadastrais oficiais da InfoSinistros / DETRAN
+      const insercao = p32Info.insercao_renavam ? formatarDataBR(p32Info.insercao_renavam) : null;
+      const dataSysBR = dadosVeiculo.dataAtualizacao ? formatarDataBR(dadosVeiculo.dataAtualizacao) : null;
+      const alteracoesOficiais: any[] = [];
+
+      if (Array.isArray(p32Info.alteracoes)) {
+        p32Info.alteracoes.forEach((alt: any) => {
+          const dt = formatarDataBR(alt.data || alt);
+          // Ignora caso a data coincida com a data de atualização de sistema/cache da API
+          if (dt && dt !== dataSysBR) {
+            alteracoesOficiais.push({
+              item: alt.item || alt.descricao || null,
+              data: dt
+            });
+          }
+        });
+      }
+
+      // Re-enumera para manter sequência impecável: DATA DE ALTERAÇÃO 01, 02, etc.
+      alteracoesOficiais.forEach((alt, idx) => {
+        if (!alt.item || alt.item.startsWith('DATA DE ALTERAÇÃO') || alt.item.startsWith('Alteração')) {
+          alt.item = `DATA DE ALTERAÇÃO ${String(idx + 1).padStart(2, '0')}`;
+        }
+      });
+
       cardMovimentacao = {
-        insercao_renavam: insercaoRenavam,
-        alteracoes
+        insercao_renavam: insercao,
+        alteracoes: alteracoesOficiais
       };
+    } else {
+      // Fallback inteligente apenas se P32 não constar no provedor:
+      // Deriva exclusivamente das datas dos proprietários comprovados (SEM injetar dataAtualizacao de sistema)
+      const datasDominiais: string[] = [];
+      for (const cand of proprietariosDeduplicados) {
+        if (cand.data) {
+          const d = formatarDataBR(cand.data);
+          if (d && !datasDominiais.includes(d)) datasDominiais.push(d);
+        }
+      }
+      datasDominiais.sort((a, b) => parseDateToTimestamp(a) - parseDateToTimestamp(b));
+      if (datasDominiais.length > 0) {
+        cardMovimentacao = {
+          insercao_renavam: datasDominiais[0],
+          alteracoes: datasDominiais.slice(1).map((d, idx) => ({
+            item: `DATA DE ALTERAÇÃO ${String(idx + 1).padStart(2, '0')}`,
+            data: d
+          }))
+        };
+      }
     }
 
     // 10. MOTOR DE CONSOLIDAÇÃO DOS INDICADORES PERICIAIS (P1 a P36)
@@ -1513,6 +1541,48 @@ export class E20Service {
       });
     }
 
+    const cardBin = {
+      placa: cleanPlaca,
+      placa_modelo_antigo: dadosVeiculo.placaModeloAntigo || cleanPlaca,
+      placa_modelo_novo: dadosVeiculo.placaModeloNovo,
+      renavam: dadosVeiculo.renavam,
+      chassi: dadosVeiculo.chassi,
+      situacao_chassi: dadosVeiculo.situacaoChassi || 'Normal',
+      situacao_veiculo: dadosVeiculo.situacaoVeiculo || 'CIRCULACAO',
+      marca: dadosVeiculo.marca,
+      modelo: dadosVeiculo.modelo || dadosVeiculo.marcaModelo,
+      marca_modelo: dadosVeiculo.marcaModelo,
+      submodelo: dadosVeiculo.submodelo,
+      versao: dadosVeiculo.versao,
+      ano_fabricacao: dadosVeiculo.anoFabricacao,
+      ano_modelo: dadosVeiculo.anoModelo || dadosVeiculo.anoFabricacao,
+      cor: dadosVeiculo.cor,
+      combustivel: dadosVeiculo.combustivel,
+      municipio: dadosVeiculo.municipio,
+      uf: dadosVeiculo.uf,
+      motor: dadosVeiculo.motor,
+      carroceria: dadosVeiculo.carroceria || 'NÃO APLICAVEL',
+      especie: dadosVeiculo.especieVeiculo || 'PASSAGEIRO',
+      segmento: dadosVeiculo.segmento || 'Auto',
+      sub_segmento: dadosVeiculo.subSegmento,
+      nacionalidade: dadosVeiculo.nacionalidade || 'Nacional',
+      tipo_montagem: dadosVeiculo.tipoMontagem || '1 - Original',
+      tipo_veiculo: dadosVeiculo.tipoVeiculo || 'AUTOMOVEL',
+      caixa_cambio: dadosVeiculo.caixaCambio,
+      cilindradas: dadosVeiculo.cilindradas,
+      eixos: dadosVeiculo.eixos,
+      peso_bruto_total: dadosVeiculo.pesoBrutoTotal,
+      proprietario_nome: dadosVeiculo.proprietarioNome || propAtualFinal?.nome || 'PROPRIETÁRIO REGISTRADO',
+      proprietario_documento: dadosVeiculo.proprietarioDocumento || propAtualFinal?.documento,
+      tipo_doc_prop: dadosVeiculo.tipoDocProp || (propAtualFinal?.documento && String(propAtualFinal.documento).replace(/\D/g, '').length === 14 ? 'JURIDICA' : 'FISICA'),
+      data_emissao_crv: dadosVeiculo.dataEmissaoCrv || propAtualFinal?.data,
+      faturado_documento: dadosVeiculo.faturadoCnpj,
+      uf_faturado: dadosVeiculo.ufFaturado,
+      tipo_doc_faturado: dadosVeiculo.tipoDocFaturado || 'JURIDICA',
+      di: dadosVeiculo.di,
+      registro_di: dadosVeiculo.registroDi
+    };
+
     const duracaoTotal = Date.now() - startTime;
     logger.info(`[E20] Orquestração para placa ${cleanPlaca} concluída com sucesso em ${duracaoTotal}ms`);
 
@@ -1523,6 +1593,7 @@ export class E20Service {
       contingenciaRenavamAplicada,
       custoInternoTotal,
       veiculo: dadosVeiculo,
+      bin: cardBin,
       indicadores: listaIndicadores,
       roubo_furto: cardRouboFurto,
       locadoras: {
@@ -1570,6 +1641,8 @@ export class E20Service {
         banco_imagens: infoResult?.resultados?.P25?.status === 'positivo' ? infoResult.resultados.P25.conteudo : null,
         demanda_judicial: infoResult?.resultados?.P28?.status === 'positivo' ? infoResult.resultados.P28.conteudo : (infoResult?.resultados?.P29?.status === 'positivo' ? infoResult.resultados.P29.conteudo : null),
         csv: infoResult?.resultados?.P30?.status === 'positivo' ? infoResult.resultados.P30.conteudo : null,
+        circulacao: cardCirculacao,
+        movimentacao: cardMovimentacao,
         fipe: dadosFipe
       },
       raw_sources: {
