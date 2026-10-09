@@ -683,8 +683,28 @@ export const E20PreVistoriaLaudo: React.FC<{
           return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: rouboFurto.mensagem || 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: rouboFurto.ocorrencias, conteudo: rouboFurto.ocorrencias };
         }
         case 'P11': {
-          const pos = !!outros?.leiloes;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Oferta em leilão identificada' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: outros?.leiloes, conteudo: outros?.leiloes };
+          const temFrotaPub = !!dados?.frota_publica?.total || (Array.isArray(dados?.indicadores) && dados.indicadores.some((i: any) => (i.chave === 'P3' || i.codigo === 'P3') && (i.status === 'positivo' || i.consta)));
+          const pos = !!outros?.leiloes || temFrotaPub;
+          const leiloesData = outros?.leiloes || (temFrotaPub ? [{
+            leiloeiro: 'LEILÃO ADMINISTRATIVO DE FROTA PÚBLICA',
+            comitente: dados?.frota_publica?.registros?.[0]?.orgao || 'ÓRGÃO PÚBLICO',
+            tipo: 'Desmobilização de Frota Pública por Edital de Leilão',
+            evento: 'Alienação de Bem Público Inservível/Desmobilizado (Lei 14.133/21 e Lei 8.666/93)',
+            ano: dados?.frota_publica?.registros?.[0]?.ano || '-',
+            detalhes: 'Veículo desmobilizado da administração pública mediante alienação obrigatória por edital de leilão público.',
+            fonte: 'Edital Administrativo / Cadeia Dominial Pública'
+          }] : null);
+          return {
+            chave: cat.chave,
+            titulo: cat.titulo,
+            consta: pos,
+            status: pos ? 'POSITIVO' : 'NEGATIVO',
+            mensagem: pos
+              ? (temFrotaPub ? 'IDENTIFICADA DESMOBILIZAÇÃO DE FROTA PÚBLICA POR EDITAL DE LEILÃO ADMINISTRATIVO' : 'Oferta em leilão identificada')
+              : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
+            detalhes: leiloesData,
+            conteudo: leiloesData
+          };
         }
         case 'P14': {
           const pos = !!dados?.seguradoras?.indenizacaoIntegral;
@@ -1053,11 +1073,6 @@ export const E20PreVistoriaLaudo: React.FC<{
                                 </span>
                               )}
                             </div>
-                            {prop.cnae_descricao && (
-                              <div className="text-[10px] text-slate-400 font-normal mt-0.5">
-                                CNAE: {prop.cnae ? `${prop.cnae} - ` : ''}{prop.cnae_descricao}
-                              </div>
-                            )}
                           </td>
                           <td className="px-3.5 py-2.5 font-mono text-slate-600 text-xs">
                             {doc}
@@ -1101,7 +1116,13 @@ export const E20PreVistoriaLaudo: React.FC<{
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {dados.map((reg: any, rIdx: number) => {
-                  const ano = reg.ano || (reg.data ? formatDateBR(reg.data) : '-');
+                  const extrairAno = (valor?: any): string => {
+                    if (!valor) return '-';
+                    const str = String(valor).trim();
+                    const m = str.match(/\b(19\d{2}|20\d{2})\b/);
+                    return m ? m[1] : (str.length === 4 && /^\d{4}$/.test(str) ? str : '-');
+                  };
+                  const ano = extrairAno(reg.ano) !== '-' ? extrairAno(reg.ano) : extrairAno(reg.data);
                   const razaoSocial =
                     reg.razao_social ||
                     reg.instituicao ||
@@ -1125,7 +1146,7 @@ export const E20PreVistoriaLaudo: React.FC<{
                                 Doc: <strong className="font-mono text-slate-700">{formatDocumento(reg.documento)}</strong>
                               </span>
                             )}
-                            {reg.cnae && (
+                            {reg.cnae && !String(reg.cnae).startsWith('0000000') && !String(reg.cnae).includes('*') && (
                               <span>• CNAE: <span className="font-mono">{reg.cnae}</span></span>
                             )}
                             {reg.tipoEntidade && getBadgeEntidade(reg.tipoEntidade)}
@@ -1211,7 +1232,9 @@ export const E20PreVistoriaLaudo: React.FC<{
                         <span className="text-slate-800 font-medium">{reg.tipo || reg.tipoEvento || reg.tipoUso}</span>
                       </div>
                     )}
-                    {(reg.cnaeDescricao || reg.cnae_descricao) && (
+                    {(reg.cnaeDescricao || reg.cnae_descricao) &&
+                      !String(reg.cnae || '').startsWith('0000000') &&
+                      !String(reg.cnaeDescricao || reg.cnae_descricao).includes('*') && (
                       <div className="sm:col-span-2 text-slate-500">
                         <span className="text-slate-400">CNAE:</span>{' '}
                         {reg.cnae ? `${reg.cnae} - ` : ''}{reg.cnaeDescricao || reg.cnae_descricao}

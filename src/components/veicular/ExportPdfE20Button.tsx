@@ -538,12 +538,24 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
         // A. Bancos / Financeiras / Locadoras / Seguradoras (P7, P1, P3, P4, P5, P6, P8, P14)
         if (['P7', 'P1', 'P3', 'P4', 'P5', 'P6', 'P8', 'P14'].includes(item.chave) && Array.isArray(dadosItem) && dadosItem.length > 0) {
-          const bodyData = dadosItem.map((reg: any) => [
-            reg.ano || (reg.data ? formatDateBR(reg.data) : '-'),
-            reg.razao_social || reg.instituicao || reg.seguradora || reg.orgao || reg.empresa || reg.nome || '-',
-            reg.documento ? formatDocumento(reg.documento) : '-',
-            reg.tipoEntidade || reg.cnaeDescricao || reg.cnae || '-'
-          ]);
+          const bodyData = dadosItem.map((reg: any) => {
+            const extrairAno = (valor?: any): string => {
+              if (!valor) return '-';
+              const str = String(valor).trim();
+              const m = str.match(/\b(19\d{2}|20\d{2})\b/);
+              return m ? m[1] : (str.length === 4 && /^\d{4}$/.test(str) ? str : '-');
+            };
+            const anoCalc = extrairAno(reg.ano) !== '-' ? extrairAno(reg.ano) : extrairAno(reg.data);
+            const cnaeInfo = (reg.cnaeDescricao || reg.cnae) && !String(reg.cnae || '').startsWith('0000000') && !String(reg.cnaeDescricao || '').includes('*')
+              ? `${reg.cnae ? `${reg.cnae} - ` : ''}${reg.cnaeDescricao || ''}`
+              : null;
+            return [
+              anoCalc,
+              reg.razao_social || reg.instituicao || reg.seguradora || reg.orgao || reg.empresa || reg.nome || '-',
+              reg.documento ? formatDocumento(reg.documento) : '-',
+              reg.tipoEntidade || cnaeInfo || '-'
+            ];
+          });
 
           autoTable(doc, {
             startY: currentY,
@@ -606,12 +618,17 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
         // C. Leilão / Editais Eletrônicos de Leilão (P11)
         else if (item.chave === 'P11' && Array.isArray(dadosItem) && dadosItem.length > 0) {
-          const bodyData = dadosItem.map((lei: any) => [
-            lei.ano || (lei.data ? formatDateBR(lei.data) : '-'),
-            lei.leiloeiro || lei.empresa || lei.leilao || '-',
-            lei.lote || '-',
-            lei.comitente || lei.condicao || lei.motivo || lei.detalhes || 'Edital Eletrônico'
-          ]);
+          const bodyData = dadosItem.map((lei: any) => {
+            const rawAno = lei.ano || (lei.data ? formatDateBR(lei.data) : '-');
+            const anoMatch = String(rawAno).match(/\b(19\d{2}|20\d{2})\b/);
+            const anoCalc = anoMatch ? anoMatch[1] : (String(rawAno).length === 4 ? String(rawAno) : '-');
+            return [
+              anoCalc,
+              lei.leiloeiro || lei.empresa || lei.leilao || 'LEILÃO ADMINISTRATIVO',
+              lei.lote || lei.edital || '-',
+              lei.comitente || lei.condicao || lei.motivo || lei.detalhes || 'Edital Eletrônico'
+            ];
+          });
 
           autoTable(doc, {
             startY: currentY,

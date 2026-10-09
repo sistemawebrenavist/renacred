@@ -4,6 +4,7 @@ import { fetchbrasilService } from './fetchbrasil.service';
 import { syncVeicularToInfosinistros } from './syncToInfosinistrosService';
 import { cleanObject } from './productNormalizers';
 import { fipeGratisService, FipeResultado } from './fipeGratisService';
+import { enrichProprietariosWithCnpj } from './cnpjService';
 
 export type TipoEntidadeClassificada =
   | 'locadora'
@@ -25,6 +26,9 @@ export interface E20EntidadeDetectada {
   tipoEntidade: TipoEntidadeClassificada;
   cnae?: string;
   cnaeDescricao?: string;
+  naturezaJuridica?: string;
+  codigoNaturezaJuridica?: string;
+  ano?: string;
   data?: string;
   ordem?: number;
   atual?: boolean;
@@ -293,24 +297,56 @@ export function mascararDocumento(docRaw?: string): string {
 }
 
 /**
- * Classificador inteligente de entidades a partir de nomes, documentos e CNAE de proprietários
+ * Extrai estritamente o ano com 4 dígitos de uma data, string ou número, retornando '-' se ausente
+ */
+export function extrairApenasAno(valor?: any): string {
+  if (!valor) return '-';
+  const str = String(valor).trim();
+  const match = str.match(/\b(19\d{2}|20\d{2})\b/);
+  if (match) return match[1];
+  return str.length === 4 && /^\d{4}$/.test(str) ? str : '-';
+}
+
+/**
+ * Classificador inteligente de entidades a partir de nomes, documentos, CNAE e Natureza Jurídica de proprietários
  */
 export function classificarEntidadeProprietario(
   nomeBruto?: string,
   docBruto?: string,
   cnaeBruto?: string,
-  cnaeDescBruto?: string
+  cnaeDescBruto?: string,
+  naturezaJuridicaBruto?: string,
+  codigoNaturezaJuridicaBruto?: string
 ): TipoEntidadeClassificada {
   const nome = String(nomeBruto || '').toUpperCase().trim();
   const docLimpo = String(docBruto || '').replace(/\D/g, '');
   const cnae = String(cnaeBruto || '').replace(/\D/g, '');
   const cnaeDesc = String(cnaeDescBruto || '').toUpperCase().trim();
+  const natJuridica = String(naturezaJuridicaBruto || '').toUpperCase().trim();
+  const codNatJuridica = String(codigoNaturezaJuridicaBruto || '').replace(/\D/g, '');
 
   if (!nome && !docLimpo) return 'particular';
   if (docLimpo.length === 11) return 'particular';
 
+  // CONCLA/IBGE - Grupo 1: Administração Pública (Qualquer código iniciando pelo dígito 1, ex: 101-5, 1015, etc.)
+  const isNaturezaPublica =
+    codNatJuridica.startsWith('1') ||
+    natJuridica.startsWith('1') ||
+    /^(1\d{2,3}|1\d{2}-\d)/.test(natJuridica) ||
+    natJuridica.includes('ORGAO PUBLICO') ||
+    natJuridica.includes('ÓRGÃO PÚBLICO') ||
+    natJuridica.includes('ADMINISTRACAO PUBLICA') ||
+    natJuridica.includes('ADMINISTRAÇÃO PÚBLICA') ||
+    natJuridica.includes('PODER EXECUTIVO') ||
+    natJuridica.includes('PODER LEGISLATIVO') ||
+    natJuridica.includes('PODER JUDICIARIO') ||
+    natJuridica.includes('PODER JUDICIÁRIO') ||
+    natJuridica.includes('AUTARQUIA') ||
+    natJuridica.includes('FUNDACAO PUBLICA') ||
+    natJuridica.includes('FUNDAÇÃO PÚBLICA');
+
   // 1. Viatura Policial / Segurança Pública (P2)
-  const regexViatura = /\b(POLICIA|POLICIA MILITAR|POLICIA CIVIL|POLICIA FEDERAL|POLICIA RODOVIARIA|GUARDA MUNICIPAL|CORPO DE BOMBEIROS|PMERJ|PMESP|PMMG|PMPR|PMSC|PMRJ|PCERJ|PCESP|PCMG|PF |PRF|SEGURANCA PUBLICA)\b/i;
+  const regexViatura = /\b(POLICIA|POLICIA MILITAR|POLICIA CIVIL|POLICIA FEDERAL|POLICIA RODOVIARIA|GUARDA MUNICIPAL|GUARDA CIVIL|GCM|DEFESA CIVIL|CORPO DE BOMBEIROS|PMERJ|PMESP|PMMG|PMPR|PMSC|PMRJ|PCERJ|PCESP|PCMG|PF\b|PRF\b|SEGURANCA PUBLICA|SEGURANÇA PÚBLICA)\b/i;
   if (regexViatura.test(nome) || regexViatura.test(cnaeDesc)) {
     return 'viatura';
   }
@@ -343,10 +379,10 @@ export function classificarEntidadeProprietario(
     return 'financeira';
   }
 
-  // 5. Órgãos Públicos / Frota Pública (P3)
-  const regexFrotaPublica = /\b(PREFEITURA|MUNICIPIO DE|ESTADO DE|GOVERNO DO ESTADO|SECRETARIA DE|SECRETARIA DA|MINISTERIO|CAMARA MUNICIPAL|TRIBUNAL|FUNDO MUNICIPAL|AUTARQUIA|RECEITA FEDERAL|DNIT|DER |DEPARTAMENTO DE ESTRADAS)\b/i;
-  const isCnaePublico = cnae.startsWith('8411') || cnae.startsWith('8412') || cnaeDesc.includes('ADMINISTRACAO PUBLICA');
-  if (regexFrotaPublica.test(nome) || isCnaePublico) {
+  // 5. Órgãos Públicos / Frota Pública (P3) - CONCLA Grupo 1, Padrões Oficiais e CNAE 84
+  const regexFrotaPublica = /\b(GABINETE|PREFEITO|PREFEITURA|MUNICIPAL|SUBSECRETARIA|SECRETARIA|MINISTERIO|MINISTÉRIO|MIN\s+(DA|DO|DE)\b|GOVERNO|GOVERNADOR|MUNICIPIO|MUNICÍPIO|ESTADO\s+(DE|DO|DA)\b|UNIAO|UNIÃO|CAMARA\s+MUNICIPAL|CÂMARA\s+MUNICIPAL|TRIBUNAL|TJ[A-Z]{2}|TRF\d?|TRE-[A-Z]{2}|TRT\d?|STF|STJ|FUNDO\s+MUNICIPAL|FUNDO\s+PUBLICO|FUNDO\s+PÚBLICO|AUTARQUIA|RECEITA\s+FEDERAL|DNIT|DER\b|DEPARTAMENTO\s+DE\s+ESTRADAS|DEFENSORIA|MINISTERIO\s+PUBLICO|MINISTÉRIO\s+PÚBLICO|MP[A-Z]{2}|CONSELHO\s+TUTELAR|IBAMA|INCRA|FUNAI|INSS|PODER\s+EXECUTIVO|PODER\s+LEGISLATIVO|PODER\s+JUDICIARIO|PODER\s+JUDICIÁRIO|ADMINISTRACAO\s+PUBLICA|ADMINISTRAÇÃO\s+PÚBLICA|ORGAO\s+PUBLICO|ÓRGÃO\s+PÚBLICO)\b/i;
+  const isCnaePublico = cnae.startsWith('84') || cnaeDesc.includes('ADMINISTRACAO PUBLICA') || cnaeDesc.includes('ADMINISTRAÇÃO PÚBLICA');
+  if (isNaturezaPublica || regexFrotaPublica.test(nome) || isCnaePublico) {
     return 'frota_publica';
   }
 
@@ -377,8 +413,11 @@ export function classificarEntidadeProprietario(
     return 'taxi_pcd';
   }
 
-  // 10. Empresa Privada (P23)
+  // 10. Empresa Privada (P23) - SOMENTE se NÃO pertencer ao Grupo 1 (Administração Pública)
   if (docLimpo.length === 14) {
+    if (isNaturezaPublica) {
+      return 'frota_publica';
+    }
     return 'empresa_privada';
   }
 
@@ -645,8 +684,19 @@ export class E20Service {
         if (!jaExiste.data && cand.data) jaExiste.data = cand.data;
         if (!jaExiste.cnae && cand.cnae) jaExiste.cnae = cand.cnae;
         if (!jaExiste.cnae_descricao && cand.cnae_descricao) jaExiste.cnae_descricao = cand.cnae_descricao;
+        if (!jaExiste.natureza_juridica && cand.natureza_juridica) jaExiste.natureza_juridica = cand.natureza_juridica;
+        if (!jaExiste.codigo_natureza_juridica && cand.codigo_natureza_juridica) jaExiste.codigo_natureza_juridica = cand.codigo_natureza_juridica;
         if (cand.atual) jaExiste.atual = true;
       }
+    }
+
+    // 4.1 Enriquecimento inteligente de CNPJ/Razão Social/Natureza Jurídica/CNAE para todos os proprietários PJ
+    try {
+      await enrichProprietariosWithCnpj({
+        historico: proprietariosDeduplicados
+      });
+    } catch (errEnrich: any) {
+      logger.warn(`[E20] Falha no enriquecimento de CNPJs dominiais: ${errEnrich.message}`);
     }
 
     // 5. Classificação Dominial e Extração de Entidades (Bancos P7, Seguradoras P1/P14, Locadoras P4, Frotas P2/P3, Salvados P8)
@@ -658,7 +708,9 @@ export class E20Service {
         nomeProp,
         p.documento,
         p.cnae,
-        p.cnae_descricao
+        p.cnae_descricao,
+        p.natureza_juridica || p.naturezaJuridica,
+        p.codigo_natureza_juridica || p.codigoNaturezaJuridica
       );
 
       const entidadeItem: E20EntidadeDetectada = {
@@ -668,6 +720,9 @@ export class E20Service {
         tipoEntidade: classif,
         cnae: p.cnae,
         cnaeDescricao: p.cnae_descricao,
+        naturezaJuridica: p.natureza_juridica || p.naturezaJuridica,
+        codigoNaturezaJuridica: p.codigo_natureza_juridica || p.codigoNaturezaJuridica,
+        ano: extrairApenasAno(p.data),
         data: p.data,
         atual: Boolean(p.atual)
       };
@@ -727,7 +782,14 @@ export class E20Service {
       ? proprietariosRegulares
       : proprietariosDeduplicados.map((p) => ({
         ...p,
-        classificacaoEntidade: classificarEntidadeProprietario(p.nome, p.documento, p.cnae, p.cnae_descricao)
+        classificacaoEntidade: classificarEntidadeProprietario(
+          p.nome,
+          p.documento,
+          p.cnae,
+          p.cnae_descricao,
+          p.natureza_juridica || p.naturezaJuridica,
+          p.codigo_natureza_juridica || p.codigoNaturezaJuridica
+        )
       }));
 
     // Ordenação cronológica por data (do mais antigo para o mais recente / atual)
@@ -890,11 +952,13 @@ export class E20Service {
     for (const loc of locadorasDetectadas) {
       const jaExiste = registrosLocadoras.some((r) => (loc.documento && r.documento === loc.documento) || r.empresa?.includes(loc.nome?.substring(0, 8)));
       if (!jaExiste) {
+        const anoCalc = extrairApenasAno(loc.data) !== '-' ? extrairApenasAno(loc.data) : (dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-');
         registrosLocadoras.push({
           empresa: loc.nome,
           documento: loc.documento,
           tipoEntidade: 'locadora',
-          data: loc.data ? `Posse registrada em ${loc.data}` : undefined,
+          ano: String(anoCalc),
+          data: loc.data,
           cnae: loc.cnae,
           cnaeDescricao: loc.cnaeDescricao,
           detalhes: loc.atual ? 'Titular Vigente' : 'Proprietário Anterior',
@@ -912,11 +976,15 @@ export class E20Service {
       const itens = Array.isArray(p1Info.conteudo) ? p1Info.conteudo : [p1Info.conteudo];
       for (const it of itens) {
         if (!it) continue;
+        const anoCalc = extrairApenasAno(it.ano || it.data || it.periodo) !== '-'
+          ? extrairApenasAno(it.ano || it.data || it.periodo)
+          : (dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-');
         registrosSeguradoras.push({
           seguradora: typeof it === 'string' ? it : it.razao_social || it.nome || it.seguradora || 'SEGURADORA REGISTRADA',
           tipoEntidade: 'seguradora',
           tipoEvento: 'Venda Direta / Remarketing',
-          ano: it.ano || it.periodo,
+          ano: String(anoCalc),
+          data: it.data || it.periodo,
           fonte: 'Registro de Remarketing / Salvados'
         });
       }
@@ -926,11 +994,14 @@ export class E20Service {
       const itens = Array.isArray(p14Info.conteudo) ? p14Info.conteudo : [p14Info.conteudo];
       for (const it of itens) {
         if (!it) continue;
+        const anoCalc = extrairApenasAno(it.ano || it.data || it.periodo) !== '-'
+          ? extrairApenasAno(it.ano || it.data || it.periodo)
+          : (dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-');
         registrosSeguradoras.push({
           seguradora: typeof it === 'string' ? it : it.seguradora || it.razao_social || 'CIA SEGURADORA',
           tipoEntidade: 'seguradora',
           tipoEvento: 'Indenização Integral de Sinistro',
-          ano: it.ano,
+          ano: String(anoCalc),
           data: it.data,
           detalhes: 'Veículo indenizado integralmente por sinistro/perda',
           fonte: 'Registro de Remarketing / Salvados'
@@ -940,12 +1011,16 @@ export class E20Service {
     for (const seg of seguradorasDetectadas) {
       const jaExiste = registrosSeguradoras.some((r) => (seg.documento && r.documento === seg.documento) || r.seguradora?.includes(seg.nome?.substring(0, 8)));
       if (!jaExiste) {
+        const anoCalc = extrairApenasAno(seg.data) !== '-'
+          ? extrairApenasAno(seg.data)
+          : (dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-');
         registrosSeguradoras.push({
           seguradora: seg.nome,
           documento: seg.documento,
           tipoEntidade: 'seguradora',
           tipoEvento: 'Titularidade em Carteira de Seguradora',
-          data: seg.data ? `Transferência registrada em ${seg.data}` : undefined,
+          ano: String(anoCalc),
+          data: seg.data,
           cnae: seg.cnae,
           cnaeDescricao: seg.cnaeDescricao,
           detalhes: seg.atual ? 'Titular Vigente' : 'Proprietário Anterior',
@@ -954,56 +1029,106 @@ export class E20Service {
       }
     }
 
-    // Frotas Públicas e Viaturas (P2 + P3)
+    // Frotas Públicas e Viaturas (P2 + P3) - Estruturas separadas
+    const registrosViaturas: any[] = [];
     const registrosFrotaPublica: any[] = [];
     let isViatura = viaturasDetectadas.length > 0;
     const p2Info = infoResult?.resultados?.P2;
     const p3Info = infoResult?.resultados?.P3;
+
     if (p2Info && p2Info.status === 'positivo') {
       isViatura = true;
-      registrosFrotaPublica.push({
-        orgao: typeof p2Info.conteudo === 'string' ? p2Info.conteudo : 'OPERAÇÃO COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA',
-        tipoEntidade: 'viatura',
-        tipoUso: 'Viatura Policial / Operação Severa',
-        fonte: 'Base de Frotas Públicas'
-      });
-    }
-    if (p3Info && p3Info.status === 'positivo' && p3Info.conteudo) {
-      const itens = Array.isArray(p3Info.conteudo) ? p3Info.conteudo : [p3Info.conteudo];
-      for (const it of itens) {
-        if (!it) continue;
-        registrosFrotaPublica.push({
-          orgao: typeof it === 'string' ? it : it.orgao || it.ente_publico || 'ÓRGÃO PÚBLICO IDENTIFICADO',
-          tipoEntidade: 'frota_publica',
-          tipoUso: 'Ex-Frota Pública Governamental',
-          data: it.data || it.periodo,
+      const conteudoP2 = p2Info.conteudo;
+      if (Array.isArray(conteudoP2)) {
+        for (const it of conteudoP2) {
+          if (!it) continue;
+          registrosViaturas.push({
+            orgao: typeof it === 'string' ? it : it.orgao || it.ente_publico || 'OPERAÇÃO COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA',
+            tipoEntidade: 'viatura',
+            tipoUso: 'Viatura Policial / Operação Severa',
+            ano: extrairApenasAno(it.ano || it.data || it.periodo),
+            data: it.data || it.periodo,
+            fonte: 'Base de Frotas Públicas'
+          });
+        }
+      } else {
+        registrosViaturas.push({
+          orgao: typeof conteudoP2 === 'string' ? conteudoP2 : 'OPERAÇÃO COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA',
+          tipoEntidade: 'viatura',
+          tipoUso: 'Viatura Policial / Operação Severa',
+          ano: dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-',
           fonte: 'Base de Frotas Públicas'
         });
       }
     }
     for (const v of viaturasDetectadas) {
-      registrosFrotaPublica.push({
+      registrosViaturas.push({
         orgao: v.nome,
         documento: v.documento,
         tipoEntidade: 'viatura',
         tipoUso: 'Operação Policial / Segurança Pública',
+        ano: extrairApenasAno(v.data),
         data: v.data,
         cnae: v.cnae,
         cnaeDescricao: v.cnaeDescricao,
         fonte: 'Histórico Dominial'
       });
     }
+
+    if (p3Info && p3Info.status === 'positivo' && p3Info.conteudo) {
+      const itens = Array.isArray(p3Info.conteudo) ? p3Info.conteudo : [p3Info.conteudo];
+      for (const it of itens) {
+        if (!it) continue;
+        const anoCalc = extrairApenasAno(it.ano || it.data || it.periodo) !== '-'
+          ? extrairApenasAno(it.ano || it.data || it.periodo)
+          : (dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-');
+        const orgaoNome = typeof it === 'string'
+          ? it
+          : it.razaoSocial || it.razao_social || it.orgao || it.ente_publico || it.nome || 'ÓRGÃO PÚBLICO IDENTIFICADO';
+        registrosFrotaPublica.push({
+          orgao: orgaoNome,
+          tipoEntidade: 'frota_publica',
+          tipoUso: 'Ex-Frota Pública Governamental',
+          ano: String(anoCalc),
+          data: it.data || it.periodo,
+          uf: it.uf || null,
+          detalhes: it.texto || it.detalhes || null,
+          fonte: 'Base de Frotas Públicas'
+        });
+      }
+    }
     for (const pub of frotasPublicasDetectadas) {
-      registrosFrotaPublica.push({
-        orgao: pub.nome,
-        documento: pub.documento,
-        tipoEntidade: 'frota_publica',
-        tipoUso: 'Órgão Público na Cadeia Dominial',
-        data: pub.data,
-        cnae: pub.cnae,
-        cnaeDescricao: pub.cnaeDescricao,
-        fonte: 'Histórico Dominial'
-      });
+      const anoCalc = extrairApenasAno(pub.data) !== '-'
+        ? extrairApenasAno(pub.data)
+        : (dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-');
+      const jaExiste = registrosFrotaPublica.some((r) =>
+        (pub.documento && r.documento === pub.documento) ||
+        r.orgao?.includes(pub.nome?.substring(0, 8)) ||
+        pub.nome?.includes(r.orgao?.substring(0, 8))
+      );
+      if (!jaExiste) {
+        registrosFrotaPublica.push({
+          orgao: pub.nome,
+          documento: pub.documento,
+          tipoEntidade: 'frota_publica',
+          tipoUso: 'Órgão Público na Cadeia Dominial',
+          ano: String(anoCalc),
+          data: pub.data,
+          cnae: pub.cnae,
+          cnaeDescricao: pub.cnaeDescricao,
+          fonte: 'Histórico Dominial'
+        });
+      } else {
+        const itemExistente = registrosFrotaPublica.find((r) =>
+          r.orgao?.includes(pub.nome?.substring(0, 8)) || pub.nome?.includes(r.orgao?.substring(0, 8))
+        );
+        if (itemExistente && !itemExistente.documento && pub.documento) {
+          itemExistente.documento = pub.documento;
+          itemExistente.data = pub.data;
+          itemExistente.cnae = pub.cnae;
+          itemExistente.cnaeDescricao = pub.cnaeDescricao;
+        }
+      }
     }
 
     // Bancos / Financeiras / Leasing (P7) - Layout Oficial de 2 Colunas: Ano | Razão Social
@@ -1183,7 +1308,7 @@ export class E20Service {
         }
 
         case 'P2': { // HISTÓRICO DE OPERAÇÃO/USO COMO VIATURA POLICIAL
-          const positivo = isViatura || hasInfoSinistros;
+          const positivo = registrosViaturas.length > 0 || isViatura || hasInfoSinistros;
           return {
             codigo,
             titulo,
@@ -1193,14 +1318,15 @@ export class E20Service {
                 ? rawInfoConteudo
                 : 'IDENTIFICADA OPERAÇÃO SEVERA COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA')
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (viaturasDetectadas.length > 0 ? viaturasDetectadas : rawInfoConteudo) : null,
-            detalhes: positivo ? (viaturasDetectadas.length > 0 ? viaturasDetectadas : rawInfoConteudo) : null,
-            respostaInfoSinistros: rawInfoConteudo
+            conteudo: positivo ? (registrosViaturas.length > 0 ? registrosViaturas : (viaturasDetectadas.length > 0 ? viaturasDetectadas : rawInfoConteudo)) : null,
+            detalhes: positivo ? (registrosViaturas.length > 0 ? registrosViaturas : (viaturasDetectadas.length > 0 ? viaturasDetectadas : rawInfoConteudo)) : null,
+            respostaInfoSinistros: rawInfoConteudo,
+            total: positivo ? (registrosViaturas.length || viaturasDetectadas.length || 1) : 0
           };
         }
 
         case 'P3': { // HISTÓRICO DE EX-FROTA PÚBLICA
-          const positivo = frotasPublicasDetectadas.length > 0 || (hasInfoSinistros && !isViatura);
+          const positivo = registrosFrotaPublica.length > 0 || frotasPublicasDetectadas.length > 0 || hasInfoSinistros;
           return {
             codigo,
             titulo,
@@ -1208,11 +1334,12 @@ export class E20Service {
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
                 ? rawInfoConteudo
-                : `IDENTIFICADO USO PÚBLICO GOVERNAMENTAL (${frotasPublicasDetectadas.length || 1} registro(s))`)
+                : `IDENTIFICADO USO PÚBLICO GOVERNAMENTAL (${registrosFrotaPublica.length || frotasPublicasDetectadas.length || 1} registro(s))`)
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (frotasPublicasDetectadas.length > 0 ? frotasPublicasDetectadas : rawInfoConteudo) : null,
-            detalhes: positivo ? (frotasPublicasDetectadas.length > 0 ? frotasPublicasDetectadas : rawInfoConteudo) : null,
-            respostaInfoSinistros: rawInfoConteudo
+            conteudo: positivo ? (registrosFrotaPublica.length > 0 ? registrosFrotaPublica : (frotasPublicasDetectadas.length > 0 ? frotasPublicasDetectadas : rawInfoConteudo)) : null,
+            detalhes: positivo ? (registrosFrotaPublica.length > 0 ? registrosFrotaPublica : (frotasPublicasDetectadas.length > 0 ? frotasPublicasDetectadas : rawInfoConteudo)) : null,
+            respostaInfoSinistros: rawInfoConteudo,
+            total: positivo ? (registrosFrotaPublica.length || frotasPublicasDetectadas.length || 1) : 0
           };
         }
 
@@ -1314,6 +1441,60 @@ export class E20Service {
             detalhes: positivo ? cardRouboFurto.ocorrencias : null,
             respostaInfoSinistros: rawInfoConteudo,
             total: cardRouboFurto.totalOcorrencias
+          };
+        }
+
+        case 'P11': { // HISTÓRICO DE NOTIFICAÇÃO/OFERTA EM EDITAL ELETRÔNICO DE LEILÃO
+          const hasLeilaoDireto = hasInfoSinistros;
+          const temFrotaPublica = registrosFrotaPublica.length > 0 || frotasPublicasDetectadas.length > 0 || p3Info?.status === 'positivo';
+          const positivo = hasLeilaoDireto || temFrotaPublica;
+
+          let registrosLeilao: any[] = [];
+          if (hasLeilaoDireto && rawInfoConteudo) {
+            registrosLeilao = Array.isArray(rawInfoConteudo) ? [...rawInfoConteudo] : [rawInfoConteudo];
+          }
+
+          if (temFrotaPublica) {
+            // Regra Jurídica/Pericial Renacred: Veículos de órgãos públicos somente podem ser desmobilizados/alienados por leilão público (Lei 14.133/21 e Lei 8.666/93)
+            const orgaoOrigem = registrosFrotaPublica[0]?.orgao || frotasPublicasDetectadas[0]?.nome || p3Info?.conteudo?.razaoSocial || 'ÓRGÃO PÚBLICO';
+            const anoDesmob = registrosFrotaPublica[0]?.ano || extrairApenasAno(frotasPublicasDetectadas[0]?.data) || p3Info?.conteudo?.ano || (dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-');
+            const dataDesmob = registrosFrotaPublica[0]?.data || frotasPublicasDetectadas[0]?.data || null;
+
+            const leilaoPublicoItem = {
+              leiloeiro: 'LEILÃO ADMINISTRATIVO DE FROTA PÚBLICA',
+              comitente: orgaoOrigem,
+              orgao: orgaoOrigem,
+              lote: 'Lote de Desmobilização',
+              tipo: 'Desmobilização de Frota Pública por Edital de Leilão',
+              evento: 'Alienação de Bem Público Inservível/Desmobilizado (Lei 14.133/21 e Lei 8.666/93)',
+              edital: 'Edital de Leilão Público Governamental',
+              ano: String(anoDesmob),
+              data: dataDesmob,
+              detalhes: `Veículo desmobilizado da administração pública (${orgaoOrigem}) mediante alienação obrigatória por edital de leilão público.`,
+              fonte: 'Edital Administrativo / Cadeia Dominial Pública'
+            };
+
+            const jaTem = registrosLeilao.some((l: any) => (l.comitente && l.comitente === orgaoOrigem) || (l.tipo && l.tipo.includes('Frota Pública')));
+            if (!jaTem) {
+              registrosLeilao.push(leilaoPublicoItem);
+            }
+          }
+
+          return {
+            codigo,
+            titulo,
+            status: positivo ? 'positivo' : 'negativo',
+            mensagem: positivo
+              ? (hasLeilaoDireto && typeof rawInfoConteudo === 'string'
+                ? rawInfoConteudo
+                : (registrosLeilao.length > 0
+                  ? `IDENTIFICADA NOTIFICAÇÃO / EDITAL DE LEILÃO (${registrosLeilao.length} registro(s))`
+                  : 'IDENTIFICADA DESMOBILIZAÇÃO DE FROTA PÚBLICA POR EDITAL DE LEILÃO ADMINISTRATIVO'))
+              : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
+            conteudo: positivo ? (registrosLeilao.length > 0 ? registrosLeilao : rawInfoConteudo) : null,
+            detalhes: positivo ? (registrosLeilao.length > 0 ? registrosLeilao : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo,
+            total: positivo ? registrosLeilao.length || 1 : 0
           };
         }
 
