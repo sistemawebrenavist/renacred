@@ -1651,6 +1651,86 @@ export class E20Service {
           };
         }
 
+        case 'P24': { // INDICADOR DE EXPOSIÇÃO A SINISTRO E INTEGRIDADE DE COMPONENTES
+          const nativoPositivo = hasInfoSinistros;
+          const temRouboFurto = cardRouboFurto.status === 'alerta' || cardRouboFurto.status === 'recuperado' || cardRouboFurto.totalOcorrencias > 0;
+          const temTempoRoubado = Boolean(cardRouboFurto.tempoRoubado);
+
+          const p19Item = infoResult?.resultados?.P19;
+          const p20Item = infoResult?.resultados?.P20;
+          const p18Item = infoResult?.resultados?.P18;
+          const p14Item = infoResult?.resultados?.P14;
+          const p8Item = infoResult?.resultados?.P8;
+
+          const p19Pos = p19Item?.status === 'positivo';
+          const p20Pos = p20Item?.status === 'positivo';
+          const temRecuperadoSinistro = p19Pos || p20Pos;
+          const p18Pos = p18Item?.status === 'positivo';
+          const temIndenizacao = indenizacaoIntegral || registrosIndenizacaoIntegral.length > 0 || p14Item?.status === 'positivo';
+          const temSalvados = salvadosDetectados.length > 0 || p8Item?.status === 'positivo';
+
+          const positivo = nativoPositivo || temRouboFurto || temRecuperadoSinistro || p18Pos || temIndenizacao || temSalvados;
+
+          let mensagem = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
+          let detalhesExposicao: any = null;
+
+          if (positivo) {
+            const motivos: string[] = [];
+
+            if (temTempoRoubado) {
+              motivos.push(`Veículo sob queixa de roubo/furto (${cardRouboFurto.tempoRoubado})`);
+            } else if (temRouboFurto) {
+              motivos.push(cardRouboFurto.status === 'recuperado' ? 'Histórico de roubo/furto com recuperação registrada' : 'Alerta de roubo/furto ativo');
+            }
+
+            if (p19Pos) {
+              motivos.push('Apontamento de Recuperado de Sinistro (BRF)');
+            }
+            if (p20Pos) {
+              motivos.push('Apontamento de Sinistro Recuperado (ACT)');
+            }
+            if (temIndenizacao) {
+              motivos.push('Indenização Integral por Seguradora');
+            }
+            if (temSalvados) {
+              motivos.push('Comercialização em Loja de Salvados');
+            }
+            if (p18Pos) {
+              motivos.push('Envolvimento em Ocorrência Policial / Cometimento de Crimes');
+            }
+            if (nativoPositivo && typeof rawInfoConteudo === 'string' && rawInfoConteudo.trim() !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA') {
+              motivos.push(rawInfoConteudo);
+            }
+
+            mensagem = motivos.length > 0
+              ? `IDENTIFICADA EXPOSIÇÃO A SINISTRO: ${motivos.join(' • ')}`
+              : (typeof rawInfoConteudo === 'string' ? rawInfoConteudo : 'APONTAMENTO DE EXPOSIÇÃO A SINISTRO LOCALIZADO');
+
+            detalhesExposicao = {
+              tempoRoubado: cardRouboFurto.tempoRoubado || null,
+              statusRoubo: cardRouboFurto.status,
+              recuperadoSinistro: temRecuperadoSinistro,
+              p19: p19Item?.conteudo || null,
+              p20: p20Item?.conteudo || null,
+              ocorrencias: cardRouboFurto.ocorrencias,
+              motivos,
+              analiseIntegridade: 'Veículo com histórico de apropriação indevida ou evento de sinistro. Recomenda-se verificação cautelar de integridade de componentes (chassi, motor, numerações agregadas e estrutura).'
+            };
+          }
+
+          return {
+            codigo,
+            titulo,
+            status: positivo ? 'positivo' : 'negativo',
+            mensagem,
+            tempoRoubado: cardRouboFurto.tempoRoubado || null,
+            conteudo: positivo ? (detalhesExposicao || rawInfoConteudo) : null,
+            detalhes: positivo ? (detalhesExposicao || rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo,
+            total: positivo ? 1 : 0
+          };
+        }
+
         case 'P27': { // INDÍCIO DE USO COMO TÁXI/PCD
           const positivo = taxiPcdDetectados.length > 0 || hasInfoSinistros;
           return {

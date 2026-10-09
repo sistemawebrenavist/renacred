@@ -27,6 +27,13 @@ async function main() {
   console.log('Indicador P10 no Grid:', p10Item?.status, p10Item?.mensagem);
   console.log('P10 tempoRoubado:', p10Item?.tempoRoubado);
 
+  const p24Item = e20Res.indicadores?.find((i: any) => i.chave === 'P24');
+  console.log('\nIndicador P24 no Grid:');
+  console.log('Status P24:', p24Item?.status);
+  console.log('Mensagem P24:', p24Item?.mensagem);
+  console.log('tempoRoubado P24:', p24Item?.tempoRoubado);
+  console.log('Detalhes P24:', JSON.stringify(p24Item?.detalhes, null, 2));
+
   // Teste 3: InfoSinistros com a placa com inversão OLV8B15
   console.log('\n[3] Consultando InfoSinistros para OLV8B15 (inversão digitada):');
   const resOlv = await infosinistrosService.consultarPreVistoria('OLV8B15');

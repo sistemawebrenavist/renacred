@@ -799,6 +799,31 @@ export const E20PreVistoriaLaudo: React.FC<{
           const pos = !!outros?.sinistro_recuperado;
           return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Consta registro de recuperado de sinistro' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: outros?.sinistro_recuperado, conteudo: outros?.sinistro_recuperado };
         }
+        case 'P24': {
+          const temRoubo = rouboFurto?.status === 'alerta' || rouboFurto?.status === 'recuperado' || (Array.isArray(rouboFurto?.ocorrencias) && rouboFurto.ocorrencias.length > 0);
+          const temSinistroRecup = !!outros?.sinistro_recuperado;
+          const pos = temRoubo || temSinistroRecup;
+          let msg = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
+          if (pos) {
+            if (rouboFurto?.tempoRoubado) {
+              msg = `IDENTIFICADA EXPOSIÇÃO A SINISTRO: Veículo sob queixa de roubo/furto (${rouboFurto.tempoRoubado})`;
+            } else if (temSinistroRecup) {
+              msg = 'IDENTIFICADA EXPOSIÇÃO A SINISTRO: Consta registro de recuperado de sinistro';
+            } else {
+              msg = 'IDENTIFICADA EXPOSIÇÃO A SINISTRO: Veículo com histórico de ocorrência policial/roubo';
+            }
+          }
+          return {
+            chave: cat.chave,
+            titulo: cat.titulo,
+            consta: pos,
+            status: pos ? 'POSITIVO' : 'NEGATIVO',
+            mensagem: msg,
+            tempoRoubado: rouboFurto?.tempoRoubado,
+            detalhes: { tempoRoubado: rouboFurto?.tempoRoubado, ocorrencias: rouboFurto?.ocorrencias, sinistro_recuperado: outros?.sinistro_recuperado },
+            conteudo: { tempoRoubado: rouboFurto?.tempoRoubado, ocorrencias: rouboFurto?.ocorrencias, sinistro_recuperado: outros?.sinistro_recuperado }
+          };
+        }
         case 'P31': {
           const circ = dados?.outros_produtos?.circulacao || dados?.circulacao;
           const pos = Boolean(circ?.adquirido_0km || circ?.licenciamento_1);
@@ -881,6 +906,45 @@ export const E20PreVistoriaLaudo: React.FC<{
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* 2.1 Indicador de Exposição a Sinistro e Integridade de Componentes (P24) */}
+        {item.chave === 'P24' && (
+          <div className="space-y-2 pt-0.5">
+            {((item as any)?.tempoRoubado || dados?.tempoRoubado) && (
+              <div className="p-3 bg-amber-50 border border-amber-300 rounded-md text-[11px] text-amber-950 flex flex-wrap items-center justify-between gap-1.5 shadow-2xs">
+                <span className="font-bold text-amber-900 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  Tempo de Exposição sob Queixa de Roubo/Furto:
+                </span>
+                <span className="font-extrabold text-amber-950 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200">
+                  {(item as any)?.tempoRoubado || dados?.tempoRoubado}
+                </span>
+              </div>
+            )}
+
+            {Array.isArray(dados?.motivos) && dados.motivos.length > 0 && (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-[11px] space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">
+                  Fatores de Exposição a Sinistro Detectados:
+                </div>
+                <ul className="list-disc list-inside space-y-1 text-slate-800 font-medium">
+                  {dados.motivos.map((motivo: string, mIdx: number) => (
+                    <li key={mIdx}>{motivo}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-md text-[10.5px] text-blue-900 space-y-1">
+              <div className="font-bold text-blue-950 uppercase tracking-wider text-[10px]">
+                Diretriz Pericial de Integridade de Componentes:
+              </div>
+              <p className="text-blue-900 leading-relaxed font-medium">
+                {dados?.analiseIntegridade || 'Veículo submetido a período de apropriação indevida ou ocorrência de sinistro. Recomenda-se vistoria presencial para conferência dos padrões originais de gravação de chassi, numeração do motor, integridade do chicote elétrico, etiquetas ETA e ausência de adulterações estruturais.'}
+              </p>
+            </div>
           </div>
         )}
 
@@ -1756,7 +1820,14 @@ export const E20PreVistoriaLaudo: React.FC<{
         <div className="space-y-3">
           {indicadoresGrid.map((item: any, idx: number) => {
             const isPositivo = item.consta || item.status === 'POSITIVO';
-            const isAlertaCritico = isPositivo && (item.chave === 'P10' || item.chave === 'P14' || item.chave === 'P16' || item.chave === 'P18');
+            const isRouboRecuperado = item.chave === 'P10' && isPositivo && (
+              item.statusRoubo === 'recuperado' ||
+              item.temQueixaAtiva === false ||
+              item.mensagem?.includes('RECUPERAÇÃO REGISTRADA') ||
+              (Array.isArray(item.detalhes || item.conteudo) && (item.detalhes || item.conteudo).some((o: any) => String(o.tipo || '').toUpperCase().includes('RECUPER')) && !item.temQueixaAtiva)
+            );
+            const isAlertaCritico = isPositivo && !isRouboRecuperado && (item.chave === 'P10' || item.chave === 'P14' || item.chave === 'P16' || item.chave === 'P18');
+            const isExposicaoSinistro = isPositivo && item.chave === 'P24';
             const titulo = sanitizeTituloIndicador(item.titulo);
             const numeroItem = idx + 1;
 
@@ -1766,6 +1837,10 @@ export const E20PreVistoriaLaudo: React.FC<{
                 className={`border rounded-lg overflow-hidden shadow-2xs transition-all ${
                   isAlertaCritico
                     ? 'border-rose-300 bg-white'
+                    : isRouboRecuperado
+                    ? 'border-amber-300 bg-white'
+                    : isExposicaoSinistro
+                    ? 'border-amber-300 bg-white'
                     : isPositivo
                     ? 'border-slate-300 bg-white'
                     : 'border-slate-200 bg-white'
@@ -1776,6 +1851,10 @@ export const E20PreVistoriaLaudo: React.FC<{
                   className={`px-4 py-2.5 flex items-center justify-between gap-3 border-b ${
                     isAlertaCritico
                       ? 'bg-rose-900 text-white border-rose-950'
+                      : isRouboRecuperado
+                      ? 'bg-amber-950 text-white border-amber-900'
+                      : isExposicaoSinistro
+                      ? 'bg-slate-900 text-white border-slate-800'
                       : isPositivo
                       ? 'bg-slate-900 text-white border-slate-800'
                       : 'bg-slate-800 text-slate-100 border-slate-700'
@@ -1794,12 +1873,24 @@ export const E20PreVistoriaLaudo: React.FC<{
                     className={`px-2.5 py-0.5 rounded text-[10px] font-bold shrink-0 tracking-wider uppercase ${
                       isAlertaCritico
                         ? 'bg-rose-600 text-white'
+                        : isRouboRecuperado
+                        ? 'bg-amber-500 text-amber-950 font-extrabold border border-amber-300'
+                        : isExposicaoSinistro
+                        ? 'bg-amber-600 text-white font-extrabold'
                         : isPositivo
                         ? 'bg-slate-100 text-slate-900 font-extrabold border border-slate-300'
                         : 'bg-slate-700 text-slate-300 border border-slate-600'
                     }`}
                   >
-                    {isAlertaCritico ? 'ALERTA ATIVO' : isPositivo ? 'CONSTA REGISTRO' : 'NADA CONSTA'}
+                    {isAlertaCritico
+                      ? 'ALERTA ATIVO'
+                      : isRouboRecuperado
+                      ? 'RECUPERADO'
+                      : isExposicaoSinistro
+                      ? 'EXPOSIÇÃO DETECTADA'
+                      : isPositivo
+                      ? 'CONSTA REGISTRO'
+                      : 'NADA CONSTA'}
                   </span>
                 </div>
 

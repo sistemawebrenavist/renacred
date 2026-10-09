@@ -272,6 +272,31 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           const pos = Boolean(outros?.sinistro_recuperado);
           return { chave: cat.chave, numero: cat.numero, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Consta registro de recuperado de sinistro' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: outros?.sinistro_recuperado };
         }
+        case 'P24': {
+          const temRoubo = Boolean(rouboFurto.status === 'alerta' || rouboFurto.status === 'recuperado' || (Array.isArray(rouboFurto.ocorrencias) && rouboFurto.ocorrencias.length > 0));
+          const temSinistroRecup = Boolean(outros?.sinistro_recuperado);
+          const pos = temRoubo || temSinistroRecup;
+          let msg = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
+          if (pos) {
+            if (rouboFurto?.tempoRoubado) {
+              msg = `IDENTIFICADA EXPOSIÇÃO A SINISTRO: Veículo sob queixa de roubo/furto (${rouboFurto.tempoRoubado})`;
+            } else if (temSinistroRecup) {
+              msg = 'IDENTIFICADA EXPOSIÇÃO A SINISTRO: Consta registro de recuperado de sinistro';
+            } else {
+              msg = 'IDENTIFICADA EXPOSIÇÃO A SINISTRO: Veículo com histórico de ocorrência policial/roubo';
+            }
+          }
+          return {
+            chave: cat.chave,
+            numero: cat.numero,
+            titulo: cat.titulo,
+            consta: pos,
+            status: pos ? 'POSITIVO' : 'NEGATIVO',
+            mensagem: msg,
+            tempoRoubado: rouboFurto?.tempoRoubado,
+            detalhes: { tempoRoubado: rouboFurto?.tempoRoubado, ocorrencias: rouboFurto?.ocorrencias }
+          };
+        }
         case 'P31': {
           const circ = dados?.outros_produtos?.circulacao || dados?.circulacao;
           const pos = Boolean(circ?.adquirido_0km || circ?.licenciamento_1 || (Array.isArray(circ?.registros) && circ.registros.length > 0));
@@ -810,6 +835,40 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           doc.text(doc.splitTextToSize(textoSinistro, 175), 17, currentY + 8.5);
 
           currentY += 16;
+        }
+
+        // F2. Indicador de Exposição a Sinistro e Integridade de Componentes (P24)
+        else if (item.chave === 'P24' && item.consta) {
+          if (currentY + 24 > 265) {
+            doc.addPage();
+            currentY = 20;
+          }
+          doc.setFillColor(254, 243, 199); // Amber 100
+          doc.roundedRect(12, currentY, 190, 18, 1.5, 1.5, 'F');
+
+          doc.setFillColor(217, 119, 6); // Amber 600
+          doc.roundedRect(12, currentY, 2, 18, 1, 0, 'F');
+
+          doc.setFontSize(6.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(146, 64, 14); // Amber 800
+          doc.text('EXPOSIÇÃO A SINISTRO E INTEGRIDADE DE COMPONENTES:', 17, currentY + 4.5);
+
+          const tempoTxt = item.tempoRoubado || dadosItem?.tempoRoubado;
+          if (tempoTxt) {
+            doc.setFontSize(6);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(180, 83, 9);
+            doc.text(`TEMPO SOB QUEIXA: ${String(tempoTxt).toUpperCase()}`, 17, currentY + 8.5);
+          }
+
+          doc.setFontSize(5.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(30, 41, 59);
+          const orientacaoTxt = 'Veículo submetido a período de apropriação indevida ou ocorrência de sinistro. Recomenda-se vistoria presencial para conferência de gravação de chassi, numeração do motor, integridade do chicote elétrico e etiquetas ETA.';
+          doc.text(doc.splitTextToSize(orientacaoTxt, 175), 17, currentY + (tempoTxt ? 12.5 : 9));
+
+          currentY += 21;
         }
 
         // G. Atendimento a Sinistros (P26)
