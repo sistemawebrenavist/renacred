@@ -198,7 +198,7 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
         }
         case 'P14': {
           const pos = Boolean(dados?.seguradoras?.indenizacaoIntegral);
-          return { chave: cat.chave, numero: cat.numero, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indenização integral por seguradora' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.seguradoras?.registros };
+          return { chave: cat.chave, numero: cat.numero, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indenização integral por seguradora' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.seguradoras?.registrosIndenizacao || dados?.seguradoras?.registros };
         }
         case 'P17': {
           const historicoCru = Array.isArray(proprietarios.historico) ? proprietarios.historico : [];

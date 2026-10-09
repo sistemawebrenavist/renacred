@@ -967,8 +967,9 @@ export class E20Service {
       }
     }
 
-    // Seguradoras (P1 + P14)
+    // Seguradoras (P1 - Venda Direta / Remarketing) e Indenização Integral (P14)
     const registrosSeguradoras: any[] = [];
+    const registrosIndenizacaoIntegral: any[] = [];
     let indenizacaoIntegral = false;
     const p1Info = infoResult?.resultados?.P1;
     const p14Info = infoResult?.resultados?.P14;
@@ -976,6 +977,7 @@ export class E20Service {
       const itens = Array.isArray(p1Info.conteudo) ? p1Info.conteudo : [p1Info.conteudo];
       for (const it of itens) {
         if (!it) continue;
+        if (typeof it === 'string' && (it.includes('NENHUM REGISTRO') || it.includes('NA BASE INTERNA'))) continue;
         const anoCalc = extrairApenasAno(it.ano || it.data || it.periodo) !== '-'
           ? extrairApenasAno(it.ano || it.data || it.periodo)
           : (dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-');
@@ -994,17 +996,18 @@ export class E20Service {
       const itens = Array.isArray(p14Info.conteudo) ? p14Info.conteudo : [p14Info.conteudo];
       for (const it of itens) {
         if (!it) continue;
+        if (typeof it === 'string' && (it.includes('NENHUM REGISTRO') || it.includes('NA BASE INTERNA'))) continue;
         const anoCalc = extrairApenasAno(it.ano || it.data || it.periodo) !== '-'
           ? extrairApenasAno(it.ano || it.data || it.periodo)
           : (dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-');
-        registrosSeguradoras.push({
+        registrosIndenizacaoIntegral.push({
           seguradora: typeof it === 'string' ? it : it.seguradora || it.razao_social || 'CIA SEGURADORA',
           tipoEntidade: 'seguradora',
           tipoEvento: 'Indenização Integral de Sinistro',
           ano: String(anoCalc),
           data: it.data,
           detalhes: 'Veículo indenizado integralmente por sinistro/perda',
-          fonte: 'Registro de Remarketing / Salvados'
+          fonte: 'Registro de Sinistro / Indenização Integral'
         });
       }
     }
@@ -1042,24 +1045,20 @@ export class E20Service {
       if (Array.isArray(conteudoP2)) {
         for (const it of conteudoP2) {
           if (!it) continue;
-          registrosViaturas.push({
-            orgao: typeof it === 'string' ? it : it.orgao || it.ente_publico || 'OPERAÇÃO COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA',
-            tipoEntidade: 'viatura',
-            tipoUso: 'Viatura Policial / Operação Severa',
-            ano: extrairApenasAno(it.ano || it.data || it.periodo),
-            data: it.data || it.periodo,
-            fonte: 'Base de Frotas Públicas'
-          });
+          if (typeof it === 'object') {
+            registrosViaturas.push({
+              orgao: it.orgao || it.ente_publico || it.razao_social || it.nome || 'OPERAÇÃO COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA',
+              tipoEntidade: 'viatura',
+              tipoUso: 'Viatura Policial / Operação Severa',
+              ano: extrairApenasAno(it.ano || it.data || it.periodo),
+              data: it.data || it.periodo,
+              fonte: 'Base de Frotas Públicas'
+            });
+          }
         }
-      } else {
-        registrosViaturas.push({
-          orgao: typeof conteudoP2 === 'string' ? conteudoP2 : 'OPERAÇÃO COMO VIATURA POLICIAL / SEGURANÇA PÚBLICA',
-          tipoEntidade: 'viatura',
-          tipoUso: 'Viatura Policial / Operação Severa',
-          ano: dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-',
-          fonte: 'Base de Frotas Públicas'
-        });
       }
+      // Se conteudoP2 for string (ex: "ALERTA DE USO SEVERO!..."), NÃO criamos objeto sintético em registrosViaturas.
+      // O alerta textual oficial é retornado em rawInfoConteudo / respostaInfoSinistros evitando duplicidade visual.
     }
     for (const v of viaturasDetectadas) {
       registrosViaturas.push({
@@ -1499,7 +1498,7 @@ export class E20Service {
         }
 
         case 'P14': { // INDENIZAÇÃO INTEGRAL POR CIA SEGURADORA
-          const positivo = indenizacaoIntegral || hasInfoSinistros;
+          const positivo = registrosIndenizacaoIntegral.length > 0 || indenizacaoIntegral || hasInfoSinistros;
           return {
             codigo,
             titulo,
@@ -1507,11 +1506,14 @@ export class E20Service {
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
                 ? rawInfoConteudo
-                : 'IDENTIFICADA INDENIZAÇÃO INTEGRAL POR COMPANHIA SEGURADORA')
+                : (registrosIndenizacaoIntegral.length > 0
+                  ? `IDENTIFICADA INDENIZAÇÃO INTEGRAL POR CIA SEGURADORA (${registrosIndenizacaoIntegral.length} registro(s))`
+                  : 'IDENTIFICADA INDENIZAÇÃO INTEGRAL POR COMPANHIA SEGURADORA'))
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (rawInfoConteudo || 'Registro de Indenização Integral detectado') : null,
-            detalhes: positivo ? (rawInfoConteudo || 'Registro de Indenização Integral detectado') : null,
-            respostaInfoSinistros: rawInfoConteudo
+            conteudo: positivo ? (registrosIndenizacaoIntegral.length > 0 ? registrosIndenizacaoIntegral : rawInfoConteudo) : null,
+            detalhes: positivo ? (registrosIndenizacaoIntegral.length > 0 ? registrosIndenizacaoIntegral : rawInfoConteudo) : null,
+            respostaInfoSinistros: rawInfoConteudo,
+            total: positivo ? (registrosIndenizacaoIntegral.length || 1) : 0
           };
         }
 
@@ -1786,13 +1788,14 @@ export class E20Service {
         registros: registrosLocadoras
       },
       seguradoras: {
-        status: (registrosSeguradoras.length > 0 ? 'positivo' : 'negativo') as 'positivo' | 'negativo',
-        mensagem: registrosSeguradoras.length > 0
-          ? `IDENTIFICADO REGISTRO DE SEGURADORA OU SINISTRO (${registrosSeguradoras.length} registro(s))`
+        status: (registrosSeguradoras.length > 0 || registrosIndenizacaoIntegral.length > 0 ? 'positivo' : 'negativo') as 'positivo' | 'negativo',
+        mensagem: (registrosSeguradoras.length > 0 || registrosIndenizacaoIntegral.length > 0)
+          ? `IDENTIFICADO REGISTRO DE SEGURADORA OU SINISTRO (${registrosSeguradoras.length + registrosIndenizacaoIntegral.length} registro(s))`
           : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-        total: registrosSeguradoras.length,
+        total: registrosSeguradoras.length + registrosIndenizacaoIntegral.length,
         indenizacaoIntegral,
-        registros: registrosSeguradoras
+        registros: registrosSeguradoras,
+        registrosIndenizacao: registrosIndenizacaoIntegral
       },
       frota_publica: {
         status: (registrosFrotaPublica.length > 0 ? 'positivo' : 'negativo') as 'positivo' | 'negativo',

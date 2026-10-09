@@ -708,7 +708,7 @@ export const E20PreVistoriaLaudo: React.FC<{
         }
         case 'P14': {
           const pos = !!dados?.seguradoras?.indenizacaoIntegral;
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indenização integral por seguradora' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.seguradoras?.registros, conteudo: dados?.seguradoras?.registros };
+          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: pos ? 'Indenização integral por seguradora' : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: dados?.seguradoras?.registrosIndenizacao || dados?.seguradoras?.registros, conteudo: dados?.seguradoras?.registrosIndenizacao || dados?.seguradoras?.registros };
         }
         case 'P17': {
           const historicoCru = Array.isArray(proprietarios.historico) ? proprietarios.historico : [];
@@ -1195,6 +1195,17 @@ export const E20PreVistoriaLaudo: React.FC<{
                     </div>
                   );
                 }
+                return null;
+              }
+
+              // Evitar duplicar se o texto da entidade for idêntico ao alerta oficial já renderizado na Seção 1
+              if (
+                infoRaw &&
+                typeof infoRaw === 'string' &&
+                nomeEntidade &&
+                (infoRaw.trim().toLowerCase() === String(nomeEntidade).trim().toLowerCase() ||
+                 String(nomeEntidade).toUpperCase().includes('ALERTA DE USO SEVERO'))
+              ) {
                 return null;
               }
 
