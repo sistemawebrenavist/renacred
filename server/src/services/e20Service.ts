@@ -400,9 +400,33 @@ export function classificarEntidadeProprietario(
     return 'seguranca_privada';
   }
 
-  // 8. Lojas de Salvados (P8)
-  const regexSalvados = /\b(SALVADOS|AUTO SALVADOS|COMERCIO DE SALVADOS|PECAS SALVADOS|SUCATA|SUCATAS|DESMANCHE|SINISTRADOS|SINISTRADO|BATIDOS|BATIDO)\b/i;
-  if (regexSalvados.test(nome) || cnaeDesc.includes('SALVADOS')) {
+  // 8. Lojas de Salvados / Veículos Batidos / Desmanches (P8)
+  const regexSalvados = /\b(SALVADOS|SALVADO|AUTO\s*SALVADOS|COMERCIO\s*DE\s*SALVADOS|PECAS\s*SALVADOS|PEÇAS\s*SALVADOS|SUCATA|SUCATAS|DESMANCHE|DESMANCHES|DESMONTE|DESMONTES|CDV\b|CENTRO\s*DE\s*DESMONTE|CENTRO\s*DE\s*DESMANCHE|SINISTRADOS|SINISTRADO|BATIDOS|BATIDO|SO\s*BATIDOS|SÓ\s*BATIDOS|V\.?S\.?\s*TR[EÊ]S|VS\s*TR[EÊ]S|V\.?S\.?\s*3|VS\s*3)\b/i;
+  const cnpjsSalvadosConhecidos = new Set([
+    '00058283000122', // V.S. TRES Matriz (Pinhais/PR - Credenciada DETRAN/PR Salvados/Batidos)
+    '00058283000203', // V.S. TRES Filial (Curitiba/PR - Comércio de Veículos Batidos)
+    '00058283000394', // V.S. TRES Filial
+  ]);
+  const raizesCnpjSalvados = new Set([
+    '00058283', // V.S. TRES COMERCIO DE VEICULOS (Raiz 8 dígitos de Salvados/Batidos)
+  ]);
+  const isCnaeSalvados =
+    cnae === '4530704' ||
+    cnae.startsWith('46877') ||
+    cnae.startsWith('38319') ||
+    cnaeDesc.includes('SALVADOS') ||
+    cnaeDesc.includes('SALVADO') ||
+    cnaeDesc.includes('SUCATA') ||
+    cnaeDesc.includes('DESMANCHE') ||
+    cnaeDesc.includes('DESMONTE') ||
+    cnaeDesc.includes('PECAS USADAS') ||
+    cnaeDesc.includes('PEÇAS USADAS');
+  if (
+    regexSalvados.test(nome) ||
+    cnpjsSalvadosConhecidos.has(docLimpo) ||
+    (docLimpo.length >= 8 && raizesCnpjSalvados.has(docLimpo.slice(0, 8))) ||
+    isCnaeSalvados
+  ) {
     return 'salvados';
   }
 
@@ -752,7 +776,8 @@ export class E20Service {
           break;
         case 'salvados':
           salvadosDetectados.push(entidadeItem);
-          isEntidadeEspecial = true;
+          // Mantém no histórico dominial P17 para preservar o apontamento auditado do DPVAT
+          isEntidadeEspecial = false;
           break;
         case 'religiosa':
           religiosasDetectadas.push(entidadeItem);
@@ -1421,11 +1446,14 @@ export class E20Service {
             mensagem: positivo
               ? (typeof rawInfoConteudo === 'string'
                 ? rawInfoConteudo
-                : 'IDENTIFICADO HISTÓRICO DE COMERCIALIZAÇÃO EM LOJAS DE SALVADOS')
+                : (salvadosDetectados.length > 0
+                  ? `IDENTIFICADO HISTÓRICO DE COMERCIALIZAÇÃO EM LOJAS DE SALVADOS (${salvadosDetectados.length} registro(s))`
+                  : 'IDENTIFICADO HISTÓRICO DE COMERCIALIZAÇÃO EM LOJAS DE SALVADOS'))
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (salvadosDetectados.length > 0 ? salvadosDetectados : rawInfoConteudo) : null,
             detalhes: positivo ? (salvadosDetectados.length > 0 ? salvadosDetectados : rawInfoConteudo) : null,
-            respostaInfoSinistros: rawInfoConteudo
+            respostaInfoSinistros: rawInfoConteudo,
+            total: positivo ? (salvadosDetectados.length || 1) : 0
           };
         }
 
@@ -1818,7 +1846,7 @@ export class E20Service {
       fipe: dadosFipe,
       outros_produtos: {
         leiloes: infoResult?.resultados?.P11?.status === 'positivo' ? infoResult.resultados.P11.conteudo : null,
-        salvados: infoResult?.resultados?.P8?.status === 'positivo' ? infoResult.resultados.P8.conteudo : null,
+        salvados: infoResult?.resultados?.P8?.status === 'positivo' ? infoResult.resultados.P8.conteudo : (salvadosDetectados.length > 0 ? salvadosDetectados : null),
         sinistro_recuperado: infoResult?.resultados?.P19?.status === 'positivo' ? infoResult.resultados.P19.conteudo : (infoResult?.resultados?.P20?.status === 'positivo' ? infoResult.resultados.P20.conteudo : null),
         historico_km: infoResult?.resultados?.P21?.status === 'positivo' ? infoResult.resultados.P21.conteudo : null,
         laudo_cautelar: infoResult?.resultados?.P22?.status === 'positivo' ? infoResult.resultados.P22.conteudo : null,

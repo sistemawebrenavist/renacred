@@ -1035,13 +1035,35 @@ export const E20PreVistoriaLaudo: React.FC<{
             }
           }
 
+          // Ordenação estritamente cronológica pelas datas de posse/apontamento
+          proprietariosLimpos.sort((a, b) => {
+            const parseDate = (d?: any): number => {
+              if (!d) return 0;
+              const str = String(d).trim();
+              const ptMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+              if (ptMatch) {
+                return new Date(parseInt(ptMatch[3], 10), parseInt(ptMatch[2], 10) - 1, parseInt(ptMatch[1], 10)).getTime();
+              }
+              const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+              if (isoMatch) {
+                return new Date(parseInt(isoMatch[1], 10), parseInt(isoMatch[2], 10) - 1, parseInt(isoMatch[3], 10)).getTime();
+              }
+              const yMatch = str.match(/\b(19\d{2}|20\d{2})\b/);
+              if (yMatch) {
+                return new Date(parseInt(yMatch[1], 10), 0, 1).getTime();
+              }
+              const ts = new Date(str).getTime();
+              return isNaN(ts) ? 0 : ts;
+            };
+            return parseDate(a.data) - parseDate(b.data);
+          });
+
           return (
             <div className="space-y-2">
               <div className="overflow-x-auto border border-slate-200 rounded-lg">
                 <table className="w-full text-xs text-left text-slate-800">
                   <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10.5px]">
                     <tr>
-                      <th className="px-3.5 py-2.5 w-16 text-center">Ordem</th>
                       <th className="px-3.5 py-2.5">Proprietário</th>
                       <th className="px-3.5 py-2.5 w-36">Documento</th>
                       <th className="px-3.5 py-2.5 w-28">Data da Posse</th>
@@ -1051,7 +1073,6 @@ export const E20PreVistoriaLaudo: React.FC<{
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {proprietariosLimpos.map((prop: any, pIdx: number) => {
-                      const ordemLabel = `${pIdx + 1}º`;
                       const nomeProp = prop.nome || prop.razao_social || 'NÃO INFORMADO';
                       const doc = prop.documento ? formatDocumento(prop.documento) : '-';
                       const dataPosse = prop.data ? formatDateBR(prop.data) : (prop.ano ? String(prop.ano) : '-');
@@ -1061,9 +1082,6 @@ export const E20PreVistoriaLaudo: React.FC<{
 
                       return (
                         <tr key={`prop-${pIdx}`} className={`hover:bg-slate-50/80 transition-colors ${isVigente ? 'bg-emerald-50/30' : ''}`}>
-                          <td className="px-3.5 py-2.5 font-mono font-bold text-center text-slate-900 text-xs">
-                            {ordemLabel}
-                          </td>
                           <td className="px-3.5 py-2.5">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-slate-900 text-xs">{nomeProp}</span>
@@ -1110,6 +1128,8 @@ export const E20PreVistoriaLaudo: React.FC<{
                       ? 'Órgão Público'
                       : item.chave === 'P1' || item.chave === 'P14'
                       ? 'Seguradora'
+                      : item.chave === 'P8'
+                      ? 'Loja de Salvados / Batidos'
                       : 'Razão Social'}
                   </th>
                 </tr>

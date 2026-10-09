@@ -560,7 +560,12 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           autoTable(doc, {
             startY: currentY,
             margin: { left: 12, right: 12 },
-            head: [['ANO', 'INSTITUIÇÃO / RAZÃO SOCIAL', 'DOCUMENTO', 'PERFIL / CNAE']],
+            head: [[
+              'ANO',
+              item.chave === 'P8' ? 'LOJA DE SALVADOS / BATIDOS' : item.chave === 'P14' ? 'SEGURADORA' : 'INSTITUIÇÃO / RAZÃO SOCIAL',
+              'DOCUMENTO',
+              'PERFIL / CNAE'
+            ]],
             body: bodyData,
             theme: 'striped',
             headStyles: {
@@ -719,8 +724,28 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
             }
           }
 
-          const bodyData = propsUnicosPdf.map((prop: any, pIdx: number) => [
-            `${pIdx + 1}º`,
+          // Ordenação estritamente cronológica pelas datas de posse/apontamento
+          propsUnicosPdf.sort((a: any, b: any) => {
+            const getTimestamp = (prop: any) => {
+              if (prop.data) {
+                const s = String(prop.data).trim();
+                const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+                if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1])).getTime();
+                const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+                if (isoMatch) return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3])).getTime();
+                const iso = new Date(s).getTime();
+                if (!isNaN(iso)) return iso;
+              }
+              if (prop.ano) {
+                const y = parseInt(String(prop.ano), 10);
+                if (!isNaN(y)) return new Date(y, 0, 1).getTime();
+              }
+              return 0;
+            };
+            return getTimestamp(a) - getTimestamp(b);
+          });
+
+          const bodyData = propsUnicosPdf.map((prop: any) => [
             prop.nome || prop.razao_social || 'NÃO INFORMADO',
             prop.documento ? formatDocumento(prop.documento) : '-',
             prop.data ? formatDateBR(prop.data) : (prop.ano ? String(prop.ano) : '-'),
@@ -732,7 +757,7 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           autoTable(doc, {
             startY: currentY,
             margin: { left: 12, right: 12 },
-            head: [['ORDEM', 'PROPRIETÁRIO', 'DOCUMENTO', 'DATA POSSE', 'TEMPO POSSE', 'MUNICÍPIO/UF', 'STATUS']],
+            head: [['PROPRIETÁRIO', 'DOCUMENTO', 'DATA POSSE', 'TEMPO POSSE', 'MUNICÍPIO/UF', 'STATUS']],
             body: bodyData,
             theme: 'striped',
             headStyles: {
