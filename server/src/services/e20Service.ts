@@ -45,6 +45,7 @@ export interface E20IndicadorItem {
   detalhes?: any;
   respostaInfoSinistros?: any; // Resposta literal e completa da API InfoSinistros
   fonte?: string;
+  tempoRoubado?: string | null;
 }
 
 export interface E20ConsolidadoResponse {
@@ -927,17 +928,84 @@ export class E20Service {
       }
     }
 
-    const temAlertaAtivo = listaOcorrenciasConsolidada.some((o) => {
-      const t = String(o.tipo || '').toLowerCase();
-      const d = String(o.descricao || '').toLowerCase();
-      const isRecuperado = t.includes('recupera') || t.includes('devolu') || d.includes('recupera');
-      return (t.includes('furto') || t.includes('roubo')) && !isRecuperado;
-    });
     const temRecuperado = listaOcorrenciasConsolidada.some((o) => {
       const t = String(o.tipo || '').toLowerCase();
       const d = String(o.descricao || '').toLowerCase();
-      return t.includes('recupera') || t.includes('devolu') || d.includes('recupera');
+      return t.includes('recupera') || t.includes('devolu') || d.includes('recupera') || d.includes('devolu');
     });
+
+    const temQueixaRegistrada = listaOcorrenciasConsolidada.some((o) => {
+      const t = String(o.tipo || '').toLowerCase();
+      const d = String(o.descricao || '').toLowerCase();
+      return t.includes('furto') || t.includes('roubo') || t.includes('declara');
+    });
+
+    // Se possui recuperação ou devolução registrada, o alerta não está mais ativo
+    const temAlertaAtivo = temQueixaRegistrada && !temRecuperado;
+
+    // Enriquecimento e cálculo de tempo sob roubo / tempo subtraído
+    let tempoRoubado: string | null = null;
+    const ocQueixa = listaOcorrenciasConsolidada.find((o) => {
+      const t = String(o.tipo || '').toLowerCase();
+      const d = String(o.descricao || '').toLowerCase();
+      const isRecuperado = t.includes('recupera') || t.includes('devolu') || d.includes('recupera') || d.includes('devolu');
+      return (t.includes('furto') || t.includes('roubo') || t.includes('declara')) && !isRecuperado;
+    });
+    const ocRecup = listaOcorrenciasConsolidada.find((o) => {
+      const t = String(o.tipo || '').toLowerCase();
+      const d = String(o.descricao || '').toLowerCase();
+      return t.includes('recupera') || d.includes('recupera');
+    });
+
+    if (ocQueixa && ocRecup) {
+      const parseDt = (dStr?: any) => {
+        if (!dStr) return null;
+        const str = String(dStr).trim();
+        const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+        const iso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+        return null;
+      };
+
+      const dtQueixa = parseDt(ocQueixa.data);
+      const dtRecup = parseDt(ocRecup.data);
+
+      if (dtQueixa && dtRecup) {
+        const diffMs = dtRecup.getTime() - dtQueixa.getTime();
+        const diffDias = Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+        if (diffDias === 0) {
+          tempoRoubado = 'Recuperado no mesmo dia';
+        } else if (diffDias < 30) {
+          tempoRoubado = `${diffDias} dia(s)`;
+        } else {
+          const meses = Math.floor(diffDias / 30);
+          const diasRest = diffDias % 30;
+          tempoRoubado = `${meses} mês(es)${diasRest > 0 ? ` e ${diasRest} dia(s)` : ''} (${diffDias} dias)`;
+        }
+      } else if (dtRecup && (ocQueixa.ano || ocQueixa.data)) {
+        const rawAno = ocQueixa.ano || String(ocQueixa.data).match(/\b(19\d{2}|20\d{2})\b/)?.[1];
+        const anoQ = rawAno ? parseInt(String(rawAno), 10) : null;
+        const anoR = dtRecup.getFullYear();
+        const dtRecupBR = `${String(dtRecup.getDate()).padStart(2, '0')}/${String(dtRecup.getMonth() + 1).padStart(2, '0')}/${anoR}`;
+        if (anoQ === anoR) {
+          const mesR = dtRecup.getMonth() + 1;
+          tempoRoubado = `Recuperado em ${dtRecupBR} no mesmo ano da queixa (${anoQ}) • Duração estimada de até ${mesR} mês(es)`;
+        } else if (anoQ && anoR > anoQ) {
+          const diffAnos = anoR - anoQ;
+          tempoRoubado = `Recuperado em ${dtRecupBR} • Aproximadamente ${diffAnos} ano(s) após o ano do roubo (${anoQ})`;
+        }
+      } else if (ocQueixa.ano && ocRecup.ano) {
+        if (String(ocQueixa.ano) === String(ocRecup.ano)) {
+          tempoRoubado = `Roubado e recuperado no mesmo exercício (${ocQueixa.ano})`;
+        } else {
+          const diff = Math.max(1, Number(ocRecup.ano) - Number(ocQueixa.ano));
+          tempoRoubado = `Aproximadamente ${diff} ano(s) (queixa em ${ocQueixa.ano} e recuperação em ${ocRecup.ano})`;
+        }
+      }
+    } else if (ocQueixa && !ocRecup && temAlertaAtivo) {
+      tempoRoubado = `Alerta ativo desde ${ocQueixa.data || ocQueixa.ano || 'data não informada'} • Veículo ainda não recuperado`;
+    }
 
     const statusRouboFurto: 'alerta' | 'recuperado' | 'regular' = temAlertaAtivo
       ? 'alerta'
@@ -948,10 +1016,13 @@ export class E20Service {
     const cardRouboFurto = {
       status: statusRouboFurto,
       temQueixaAtiva: temAlertaAtivo,
+      tempoRoubado,
       mensagem: temAlertaAtivo
         ? 'CONSTAM OCORRÊNCIAS DE ROUBO OU FURTO ATIVAS'
         : temRecuperado
-          ? 'OCORRÊNCIA DE ROUBO/FURTO COM RECUPERAÇÃO REGISTRADA'
+          ? (tempoRoubado
+            ? `OCORRÊNCIA DE ROUBO/FURTO COM RECUPERAÇÃO REGISTRADA (${tempoRoubado})`
+            : 'OCORRÊNCIA DE ROUBO/FURTO COM RECUPERAÇÃO REGISTRADA')
           : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
       totalOcorrencias: listaOcorrenciasConsolidada.length,
       ocorrencias: listaOcorrenciasConsolidada
@@ -1464,6 +1535,7 @@ export class E20Service {
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: cardRouboFurto.mensagem,
+            tempoRoubado: cardRouboFurto.tempoRoubado,
             conteudo: positivo ? cardRouboFurto.ocorrencias : null,
             detalhes: positivo ? cardRouboFurto.ocorrencias : null,
             respostaInfoSinistros: rawInfoConteudo,

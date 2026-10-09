@@ -585,6 +585,47 @@ export class FetchBrasilService {
         }
       }
 
+      // Enriquecimento inteligente para E5 (Roubo e Furto): se renavam_ocorrencia não trouxe a data exata, busca em ocorrencias_senatran
+      if (product.code === 'E5' && rawData && Array.isArray(rawData.ocorrencias)) {
+        const precisaDeData = rawData.ocorrencias.some((o: any) => !o.data && !o.boletim_ocorrencia?.data);
+        if (precisaDeData && cleanQuery) {
+          try {
+            logger.info(`[FETCHBRASIL] E5: Enriquecendo boletins com datas exatas e municípios via ocorrencias_senatran para a placa ${cleanQuery}...`);
+            const senaRes = await this.client.get('/', {
+              params: {
+                token: this.token,
+                api: 'ocorrencias_senatran',
+                query: cleanQuery
+              },
+              timeout: 10000
+            });
+            const listaSena = Array.isArray(senaRes?.data?.ocorrencias) ? senaRes.data.ocorrencias : [];
+            for (const s of listaSena) {
+              const numS = String(s.numeroBoletimAno || s.numero_boletim || s.num_bo || '').trim();
+              for (const o of rawData.ocorrencias) {
+                const bo = o.boletim_ocorrencia || {};
+                const numO = String(bo.num || o.num_bo || bo.numero || o.numeroBoletimAno || '').trim();
+                if (numS && numO && (numO.includes(numS) || numS.includes(numO))) {
+                  if (s.data) {
+                    if (!bo.data) bo.data = s.data;
+                    o.data = s.data;
+                  }
+                  if (s.municipio) {
+                    if (!bo.municipio) bo.municipio = s.municipio;
+                    o.municipio = s.municipio;
+                  }
+                  if (s.descricao && !o.descricao) {
+                    o.descricao = s.descricao;
+                  }
+                }
+              }
+            }
+          } catch (err: any) {
+            logger.warn(`[FETCHBRASIL] Não foi possível enriquecer ocorrências E5 via ocorrencias_senatran: ${err.message}`);
+          }
+        }
+      }
+
       // Enriquecimento inteligente para E2 (Histórico de Proprietários) para garantir Razão Social em todos os CNPJs
       if (product.code === 'E2' && rawData) {
         await enrichProprietariosWithCnpj(rawData);

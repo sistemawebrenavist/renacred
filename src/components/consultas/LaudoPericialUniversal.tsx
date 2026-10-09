@@ -680,7 +680,16 @@ export const E20PreVistoriaLaudo: React.FC<{
         }
         case 'P10': {
           const pos = rouboFurto.status === 'alerta' || rouboFurto.status === 'recuperado';
-          return { chave: cat.chave, titulo: cat.titulo, consta: pos, status: pos ? 'POSITIVO' : 'NEGATIVO', mensagem: rouboFurto.mensagem || 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA', detalhes: rouboFurto.ocorrencias, conteudo: rouboFurto.ocorrencias };
+          return {
+            chave: cat.chave,
+            titulo: cat.titulo,
+            consta: pos,
+            status: pos ? 'POSITIVO' : 'NEGATIVO',
+            mensagem: rouboFurto.mensagem || 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
+            tempoRoubado: rouboFurto.tempoRoubado,
+            detalhes: rouboFurto.ocorrencias,
+            conteudo: rouboFurto.ocorrencias
+          };
         }
         case 'P11': {
           const temFrotaPub = !!dados?.frota_publica?.total || (Array.isArray(dados?.indicadores) && dados.indicadores.some((i: any) => (i.chave === 'P3' || i.codigo === 'P3') && (i.status === 'positivo' || i.consta)));
@@ -847,6 +856,12 @@ export const E20PreVistoriaLaudo: React.FC<{
         {/* 2. Roubo e Furto */}
         {item.chave === 'P10' && Array.isArray(dados) && dados.length > 0 && (
           <div className="space-y-1.5 pt-0.5">
+            {item.tempoRoubado && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-md text-[11px] text-rose-900 flex flex-wrap items-center justify-between gap-1 shadow-2xs">
+                <span className="font-semibold text-rose-800">Tempo sob queixa de roubo/furto:</span>
+                <span className="font-bold text-rose-950">{item.tempoRoubado}</span>
+              </div>
+            )}
             {dados.map((oc: any, oIdx: number) => (
               <div key={oIdx} className="p-2.5 bg-white rounded-md border border-rose-200 text-[11px] space-y-1 shadow-2xs">
                 <div className="flex items-center justify-between font-bold text-rose-950">
@@ -857,6 +872,7 @@ export const E20PreVistoriaLaudo: React.FC<{
                 </div>
                 <div className="text-slate-600 text-[10.5px]">
                   Boletim: <strong className="font-mono text-slate-800">{oc.numero_boletim || '-'}</strong> • Órgão: {oc.orgao_seguranca || '-'}
+                  {oc.municipio && <span> • Município: <strong className="text-slate-700">{oc.municipio}{oc.uf ? `/${oc.uf}` : ''}</strong></span>}
                 </div>
                 {oc.descricao && (
                   <div className="text-slate-600 text-[10.5px] italic bg-rose-50/50 p-1.5 rounded border border-rose-100">

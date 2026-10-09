@@ -590,18 +590,26 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
         // B. Roubo e Furto (P10)
         else if (item.chave === 'P10' && Array.isArray(dadosItem) && dadosItem.length > 0) {
+          if (item.tempoRoubado) {
+            doc.setFontSize(6);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(159, 18, 57);
+            doc.text(`TEMPO SOB QUEIXA DE ROUBO/FURTO: ${String(item.tempoRoubado).toUpperCase()}`, 12, currentY + 1);
+            currentY += 3.5;
+          }
+
           const bodyData = dadosItem.map((oc: any) => [
             oc.tipo || 'Ocorrência Policial',
             oc.data ? formatDateBR(oc.data) : (oc.ano || '-'),
             oc.numero_boletim || '-',
             oc.orgao_seguranca || '-',
-            oc.descricao || '-'
+            oc.municipio ? `${oc.municipio}${oc.uf ? `/${oc.uf}` : ''}` : (oc.descricao || '-')
           ]);
 
           autoTable(doc, {
             startY: currentY,
             margin: { left: 12, right: 12 },
-            head: [['OCORRÊNCIA', 'DATA / ANO', 'BOLETIM', 'ÓRGÃO', 'DESCRITIVO']],
+            head: [['OCORRÊNCIA', 'DATA / ANO', 'BOLETIM', 'ÓRGÃO', 'MUNICÍPIO / DESCRITIVO']],
             body: bodyData,
             theme: 'striped',
             headStyles: {
