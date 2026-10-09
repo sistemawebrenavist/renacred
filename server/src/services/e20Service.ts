@@ -1021,9 +1021,7 @@ export class E20Service {
       mensagem: temAlertaAtivo
         ? 'CONSTAM OCORRÊNCIAS DE ROUBO OU FURTO ATIVAS'
         : temRecuperado
-          ? (tempoRoubado
-            ? `OCORRÊNCIA DE ROUBO/FURTO COM RECUPERAÇÃO REGISTRADA (${tempoRoubado})`
-            : 'OCORRÊNCIA DE ROUBO/FURTO COM RECUPERAÇÃO REGISTRADA')
+          ? 'OCORRÊNCIA DE ROUBO/FURTO COM RECUPERAÇÃO REGISTRADA'
           : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
       totalOcorrencias: listaOcorrenciasConsolidada.length,
       ocorrencias: listaOcorrenciasConsolidada
@@ -1536,7 +1534,7 @@ export class E20Service {
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: cardRouboFurto.mensagem,
-            tempoRoubado: cardRouboFurto.tempoRoubado,
+            tempoRoubado: null,
             conteudo: positivo ? cardRouboFurto.ocorrencias : null,
             detalhes: positivo ? cardRouboFurto.ocorrencias : null,
             respostaInfoSinistros: rawInfoConteudo,
@@ -1671,62 +1669,44 @@ export class E20Service {
 
           const positivo = nativoPositivo || temRouboFurto || temRecuperadoSinistro || p18Pos || temIndenizacao || temSalvados;
 
-          let mensagem = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
-          let detalhesExposicao: any = null;
+          let fraseUnica = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
 
           if (positivo) {
-            const motivos: string[] = [];
+            const chassiFinal = dadosVeiculo.chassi
+              || (typeof infoResult?.chassi === 'string' ? infoResult.chassi : null)
+              || (typeof p19Item?.conteudo === 'string' ? p19Item.conteudo.match(/chassi\s+([A-Z0-9]+)/i)?.[1] : null);
+            const chassiIdent = chassiFinal ? ` de chassi ${chassiFinal}` : '';
 
             if (temTempoRoubado) {
-              motivos.push(`Veículo sob queixa de roubo/furto (${cardRouboFurto.tempoRoubado})`);
+              fraseUnica = `ATENÇÃO: O veículo${chassiIdent} possui apontamento de EXPOSIÇÃO A SINISTRO DE ROUBO/FURTO (${cardRouboFurto.tempoRoubado.toUpperCase()}).`;
             } else if (temRouboFurto) {
-              motivos.push(cardRouboFurto.status === 'recuperado' ? 'Histórico de roubo/furto com recuperação registrada' : 'Alerta de roubo/furto ativo');
+              fraseUnica = cardRouboFurto.status === 'recuperado'
+                ? `ATENÇÃO: O veículo${chassiIdent} possui histórico de EXPOSIÇÃO A SINISTRO DE ROUBO/FURTO COM RECUPERAÇÃO REGISTRADA.`
+                : `ATENÇÃO: O veículo${chassiIdent} possui apontamento ATIVO DE EXPOSIÇÃO A SINISTRO DE ROUBO/FURTO.`;
+            } else if (temRecuperadoSinistro) {
+              fraseUnica = `ATENÇÃO: O veículo${chassiIdent} possui apontamento de EXPOSIÇÃO A SINISTRO (RECUPERADO DE SINISTRO REGISTRADO NA BASE PERICIAL).`;
+            } else if (temIndenizacao) {
+              fraseUnica = `ATENÇÃO: O veículo${chassiIdent} possui apontamento de EXPOSIÇÃO A SINISTRO COM INDENIZAÇÃO INTEGRAL POR CIA SEGURADORA.`;
+            } else if (temSalvados) {
+              fraseUnica = `ATENÇÃO: O veículo${chassiIdent} possui histórico de EXPOSIÇÃO A SINISTRO COM PASSAGEM POR LOJA DE SALVADOS.`;
+            } else if (p18Pos) {
+              fraseUnica = `ATENÇÃO: O veículo${chassiIdent} possui histórico de EXPOSIÇÃO A OCORRÊNCIA POLICIAL / COMETIMENTO DE CRIMES.`;
+            } else if (typeof rawInfoConteudo === 'string' && rawInfoConteudo.trim() !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA') {
+              fraseUnica = rawInfoConteudo;
+            } else {
+              fraseUnica = `ATENÇÃO: O veículo${chassiIdent} possui apontamento de EXPOSIÇÃO A SINISTRO REGISTRADO NA BASE PERICIAL.`;
             }
-
-            if (p19Pos) {
-              motivos.push('Apontamento de Recuperado de Sinistro (BRF)');
-            }
-            if (p20Pos) {
-              motivos.push('Apontamento de Sinistro Recuperado (ACT)');
-            }
-            if (temIndenizacao) {
-              motivos.push('Indenização Integral por Seguradora');
-            }
-            if (temSalvados) {
-              motivos.push('Comercialização em Loja de Salvados');
-            }
-            if (p18Pos) {
-              motivos.push('Envolvimento em Ocorrência Policial / Cometimento de Crimes');
-            }
-            if (nativoPositivo && typeof rawInfoConteudo === 'string' && rawInfoConteudo.trim() !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA') {
-              motivos.push(rawInfoConteudo);
-            }
-
-            mensagem = motivos.length > 0
-              ? `IDENTIFICADA EXPOSIÇÃO A SINISTRO: ${motivos.join(' • ')}`
-              : (typeof rawInfoConteudo === 'string' ? rawInfoConteudo : 'APONTAMENTO DE EXPOSIÇÃO A SINISTRO LOCALIZADO');
-
-            detalhesExposicao = {
-              tempoRoubado: cardRouboFurto.tempoRoubado || null,
-              statusRoubo: cardRouboFurto.status,
-              recuperadoSinistro: temRecuperadoSinistro,
-              p19: p19Item?.conteudo || null,
-              p20: p20Item?.conteudo || null,
-              ocorrencias: cardRouboFurto.ocorrencias,
-              motivos,
-              analiseIntegridade: 'Veículo com histórico de apropriação indevida ou evento de sinistro. Recomenda-se verificação cautelar de integridade de componentes (chassi, motor, numerações agregadas e estrutura).'
-            };
           }
 
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
-            mensagem,
+            mensagem: fraseUnica,
             tempoRoubado: cardRouboFurto.tempoRoubado || null,
-            conteudo: positivo ? (detalhesExposicao || rawInfoConteudo) : null,
-            detalhes: positivo ? (detalhesExposicao || rawInfoConteudo) : null,
-            respostaInfoSinistros: rawInfoConteudo,
+            conteudo: positivo ? fraseUnica : null,
+            detalhes: positivo ? fraseUnica : null,
+            respostaInfoSinistros: positivo ? fraseUnica : (rawInfoConteudo || 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA'),
             total: positivo ? 1 : 0
           };
         }

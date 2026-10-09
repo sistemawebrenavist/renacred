@@ -685,8 +685,8 @@ export const E20PreVistoriaLaudo: React.FC<{
             titulo: cat.titulo,
             consta: pos,
             status: pos ? 'POSITIVO' : 'NEGATIVO',
-            mensagem: rouboFurto.mensagem || 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            tempoRoubado: rouboFurto.tempoRoubado,
+            mensagem: rouboFurto.mensagem || (pos ? (rouboFurto.status === 'recuperado' ? 'OCORRÊNCIA DE ROUBO/FURTO COM RECUPERAÇÃO REGISTRADA' : 'CONSTAM OCORRÊNCIAS DE ROUBO OU FURTO ATIVAS') : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA'),
+            tempoRoubado: null,
             detalhes: rouboFurto.ocorrencias,
             conteudo: rouboFurto.ocorrencias
           };
@@ -803,14 +803,15 @@ export const E20PreVistoriaLaudo: React.FC<{
           const temRoubo = rouboFurto?.status === 'alerta' || rouboFurto?.status === 'recuperado' || (Array.isArray(rouboFurto?.ocorrencias) && rouboFurto.ocorrencias.length > 0);
           const temSinistroRecup = !!outros?.sinistro_recuperado;
           const pos = temRoubo || temSinistroRecup;
-          let msg = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
+          const chassiStr = chassi && chassi !== '-' ? ` de chassi ${chassi}` : '';
+          let fraseUnica = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
           if (pos) {
             if (rouboFurto?.tempoRoubado) {
-              msg = `IDENTIFICADA EXPOSIÇÃO A SINISTRO: Veículo sob queixa de roubo/furto (${rouboFurto.tempoRoubado})`;
+              fraseUnica = `ATENÇÃO: O veículo${chassiStr} possui apontamento de EXPOSIÇÃO A SINISTRO DE ROUBO/FURTO (${rouboFurto.tempoRoubado.toUpperCase()}).`;
             } else if (temSinistroRecup) {
-              msg = 'IDENTIFICADA EXPOSIÇÃO A SINISTRO: Consta registro de recuperado de sinistro';
+              fraseUnica = `ATENÇÃO: O veículo${chassiStr} possui apontamento de EXPOSIÇÃO A SINISTRO (RECUPERADO DE SINISTRO REGISTRADO NA BASE PERICIAL).`;
             } else {
-              msg = 'IDENTIFICADA EXPOSIÇÃO A SINISTRO: Veículo com histórico de ocorrência policial/roubo';
+              fraseUnica = `ATENÇÃO: O veículo${chassiStr} possui apontamento de EXPOSIÇÃO A SINISTRO DE ROUBO/FURTO.`;
             }
           }
           return {
@@ -818,10 +819,11 @@ export const E20PreVistoriaLaudo: React.FC<{
             titulo: cat.titulo,
             consta: pos,
             status: pos ? 'POSITIVO' : 'NEGATIVO',
-            mensagem: msg,
+            mensagem: fraseUnica,
             tempoRoubado: rouboFurto?.tempoRoubado,
-            detalhes: { tempoRoubado: rouboFurto?.tempoRoubado, ocorrencias: rouboFurto?.ocorrencias, sinistro_recuperado: outros?.sinistro_recuperado },
-            conteudo: { tempoRoubado: rouboFurto?.tempoRoubado, ocorrencias: rouboFurto?.ocorrencias, sinistro_recuperado: outros?.sinistro_recuperado }
+            respostaInfoSinistros: pos ? fraseUnica : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
+            detalhes: pos ? fraseUnica : null,
+            conteudo: pos ? fraseUnica : null
           };
         }
         case 'P31': {
@@ -881,12 +883,6 @@ export const E20PreVistoriaLaudo: React.FC<{
         {/* 2. Roubo e Furto */}
         {item.chave === 'P10' && Array.isArray(dados) && dados.length > 0 && (
           <div className="space-y-1.5 pt-0.5">
-            {(item as any)?.tempoRoubado && (
-              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-md text-[11px] text-rose-900 flex flex-wrap items-center justify-between gap-1 shadow-2xs">
-                <span className="font-semibold text-rose-800">Tempo sob queixa de roubo/furto:</span>
-                <span className="font-bold text-rose-950">{(item as any)?.tempoRoubado}</span>
-              </div>
-            )}
             {dados.map((oc: any, oIdx: number) => (
               <div key={oIdx} className="p-2.5 bg-white rounded-md border border-rose-200 text-[11px] space-y-1 shadow-2xs">
                 <div className="flex items-center justify-between font-bold text-rose-950">
@@ -906,45 +902,6 @@ export const E20PreVistoriaLaudo: React.FC<{
                 )}
               </div>
             ))}
-          </div>
-        )}
-
-        {/* 2.1 Indicador de Exposição a Sinistro e Integridade de Componentes (P24) */}
-        {item.chave === 'P24' && (
-          <div className="space-y-2 pt-0.5">
-            {((item as any)?.tempoRoubado || dados?.tempoRoubado) && (
-              <div className="p-3 bg-amber-50 border border-amber-300 rounded-md text-[11px] text-amber-950 flex flex-wrap items-center justify-between gap-1.5 shadow-2xs">
-                <span className="font-bold text-amber-900 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                  Tempo de Exposição sob Queixa de Roubo/Furto:
-                </span>
-                <span className="font-extrabold text-amber-950 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200">
-                  {(item as any)?.tempoRoubado || dados?.tempoRoubado}
-                </span>
-              </div>
-            )}
-
-            {Array.isArray(dados?.motivos) && dados.motivos.length > 0 && (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-[11px] space-y-1.5">
-                <div className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">
-                  Fatores de Exposição a Sinistro Detectados:
-                </div>
-                <ul className="list-disc list-inside space-y-1 text-slate-800 font-medium">
-                  {dados.motivos.map((motivo: string, mIdx: number) => (
-                    <li key={mIdx}>{motivo}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-md text-[10.5px] text-blue-900 space-y-1">
-              <div className="font-bold text-blue-950 uppercase tracking-wider text-[10px]">
-                Diretriz Pericial de Integridade de Componentes:
-              </div>
-              <p className="text-blue-900 leading-relaxed font-medium">
-                {dados?.analiseIntegridade || 'Veículo submetido a período de apropriação indevida ou ocorrência de sinistro. Recomenda-se vistoria presencial para conferência dos padrões originais de gravação de chassi, numeração do motor, integridade do chicote elétrico, etiquetas ETA e ausência de adulterações estruturais.'}
-              </p>
-            </div>
           </div>
         )}
 
@@ -1436,7 +1393,7 @@ export const E20PreVistoriaLaudo: React.FC<{
         })()}
 
         {/* 9. Fallback Genérico para Objetos da Base (P11 Leilão, P12 Acidentes, P30 CSV, etc.) */}
-        {dados && typeof dados === 'object' && !Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P25', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && (
+        {dados && typeof dados === 'object' && !Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P24', 'P25', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && (
           <div className="p-2.5 bg-white rounded-md border border-slate-200 text-[11px] space-y-1">
             <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider pb-1 border-b border-slate-100">
               Dados Registrados na Base:

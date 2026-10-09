@@ -548,8 +548,8 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
         currentY += 8.5;
 
-        // Mensagem técnica de registro
-        if (item.mensagem && item.mensagem !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA') {
+        // Mensagem técnica de registro (evita duplicar quando o indicador tiver caixa própria de texto)
+        if (item.mensagem && item.mensagem !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' && !['P19', 'P20', 'P24'].includes(item.chave)) {
           doc.setFontSize(6.2);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(30, 41, 59);
@@ -615,13 +615,6 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
         // B. Roubo e Furto (P10)
         else if (item.chave === 'P10' && Array.isArray(dadosItem) && dadosItem.length > 0) {
-          if (item.tempoRoubado) {
-            doc.setFontSize(6);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(159, 18, 57);
-            doc.text(`TEMPO SOB QUEIXA DE ROUBO/FURTO: ${String(item.tempoRoubado).toUpperCase()}`, 12, currentY + 1);
-            currentY += 3.5;
-          }
 
           const bodyData = dadosItem.map((oc: any) => [
             oc.tipo || 'Ocorrência Policial',
@@ -839,36 +832,32 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
         // F2. Indicador de Exposição a Sinistro e Integridade de Componentes (P24)
         else if (item.chave === 'P24' && item.consta) {
-          if (currentY + 24 > 265) {
+          if (currentY + 18 > 265) {
             doc.addPage();
             currentY = 20;
           }
-          doc.setFillColor(254, 243, 199); // Amber 100
-          doc.roundedRect(12, currentY, 190, 18, 1.5, 1.5, 'F');
+          const textoP24 = typeof dadosItem === 'string'
+            ? dadosItem
+            : (item.respostaInfoSinistros || item.mensagem || 'Veículo possui apontamento de exposição a sinistro');
 
-          doc.setFillColor(217, 119, 6); // Amber 600
-          doc.roundedRect(12, currentY, 2, 18, 1, 0, 'F');
+          doc.setFillColor(254, 242, 242); // Rose 50
+          doc.setDrawColor(254, 202, 202); // Rose 200
+          doc.roundedRect(12, currentY, 186, 13, 1.5, 1.5, 'FD');
+
+          doc.setFillColor(159, 18, 57); // Rose 900
+          doc.roundedRect(12, currentY, 2, 13, 1, 0, 'F');
 
           doc.setFontSize(6.5);
           doc.setFont('helvetica', 'bold');
-          doc.setTextColor(146, 64, 14); // Amber 800
-          doc.text('EXPOSIÇÃO A SINISTRO E INTEGRIDADE DE COMPONENTES:', 17, currentY + 4.5);
+          doc.setTextColor(159, 18, 57);
+          doc.text('RESPOSTA REGISTRADA NA BASE DE PRÉ-VISTORIA:', 17, currentY + 4.5);
 
-          const tempoTxt = item.tempoRoubado || dadosItem?.tempoRoubado;
-          if (tempoTxt) {
-            doc.setFontSize(6);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(180, 83, 9);
-            doc.text(`TEMPO SOB QUEIXA: ${String(tempoTxt).toUpperCase()}`, 17, currentY + 8.5);
-          }
-
-          doc.setFontSize(5.5);
+          doc.setFontSize(6);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(30, 41, 59);
-          const orientacaoTxt = 'Veículo submetido a período de apropriação indevida ou ocorrência de sinistro. Recomenda-se vistoria presencial para conferência de gravação de chassi, numeração do motor, integridade do chicote elétrico e etiquetas ETA.';
-          doc.text(doc.splitTextToSize(orientacaoTxt, 175), 17, currentY + (tempoTxt ? 12.5 : 9));
+          doc.text(doc.splitTextToSize(textoP24, 175), 17, currentY + 8.5);
 
-          currentY += 21;
+          currentY += 16;
         }
 
         // G. Atendimento a Sinistros (P26)
