@@ -16,6 +16,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('expired')) {
+      toast.error('Sua sessão expirou. Por favor, faça login novamente.');
+      return;
+    }
+
     if (user) {
       if (user.isSuperAdmin) {
         navigate('/admin', { replace: true });

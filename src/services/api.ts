@@ -16,14 +16,25 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Redirecionar para login em caso de 401
+// Redirecionar para login em caso de 401 ou token expirado/inválido
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && !window.location.pathname.includes('/login')) {
+    const status = error.response?.status;
+    const message = (error.response?.data?.message || '').toLowerCase();
+
+    const isAuthFailure =
+      status === 401 ||
+      (status === 403 &&
+        (message.includes('token') ||
+          message.includes('autentica') ||
+          message.includes('expirad') ||
+          message.includes('inválid')));
+
+    if (isAuthFailure && !window.location.pathname.includes('/login')) {
       localStorage.removeItem('@renacred:token');
       localStorage.removeItem('@renacred:user');
-      window.location.href = '/login';
+      window.location.href = '/login?expired=1';
     }
     return Promise.reject(error);
   }

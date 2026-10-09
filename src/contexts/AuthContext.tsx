@@ -50,8 +50,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(response.data.data);
         localStorage.setItem('@renacred:user', JSON.stringify(response.data.data));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao atualizar perfil:', error);
+      const status = error.response?.status;
+      if (status === 401 || status === 403) {
+        localStorage.removeItem('@renacred:token');
+        localStorage.removeItem('@renacred:user');
+        setUser(null);
+      }
     }
   };
 

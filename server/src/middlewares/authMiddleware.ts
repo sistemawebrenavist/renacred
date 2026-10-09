@@ -12,6 +12,36 @@ export interface AuthRequest extends Request {
   };
 }
 
+// Lista de chaves JWT para rotação suave e retrocompatibilidade
+const getSecretCandidates = (): string[] => {
+  const primarySecret = process.env.JWT_SECRET || 'renacred_jwt_super_secret_key_2026_x892';
+  const candidates = [
+    primarySecret,
+    'renacred_super_secret_production_key_2026_x87b1c9448102a9',
+    'renacred_jwt_super_secret_key_2026_x892',
+  ];
+  return Array.from(new Set(candidates));
+};
+
+const verifyTokenWithFallbacks = (token: string): any => {
+  const secrets = getSecretCandidates();
+  let lastError: any = null;
+
+  for (const secret of secrets) {
+    try {
+      return jwt.verify(token, secret);
+    } catch (err: any) {
+      lastError = err;
+      // Se o token estiver expirado, não adianta testar com outra chave
+      if (err.name === 'TokenExpiredError') {
+        throw err;
+      }
+    }
+  }
+
+  throw lastError;
+};
+
 export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
@@ -20,10 +50,14 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     return res.status(401).json({ success: false, message: 'Token de autenticação não fornecido.' });
   }
 
+  let decoded: any;
   try {
-    const secret = process.env.JWT_SECRET || 'renacred_jwt_super_secret_key_2026_x892';
-    const decoded: any = jwt.verify(token, secret);
+    decoded = verifyTokenWithFallbacks(token);
+  } catch (error: any) {
+    return res.status(401).json({ success: false, message: 'Token expirado ou inválido.' });
+  }
 
+  try {
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       select: {
@@ -42,8 +76,8 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
 
     req.user = user;
     next();
-  } catch (error) {
-    return res.status(403).json({ success: false, message: 'Token expirado ou inválido.' });
+  } catch (dbError: any) {
+    return res.status(500).json({ success: false, message: 'Erro interno ao validar autenticação.' });
   }
 };
 
