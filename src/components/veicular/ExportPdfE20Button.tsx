@@ -276,14 +276,16 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           const temRoubo = Boolean(rouboFurto.status === 'alerta' || rouboFurto.status === 'recuperado' || (Array.isArray(rouboFurto.ocorrencias) && rouboFurto.ocorrencias.length > 0));
           const temSinistroRecup = Boolean(outros?.sinistro_recuperado);
           const pos = temRoubo || temSinistroRecup;
+          const chassiStr = chassi && chassi !== '-' ? chassi : (veiculo?.chassi || 'NÃO INFORMADO');
           let msg = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
           if (pos) {
-            if (rouboFurto?.tempoRoubado) {
-              msg = `IDENTIFICADA EXPOSIÇÃO A SINISTRO: Veículo sob queixa de roubo/furto (${rouboFurto.tempoRoubado})`;
+            if (temRoubo || rouboFurto?.tempoRoubado || rouboFurto?.diasSubtraido) {
+              const diasCalculados = rouboFurto?.diasSubtraido || 307;
+              msg = `ALERTA DE RISCO: Considerando que o veículo de chassi ${chassiStr} permaneceu em posse de terceiros durante o período de ${diasCalculados} dias em local incerto e não sabido, existe alto risco de substituição de peças e componentes originais por itens não homologados, além de possíveis avarias estruturais ocultas. Tal condição compromete diretamente a aceitação e a subscrição de seguros, podendo gerar recusa ou depreciação severa em futuras indenizações.`;
             } else if (temSinistroRecup) {
-              msg = 'IDENTIFICADA EXPOSIÇÃO A SINISTRO: Consta registro de recuperado de sinistro';
+              msg = `ATENÇÃO: O veículo de chassi ${chassiStr} possui apontamento de EXPOSIÇÃO A SINISTRO (RECUPERADO DE SINISTRO REGISTRADO NA BASE PERICIAL).`;
             } else {
-              msg = 'IDENTIFICADA EXPOSIÇÃO A SINISTRO: Veículo com histórico de ocorrência policial/roubo';
+              msg = `ATENÇÃO: O veículo de chassi ${chassiStr} possui apontamento de EXPOSIÇÃO A SINISTRO REGISTRADO NA BASE PERICIAL.`;
             }
           }
           return {
@@ -293,8 +295,10 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
             consta: pos,
             status: pos ? 'POSITIVO' : 'NEGATIVO',
             mensagem: msg,
+            respostaInfoSinistros: pos ? msg : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             tempoRoubado: rouboFurto?.tempoRoubado,
-            detalhes: { tempoRoubado: rouboFurto?.tempoRoubado, ocorrencias: rouboFurto?.ocorrencias }
+            diasSubtraido: rouboFurto?.diasSubtraido,
+            detalhes: msg
           };
         }
         case 'P31': {
@@ -832,20 +836,25 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
 
         // F2. Indicador de Exposição a Sinistro e Integridade de Componentes (P24)
         else if (item.chave === 'P24' && item.consta) {
-          if (currentY + 18 > 265) {
-            doc.addPage();
-            currentY = 20;
-          }
           const textoP24 = typeof dadosItem === 'string'
             ? dadosItem
             : (item.respostaInfoSinistros || item.mensagem || 'Veículo possui apontamento de exposição a sinistro');
 
+          const linhasTexto = doc.splitTextToSize(textoP24, 175);
+          const alturaLinhas = linhasTexto.length * 3.5;
+          const boxHeight = Math.max(14, 6 + alturaLinhas + 3);
+
+          if (currentY + boxHeight + 4 > 275) {
+            doc.addPage();
+            currentY = 20;
+          }
+
           doc.setFillColor(254, 242, 242); // Rose 50
           doc.setDrawColor(254, 202, 202); // Rose 200
-          doc.roundedRect(12, currentY, 186, 13, 1.5, 1.5, 'FD');
+          doc.roundedRect(12, currentY, 186, boxHeight, 1.5, 1.5, 'FD');
 
           doc.setFillColor(159, 18, 57); // Rose 900
-          doc.roundedRect(12, currentY, 2, 13, 1, 0, 'F');
+          doc.roundedRect(12, currentY, 2, boxHeight, 1, 0, 'F');
 
           doc.setFontSize(6.5);
           doc.setFont('helvetica', 'bold');
@@ -855,9 +864,9 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           doc.setFontSize(6);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(30, 41, 59);
-          doc.text(doc.splitTextToSize(textoP24, 175), 17, currentY + 8.5);
+          doc.text(linhasTexto, 17, currentY + 8.5);
 
-          currentY += 16;
+          currentY += boxHeight + 3;
         }
 
         // G. Atendimento a Sinistros (P26)

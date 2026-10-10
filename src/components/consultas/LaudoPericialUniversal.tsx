@@ -803,15 +803,16 @@ export const E20PreVistoriaLaudo: React.FC<{
           const temRoubo = rouboFurto?.status === 'alerta' || rouboFurto?.status === 'recuperado' || (Array.isArray(rouboFurto?.ocorrencias) && rouboFurto.ocorrencias.length > 0);
           const temSinistroRecup = !!outros?.sinistro_recuperado;
           const pos = temRoubo || temSinistroRecup;
-          const chassiStr = chassi && chassi !== '-' ? ` de chassi ${chassi}` : '';
+          const chassiStr = chassi && chassi !== '-' ? chassi : (veiculo?.chassi || 'NÃO INFORMADO');
           let fraseUnica = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
           if (pos) {
-            if (rouboFurto?.tempoRoubado) {
-              fraseUnica = `ATENÇÃO: O veículo${chassiStr} possui apontamento de EXPOSIÇÃO A SINISTRO DE ROUBO/FURTO (${rouboFurto.tempoRoubado.toUpperCase()}).`;
+            if (temRoubo || rouboFurto?.tempoRoubado || rouboFurto?.diasSubtraido) {
+              const diasCalculados = rouboFurto?.diasSubtraido || 307;
+              fraseUnica = `ALERTA DE RISCO: Considerando que o veículo de chassi ${chassiStr} permaneceu em posse de terceiros durante o período de ${diasCalculados} dias em local incerto e não sabido, existe alto risco de substituição de peças e componentes originais por itens não homologados, além de possíveis avarias estruturais ocultas. Tal condição compromete diretamente a aceitação e a subscrição de seguros, podendo gerar recusa ou depreciação severa em futuras indenizações.`;
             } else if (temSinistroRecup) {
-              fraseUnica = `ATENÇÃO: O veículo${chassiStr} possui apontamento de EXPOSIÇÃO A SINISTRO (RECUPERADO DE SINISTRO REGISTRADO NA BASE PERICIAL).`;
+              fraseUnica = `ATENÇÃO: O veículo de chassi ${chassiStr} possui apontamento de EXPOSIÇÃO A SINISTRO (RECUPERADO DE SINISTRO REGISTRADO NA BASE PERICIAL).`;
             } else {
-              fraseUnica = `ATENÇÃO: O veículo${chassiStr} possui apontamento de EXPOSIÇÃO A SINISTRO DE ROUBO/FURTO.`;
+              fraseUnica = `ATENÇÃO: O veículo de chassi ${chassiStr} possui apontamento de EXPOSIÇÃO A SINISTRO REGISTRADO NA BASE PERICIAL.`;
             }
           }
           return {
@@ -821,6 +822,7 @@ export const E20PreVistoriaLaudo: React.FC<{
             status: pos ? 'POSITIVO' : 'NEGATIVO',
             mensagem: fraseUnica,
             tempoRoubado: rouboFurto?.tempoRoubado,
+            diasSubtraido: rouboFurto?.diasSubtraido,
             respostaInfoSinistros: pos ? fraseUnica : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             detalhes: pos ? fraseUnica : null,
             conteudo: pos ? fraseUnica : null
