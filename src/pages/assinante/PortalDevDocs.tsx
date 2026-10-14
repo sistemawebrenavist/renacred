@@ -209,7 +209,7 @@ class Program {
               Documentação da API REST Oficial
             </h1>
             <p className="text-xs text-slate-500 mt-1 max-w-3xl">
-              Integração programática direta com os 16 produtos de inteligência patrimonial, cadastral e veicular da Renacred. Respostas em JSON de alta velocidade com garantia de custo zero para consultas sem registros.
+              Integração programática direta com os 16 produtos de inteligência patrimonial, cadastral e veicular da Renacred. Respostas em JSON de alta velocidade.
             </p>
           </div>
 

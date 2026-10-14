@@ -259,9 +259,8 @@ export default function ConsultarProprietarios() {
             </button>
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2.5 px-1">
+          <div className="flex items-center text-[11px] text-slate-500 mt-2.5 px-1">
             <span>Aceita placas convencionais (ABC-1234) e padrão Mercosul (ABC1D23)</span>
-            <span className="font-semibold text-emerald-700">Sem dados localizados = Custo R$ 0,00</span>
           </div>
         </form>
       </div>

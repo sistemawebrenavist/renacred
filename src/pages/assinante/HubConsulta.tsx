@@ -547,14 +547,8 @@ export default function HubConsulta() {
               </div>
             </div>
 
-            {/* Destaques Técnicos e Regra de Cobrança */}
-            <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between text-xs text-slate-500 gap-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="font-semibold text-slate-700">Garantia Renacred:</span>
-                <span className="text-slate-600">Cobrança de R$ 0,00 se nenhum dado for localizado.</span>
-                <span>•</span>
-                <span className="text-slate-600">Tempo médio de resposta &lt; 2.5s.</span>
-              </div>
+            {/* Valor da Consulta */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
               <div className="font-mono text-slate-700 flex items-center space-x-1.5">
                 <span>Valor da consulta:</span>
                 <strong className="text-slate-900">

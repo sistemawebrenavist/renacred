@@ -47,7 +47,7 @@ export default function CatalogoProdutos() {
               Catálogo de Produtos & Serviços de API
             </h1>
             <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
-              Portfólio com {PRODUCTS_CATALOG.length} bases oficiais integradas em tempo real para inteligência patrimonial, cadastral e veicular. Cobrança sob demanda individualizada com garantia de custo zero para consultas sem registros.
+              Portfólio com {PRODUCTS_CATALOG.length} bases oficiais integradas em tempo real para inteligência patrimonial, cadastral e veicular. Cobrança sob demanda individualizada.
             </p>
           </div>
         </div>
