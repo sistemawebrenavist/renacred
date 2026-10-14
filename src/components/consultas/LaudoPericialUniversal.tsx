@@ -2584,11 +2584,11 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                 Valor Total: <strong className="text-slate-900">R$ {dados.valor_total || '0,00'}</strong>
               </span>
               <span>
-                Exigível: <strong className={dados.valor_total_exigivel && dados.valor_total_exigivel !== '0.00' && dados.valor_total_exigivel !== '0,00' ? 'text-rose-700 font-bold' : 'text-slate-700'}>R$ {dados.valor_total_exigivel || '0,00'}</strong>
+                Pendente de Pagamento: <strong className={dados.valor_total_exigivel && dados.valor_total_exigivel !== '0.00' && dados.valor_total_exigivel !== '0,00' ? 'text-rose-700 font-bold' : 'text-slate-700'}>R$ {dados.valor_total_exigivel || '0,00'}</strong>
               </span>
               {dados.valor_total_nao_exigivel && (
                 <span className="text-slate-500">
-                  Não Exigível: <strong>R$ {dados.valor_total_nao_exigivel}</strong>
+                  Em Processamento: <strong>R$ {dados.valor_total_nao_exigivel}</strong>
                 </span>
               )}
             </div>
@@ -2613,7 +2613,18 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {multas.map((m: any, idx: number) => {
-                    const isExigivel = (m.situacao || '').toLowerCase().includes('exigível') && !(m.situacao || '').toLowerCase().includes('não');
+                    const rawSituacao = String(m.situacao || 'Autuada');
+                    const situacaoFinal = (() => {
+                      const sLower = rawSituacao.toLowerCase();
+                      if (sLower.includes('não exigível') || sLower.includes('nao exigivel') || sLower.includes('em processamento')) {
+                        return 'Em Processamento';
+                      }
+                      if (sLower.includes('exigível') || sLower.includes('exigivel') || sLower.includes('pendente de pagamento')) {
+                        return 'Pendente de Pagamento';
+                      }
+                      return rawSituacao;
+                    })();
+                    const isPendente = situacaoFinal === 'Pendente de Pagamento';
                     const formattedValor = typeof m.valor === 'number'
                       ? m.valor.toFixed(2).replace('.', ',')
                       : (Number(m.valor) ? Number(m.valor).toFixed(2).replace('.', ',') : (m.valor || '0,00'));
@@ -2661,12 +2672,12 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                           <div className="inline-flex flex-col items-center gap-1">
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                isExigivel
+                                isPendente
                                   ? 'bg-rose-50 text-rose-800 border-rose-200'
                                   : 'bg-slate-100 text-slate-700 border-slate-200'
                               }`}
                             >
-                              {m.situacao || 'Autuada'}
+                              {situacaoFinal}
                             </span>
                             {m.gravidade && (
                               <span className="text-[10px] text-slate-500 font-sans font-medium">

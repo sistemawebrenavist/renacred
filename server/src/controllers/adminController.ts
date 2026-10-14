@@ -321,6 +321,18 @@ export const listCompanies = async (req: Request, res: Response) => {
           },
           orderBy: { createdAt: 'desc' }
         },
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true,
+            lastLogin: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'asc' }
+        },
         invoices: {
           where: { status: 'OPEN' },
           select: {
@@ -759,3 +771,184 @@ export const revokeApiKeyAdmin = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: 'Erro ao desativar chave de API.' });
   }
 };
+
+/**
+ * Listagem de usuários de uma empresa (Admin)
+ */
+export const listCompanyUsers = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const users = await prisma.user.findMany({
+      where: { companyId: id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        lastLogin: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    return res.json({ success: true, data: users });
+  } catch (error: any) {
+    logger.error(`[ADMIN] Erro ao listar usuários da empresa ${req.params.id}: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao listar usuários da empresa.' });
+  }
+};
+
+/**
+ * Alteração de senha de usuário de um cliente pelo SuperAdmin
+ */
+export const updateUserPasswordAdmin = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'A nova senha deve possuir no mínimo 6 caracteres.'
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { company: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+
+    logger.info(`[ADMIN] Senha do usuário ${user.email} (${user.id}) alterada com sucesso pelo SuperAdmin.`);
+
+    return res.json({
+      success: true,
+      message: `Senha de acesso para o usuário ${user.email} alterada com sucesso!`
+    });
+  } catch (error: any) {
+    logger.error(`[ADMIN] Erro ao alterar senha do usuário ${req.params.userId}: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao alterar senha do usuário.' });
+  }
+};
+
+/**
+ * Ativação ou Desativação de acesso de um usuário pelo SuperAdmin
+ */
+export const updateUserStatusAdmin = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { isActive } = req.body;
+
+    if (isActive === undefined) {
+      return res.status(400).json({ success: false, message: 'Status isActive é obrigatório.' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { company: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado.' });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: Boolean(isActive) },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        lastLogin: true,
+        createdAt: true,
+      }
+    });
+
+    const statusText = updated.isActive ? 'ativado' : 'desativado';
+    logger.info(`[ADMIN] Usuário ${user.email} foi ${statusText} pelo SuperAdmin.`);
+
+    return res.json({
+      success: true,
+      message: updated.isActive
+        ? `Usuário ${user.email} ativado com sucesso!`
+        : `Usuário ${user.email} desativado com sucesso! O acesso ao portal foi bloqueado.`,
+      data: updated
+    });
+  } catch (error: any) {
+    logger.error(`[ADMIN] Erro ao atualizar status do usuário ${req.params.userId}: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao atualizar status do usuário.' });
+  }
+};
+
+/**
+ * Cadastro de novo usuário de acesso para um assinante
+ */
+export const createCompanyUserAdmin = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'E-mail e senha são obrigatórios.' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'A senha deve conter no mínimo 6 caracteres.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const existing = await prisma.user.findUnique({ where: { email: cleanEmail } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Já existe um usuário com este e-mail na plataforma.' });
+    }
+
+    const company = await prisma.company.findUnique({ where: { id } });
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Empresa não encontrada.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await prisma.user.create({
+      data: {
+        companyId: id,
+        name: name || company.razaoSocial,
+        email: cleanEmail,
+        password: hashedPassword,
+        role: 'COMPANY_USER',
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        lastLogin: true,
+        createdAt: true,
+      }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Usuário cadastrado com sucesso!',
+      data: newUser
+    });
+  } catch (error: any) {
+    logger.error(`[ADMIN] Erro ao cadastrar usuário na empresa ${req.params.id}: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao cadastrar usuário.' });
+  }
+};
+

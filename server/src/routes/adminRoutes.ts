@@ -10,7 +10,11 @@ import {
   createCompany,
   deleteCompany,
   createApiKeyForCompany,
-  revokeApiKeyAdmin
+  revokeApiKeyAdmin,
+  listCompanyUsers,
+  updateUserPasswordAdmin,
+  updateUserStatusAdmin,
+  createCompanyUserAdmin
 } from '../controllers/adminController';
 import { authenticateToken, requireSuperAdmin } from '../middlewares/authMiddleware';
 
@@ -28,6 +32,13 @@ router.delete('/companies/:id', deleteCompany);
 router.post('/companies/:id/credits', adjustCreditsManual);
 router.post('/companies/:id/keys', createApiKeyForCompany);
 router.delete('/companies/keys/:keyId', revokeApiKeyAdmin);
+
+// Gestão de Usuários e Acesso do Assinante
+router.get('/companies/:id/users', listCompanyUsers);
+router.post('/companies/:id/users', createCompanyUserAdmin);
+router.put('/users/:userId/password', updateUserPasswordAdmin);
+router.put('/users/:userId/status', updateUserStatusAdmin);
+
 router.post('/consulta-superadmin', superAdminQuery);
 router.get('/logs/response', getLogQueryResponse);
 router.get('/logs', listApiLogs);

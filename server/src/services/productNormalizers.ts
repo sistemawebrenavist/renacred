@@ -408,8 +408,16 @@ export function normalizeE8(raw: any): NormalizedResult {
           const s = String(dataStr);
           dataStr = `20${s.substring(0, 2)}-${s.substring(2, 4)}-${s.substring(4, 6)}`;
         }
-        const exigivelDesc = m.exigivel === '1' || m.exigivel === 1 ? 'Exigível' : (m.exigivel === '0' || m.exigivel === 0 ? 'Não Exigível' : undefined);
-        const situacaoFinal = m.situacao_descricao || m.situacao || exigivelDesc || 'Autuada';
+        const exigivelDesc = m.exigivel === '1' || m.exigivel === 1 ? 'Pendente de Pagamento' : (m.exigivel === '0' || m.exigivel === 0 ? 'Em Processamento' : undefined);
+        let situacaoFinal = m.situacao_descricao || m.situacao || exigivelDesc || 'Autuada';
+        if (typeof situacaoFinal === 'string') {
+          const sLower = situacaoFinal.toLowerCase();
+          if (sLower.includes('não exigível') || sLower.includes('nao exigivel')) {
+            situacaoFinal = 'Em Processamento';
+          } else if (sLower.includes('exigível') || sLower.includes('exigivel')) {
+            situacaoFinal = 'Pendente de Pagamento';
+          }
+        }
 
         return cleanObject({
           auto_infracao: m.auto_infracao,

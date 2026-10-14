@@ -140,7 +140,11 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
   const cleanQuery = validation.cleaned;
 
   // 3. Checagem de elegibilidade e faturamento
-  const company = req.user?.company;
+  let company = req.user?.company;
+  if (!company && companyId) {
+    company = await prisma.company.findUnique({ where: { id: companyId } });
+  }
+
   let eligibility: BillingCheckResult = { allowed: true, price: product.defaultPrice };
 
   if (!isSuperAdmin) {
@@ -151,7 +155,11 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
     if (!isContracted) {
       return res.status(403).json({
         success: false,
-        code: 'PRODUCT_NOT_CONTRACTED',
+        type: 'https://renacred.com.br/errors/product-not-allowed',
+        title: 'Produto Não Contratado',
+        status: 403,
+        detail: `A sua organização não possui permissão para consumir o produto ${product.code} (${product.name}). Entre em contato com seu gestor para liberação.`,
+        code: 'PRODUCT_NOT_ALLOWED',
         message: `O produto ${product.code} (${product.name}) não está habilitado no plano contratado da sua organização. Entre em contato com seu gestor comercial para liberação imediata.`
       });
     }

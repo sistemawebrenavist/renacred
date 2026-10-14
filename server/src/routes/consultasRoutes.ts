@@ -10,7 +10,10 @@ router.use(authenticateToken);
 
 // Catálogo de produtos oficiais com dados de faturamento da empresa
 router.get('/catalogo', async (req: any, res) => {
-  const company = req.user?.company;
+  let company = req.user?.company;
+  if (!company && req.user?.companyId) {
+    company = await prisma.company.findUnique({ where: { id: req.user.companyId } });
+  }
   const isSuperAdmin = !!req.user?.isSuperAdmin;
 
   const allowedProducts: string[] = company?.allowedProducts || ['ALL'];

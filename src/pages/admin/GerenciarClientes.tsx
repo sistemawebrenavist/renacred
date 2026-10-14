@@ -15,11 +15,13 @@ import {
   ChevronDown,
   Building2,
   ShieldCheck,
-  Receipt
+  Receipt,
+  UserCog
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import { UserAccessModal } from '../../components/admin/UserAccessModal';
 import { PRODUCTS_CATALOG, getProductByCode } from '../../config/productsCatalog';
 
 export function getClientApiEndpoint(allowedProducts: string[] | undefined | null, token: string) {
@@ -66,6 +68,9 @@ export default function GerenciarClientes() {
   const [apiKeyModalCompany, setApiKeyModalCompany] = useState<any | null>(null);
   const [generatingKey, setGeneratingKey] = useState(false);
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+
+  // Modal de Gestão de Usuário e Alteração de Senha (Admin)
+  const [userAccessCompany, setUserAccessCompany] = useState<any | null>(null);
 
   // Menu Dropdown de Ações por Cliente
   const [activeActionsMenu, setActiveActionsMenu] = useState<string | null>(null);
@@ -792,6 +797,17 @@ export default function GerenciarClientes() {
                               >
                                 <KeyRound className="w-4 h-4 text-purple-600 shrink-0" />
                                 <span>Chaves & Endpoints API</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveActionsMenu(null);
+                                  setUserAccessCompany(c);
+                                }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-amber-50/70 flex items-center gap-2.5 text-amber-800 transition cursor-pointer"
+                              >
+                                <UserCog className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>Alterar Senha / Usuário</span>
                               </button>
                               <button
                                 type="button"
@@ -1894,6 +1910,14 @@ export default function GerenciarClientes() {
         loading={deleting}
         onConfirm={executeDeleteCompany}
         onClose={() => setCompanyToDelete(null)}
+      />
+
+      {/* Modal de Gestão de Usuários e Senhas */}
+      <UserAccessModal
+        isOpen={!!userAccessCompany}
+        company={userAccessCompany}
+        onClose={() => setUserAccessCompany(null)}
+        onUserUpdated={fetchCompanies}
       />
     </div>
   );

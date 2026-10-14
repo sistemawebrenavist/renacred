@@ -9,6 +9,8 @@ export interface AuthRequest extends Request {
     role: string;
     companyId: string;
     isSuperAdmin: boolean;
+    isActive?: boolean;
+    company?: any;
   };
 }
 
@@ -67,6 +69,7 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
         companyId: true,
         isSuperAdmin: true,
         isActive: true,
+        company: true,
       }
     });
 
@@ -74,7 +77,11 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
       return res.status(401).json({ success: false, message: 'Usuário inválido ou inativo.' });
     }
 
-    req.user = user;
+    if (user.company && !user.company.isActive && !user.isSuperAdmin) {
+      return res.status(403).json({ success: false, message: 'Acesso bloqueado. A assinatura da organização está inativa.' });
+    }
+
+    req.user = user as any;
     next();
   } catch (dbError: any) {
     return res.status(500).json({ success: false, message: 'Erro interno ao validar autenticação.' });

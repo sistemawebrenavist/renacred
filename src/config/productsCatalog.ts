@@ -219,7 +219,7 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
     description: 'Relação unificada de multas e autos de infração cometidos em todas as rodovias e estados da federação.',
     highlights: [
       'Autos de infração e órgãos autuadores',
-      'Valor total exigível e não exigível',
+      'Valor total pendente de pagamento e em processamento',
       'Data, hora e local da ocorrência',
       'Enquadramento legal e pontuação'
     ],

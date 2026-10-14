@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Eye } from 'lucide-react';
+import { Eye, Lock } from 'lucide-react';
 import {
   PRODUCTS_CATALOG,
   ProductDefinition,
@@ -41,6 +41,13 @@ export default function HubConsulta() {
   const currentProduct: ProductDefinition = useMemo(() => {
     return getProductByCode(produtoParam) || PRODUCTS_CATALOG[0];
   }, [produtoParam]);
+
+  // Governança: Produto está contratado pela empresa do usuário?
+  const allowedProducts: string[] = user?.company?.allowedProducts || ['ALL'];
+  const isProductContracted = useMemo(() => {
+    if (user?.isSuperAdmin) return true;
+    return allowedProducts.includes('ALL') || allowedProducts.includes(currentProduct.code);
+  }, [user, allowedProducts, currentProduct.code]);
 
   // Estados principais
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -137,6 +144,12 @@ export default function HubConsulta() {
       return;
     }
 
+    // Validação de produto contratado
+    if (!isProductContracted) {
+      toast.error(`O produto ${currentProduct.code} (${currentProduct.name}) não está habilitado no plano da sua organização.`);
+      return;
+    }
+
     const cacheKey = currentProduct.code === 'E18'
       ? `${currentProduct.code}:${filiacaoTipo}:${clean}`
       : `${currentProduct.code}:${clean}`;
@@ -192,7 +205,7 @@ export default function HubConsulta() {
         loadRecentQueries(currentProduct.code);
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Falha ao comunicar com os órgãos emissores.';
+      const msg = err.response?.data?.detail || err.response?.data?.message || 'Falha ao comunicar com os órgãos emissores.';
       toast.error(msg);
     } finally {
       setLoading(false);

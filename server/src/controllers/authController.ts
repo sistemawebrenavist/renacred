@@ -68,6 +68,10 @@ export const login = async (req: Request, res: Response) => {
             creditsBalance: Number(user.company.creditsBalance),
             creditLimit: Number(user.company.creditLimit),
             billingDueDate: user.company.billingDueDate,
+            allowedProducts: user.company.allowedProducts || ['ALL'],
+            customPrices: user.company.customPrices || null,
+            customQueryPrice: user.company.customQueryPrice ? Number(user.company.customQueryPrice) : null,
+            isActive: user.company.isActive,
           }
         }
       }
@@ -106,6 +110,10 @@ export const getProfile = async (req: any, res: Response) => {
           creditsBalance: Number(user.company.creditsBalance),
           creditLimit: Number(user.company.creditLimit),
           billingDueDate: user.company.billingDueDate,
+          allowedProducts: user.company.allowedProducts || ['ALL'],
+          customPrices: user.company.customPrices || null,
+          customQueryPrice: user.company.customQueryPrice ? Number(user.company.customQueryPrice) : null,
+          isActive: user.company.isActive,
         }
       }
     });
@@ -236,6 +244,10 @@ export const updateProfile = async (req: any, res: Response) => {
             creditsBalance: Number(updatedUser.company.creditsBalance),
             creditLimit: Number(updatedUser.company.creditLimit),
             billingDueDate: updatedUser.company.billingDueDate,
+            allowedProducts: updatedUser.company.allowedProducts || ['ALL'],
+            customPrices: updatedUser.company.customPrices || null,
+            customQueryPrice: updatedUser.company.customQueryPrice ? Number(updatedUser.company.customQueryPrice) : null,
+            isActive: updatedUser.company.isActive,
           }
         }
       }
