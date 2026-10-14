@@ -16,12 +16,15 @@ import {
   Building2,
   ShieldCheck,
   Receipt,
-  UserCog
+  UserCog,
+  LogIn
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { UserAccessModal } from '../../components/admin/UserAccessModal';
+import { useAuth } from '../../contexts/AuthContext';
 import { PRODUCTS_CATALOG, getProductByCode } from '../../config/productsCatalog';
 
 export function getClientApiEndpoint(allowedProducts: string[] | undefined | null, token: string) {
@@ -74,6 +77,30 @@ export default function GerenciarClientes() {
 
   // Menu Dropdown de Ações por Cliente
   const [activeActionsMenu, setActiveActionsMenu] = useState<string | null>(null);
+
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
+  const handleImpersonate = async (company: any) => {
+    setActiveActionsMenu(null);
+    try {
+      const currentToken = localStorage.getItem('@renacred:token');
+      const currentUser = localStorage.getItem('@renacred:user');
+      if (currentToken && currentUser) {
+        localStorage.setItem('@renacred:admin_backup_token', currentToken);
+        localStorage.setItem('@renacred:admin_backup_user', currentUser);
+      }
+
+      const res = await api.post(`/api/admin/companies/${company.id}/impersonate`);
+      if (res.data?.success && res.data.token) {
+        toast.success(`Acessando portal como ${company.razaoSocial}...`);
+        login(res.data.token, res.data.data);
+        navigate('/consultar');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erro ao simular acesso do cliente.');
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -776,6 +803,14 @@ export default function GerenciarClientes() {
                             }`}
                           >
                             <div className="py-1">
+                              <button
+                                type="button"
+                                onClick={() => handleImpersonate(c)}
+                                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50/70 flex items-center gap-2.5 text-emerald-800 transition cursor-pointer font-semibold"
+                              >
+                                <LogIn className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>Acessar Portal do Cliente</span>
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {

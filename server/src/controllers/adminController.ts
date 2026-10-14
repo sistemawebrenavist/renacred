@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
 import { fetchbrasilService } from '../services/fetchbrasil.service';
 import { validateIdentifier } from '../utils/cpfCnpjValidator';
@@ -951,4 +952,89 @@ export const createCompanyUserAdmin = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: 'Erro ao cadastrar usuário.' });
   }
 };
+
+/**
+ * Simulação / Acesso Direto como Assinante (Impersonate para auditoria e teste de visão do cliente)
+ */
+export const impersonateCompany = async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const company = await prisma.company.findUnique({
+      where: { id },
+      include: {
+        users: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+          take: 1
+        }
+      }
+    });
+
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Empresa não encontrada.' });
+    }
+
+    let targetUser = company.users[0];
+    if (!targetUser) {
+      const randomPass = await bcrypt.hash(crypto.randomBytes(8).toString('hex'), 10);
+      const cleanDoc = company.cnpjCpf.replace(/\D/g, '');
+      targetUser = await prisma.user.create({
+        data: {
+          companyId: company.id,
+          name: `Admin ${company.razaoSocial}`,
+          email: `acesso.${cleanDoc}@renacred.com.br`,
+          password: randomPass,
+          role: 'COMPANY_ADMIN',
+          isActive: true
+        }
+      });
+    }
+
+    const JWT_SECRET = process.env.JWT_SECRET || 'renacred_jwt_super_secret_key_2026_x892';
+    const token = jwt.sign(
+      {
+        id: targetUser.id,
+        email: targetUser.email,
+        companyId: company.id,
+        role: targetUser.role,
+        isSuperAdmin: false,
+        impersonatedBy: req.user.id
+      },
+      JWT_SECRET,
+      { expiresIn: '4h' }
+    );
+
+    logger.info(`[ADMIN] SuperAdmin ${req.user.email} iniciou simulação de acesso para a empresa ${company.razaoSocial} (${company.cnpjCpf})`);
+
+    return res.json({
+      success: true,
+      message: `Acesso de simulação para ${company.razaoSocial} gerado com sucesso!`,
+      token,
+      data: {
+        id: targetUser.id,
+        name: targetUser.name,
+        email: targetUser.email,
+        role: targetUser.role,
+        isSuperAdmin: false,
+        company: {
+          id: company.id,
+          razaoSocial: company.razaoSocial,
+          cnpjCpf: company.cnpjCpf,
+          accountType: company.accountType,
+          creditsBalance: Number(company.creditsBalance),
+          creditLimit: Number(company.creditLimit),
+          billingDueDate: company.billingDueDate,
+          allowedProducts: company.allowedProducts || ['ALL'],
+          customPrices: company.customPrices || null,
+          customQueryPrice: company.customQueryPrice ? Number(company.customQueryPrice) : null,
+          isActive: company.isActive,
+        }
+      }
+    });
+  } catch (error: any) {
+    logger.error(`[ADMIN] Erro ao gerar impersonação da empresa ${req.params.id}: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao gerar acesso de simulação.' });
+  }
+};
+
 

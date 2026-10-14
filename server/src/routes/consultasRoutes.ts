@@ -20,7 +20,7 @@ router.get('/catalogo', async (req: any, res) => {
   const customPrices = (company?.customPrices as Record<string, number>) || {};
 
   const catalogWithPrices = SERVER_PRODUCTS.map((p) => {
-    const isContracted = isSuperAdmin || allowedProducts.includes('ALL') || allowedProducts.includes(p.code);
+    const isContracted = allowedProducts.includes('ALL') || allowedProducts.includes(p.code);
     let resolvedPrice = p.defaultPrice;
     if (typeof customPrices[p.code] === 'number') {
       resolvedPrice = Number(customPrices[p.code]);

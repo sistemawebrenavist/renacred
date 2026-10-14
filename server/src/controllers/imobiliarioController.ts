@@ -30,22 +30,22 @@ export const consultarWeb = async (req: any, res: Response) => {
   const isSuperAdmin = !!req.user?.isSuperAdmin;
   let eligibility: BillingCheckResult = { allowed: true, price: 0 };
 
-  if (!isSuperAdmin) {
-    let company = req.user?.company;
-    if (!company && companyId) {
-      company = await prisma.company.findUnique({ where: { id: companyId } });
-    }
-    const companyAllowed: string[] = company?.allowedProducts || ['ALL'];
-    if (!companyAllowed.includes('ALL') && !companyAllowed.includes('E1')) {
-      return res.status(403).json({
-        type: 'https://renacred.com.br/errors/product-not-allowed',
-        title: 'Produto Não Contratado',
-        status: 403,
-        detail: 'A sua organização não possui permissão para consumir o produto E1 (Histórico Imobiliário). Entre em contato com seu gestor para liberação.',
-        code: 'PRODUCT_NOT_ALLOWED'
-      });
-    }
+  let company = req.user?.company;
+  if (!company && companyId) {
+    company = await prisma.company.findUnique({ where: { id: companyId } });
+  }
+  const companyAllowed: string[] = company?.allowedProducts || ['ALL'];
+  if (!companyAllowed.includes('ALL') && !companyAllowed.includes('E1')) {
+    return res.status(403).json({
+      type: 'https://renacred.com.br/errors/product-not-allowed',
+      title: 'Produto Não Contratado',
+      status: 403,
+      detail: 'A sua organização não possui permissão para consumir o produto E1 (Histórico Imobiliário). Entre em contato com seu gestor para liberação.',
+      code: 'PRODUCT_NOT_ALLOWED'
+    });
+  }
 
+  if (!isSuperAdmin) {
     const check = await billingService.checkEligibility(companyId, company);
     if (!check.allowed) {
       return res.status(402).json({

@@ -20,7 +20,14 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const allowedProducts: string[] = user?.company?.allowedProducts || ['ALL'];
+  const isAllAllowed = allowedProducts.includes('ALL');
   const customPrices = (user?.company?.customPrices as Record<string, number>) || {};
+
+  // Produtos estritamente liberados para a organização (nunca exibir produtos não liberados para consulta)
+  const availableProducts = useMemo(() => {
+    if (isAllAllowed) return PRODUCTS_CATALOG;
+    return PRODUCTS_CATALOG.filter((p) => allowedProducts.includes(p.code));
+  }, [allowedProducts, isAllAllowed]);
 
   useEffect(() => {
     if (isOpen) {
@@ -31,8 +38,8 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return PRODUCTS_CATALOG;
-    return PRODUCTS_CATALOG.filter(
+    if (!term) return availableProducts;
+    return availableProducts.filter(
       (p) =>
         p.code.toLowerCase().includes(term) ||
         p.name.toLowerCase().includes(term) ||
@@ -40,7 +47,7 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
         p.categoryLabel.toLowerCase().includes(term) ||
         p.inputLabel.toLowerCase().includes(term)
     );
-  }, [search]);
+  }, [search, availableProducts]);
 
   if (!isOpen) return null;
 
@@ -51,7 +58,9 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-slate-900">Selecione o Produto de Consulta</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Escolha entre as 16 bases oficiais integradas da Renacred</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {availableProducts.length} base(s) oficial(is) habilitada(s) para sua organização
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -68,16 +77,15 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Digite o código (E1..E19), nome do produto ou categoria..."
+            placeholder="Digite o código (ex: E1, E8), nome do produto ou categoria..."
             className="w-full px-3.5 py-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-600 transition"
           />
         </div>
 
-        {/* Lista de Produtos */}
+        {/* Lista de Produtos Liberados */}
         <div className="overflow-y-auto p-3 space-y-1.5 flex-1 divide-y divide-slate-100">
           {filtered.map((p) => {
             const isSelected = p.code.toUpperCase() === currentCode.toUpperCase();
-            const isContracted = !!user?.isSuperAdmin || allowedProducts.includes('ALL') || allowedProducts.includes(p.code);
             const effectivePrice = typeof customPrices[p.code] === 'number'
               ? customPrices[p.code]
               : (user?.company?.customQueryPrice ? Number(user.company.customQueryPrice) : p.defaultPrice);
@@ -102,11 +110,6 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
                   <div className="min-w-0">
                     <div className="flex items-center space-x-2">
                       <p className="text-xs font-bold truncate text-slate-900">{p.name}</p>
-                      {!isContracted && (
-                        <span className="text-[9.5px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 shrink-0">
-                          Não Contratado
-                        </span>
-                      )}
                     </div>
                     <p className="text-[11px] text-slate-500 truncate mt-0.5">{p.description}</p>
                   </div>
@@ -125,14 +128,14 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
 
           {filtered.length === 0 && (
             <div className="p-8 text-center text-xs text-slate-500">
-              Nenhum produto oficial encontrado com o termo &quot;{search}&quot;.
+              Nenhum produto liberado encontrado com o termo &quot;{search}&quot;.
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div className="p-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-[11px] text-slate-500">
-          <span>{PRODUCTS_CATALOG.length} produtos oficiais disponíveis</span>
+          <span>{availableProducts.length} produto(s) habilitado(s) para consulta</span>
           <button
             onClick={onClose}
             className="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded text-xs font-medium text-slate-700 transition"

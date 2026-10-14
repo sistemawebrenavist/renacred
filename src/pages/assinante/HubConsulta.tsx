@@ -36,18 +36,29 @@ export default function HubConsulta() {
   const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();
 
-  // 1. Resolução do produto ativo
-  const produtoParam = searchParams.get('produto') || searchParams.get('p') || searchParams.get('codigo') || 'e1';
-  const currentProduct: ProductDefinition = useMemo(() => {
-    return getProductByCode(produtoParam) || PRODUCTS_CATALOG[0];
-  }, [produtoParam]);
-
-  // Governança: Produto está contratado pela empresa do usuário?
+  // Governança: Produtos liberados para a organização
   const allowedProducts: string[] = user?.company?.allowedProducts || ['ALL'];
+  const isAllAllowed = allowedProducts.includes('ALL');
+
+  const availableProducts = useMemo(() => {
+    if (isAllAllowed) return PRODUCTS_CATALOG;
+    return PRODUCTS_CATALOG.filter((p) => allowedProducts.includes(p.code));
+  }, [allowedProducts, isAllAllowed]);
+
+  // Resolução do produto ativo (fallback sempre para o primeiro produto liberado da organização)
+  const produtoParam = searchParams.get('produto') || searchParams.get('p') || searchParams.get('codigo') || '';
+  const currentProduct: ProductDefinition = useMemo(() => {
+    if (produtoParam) {
+      const found = getProductByCode(produtoParam);
+      if (found) return found;
+    }
+    return availableProducts[0] || PRODUCTS_CATALOG[0];
+  }, [produtoParam, availableProducts]);
+
+  // Governança estrita: Produto está liberado para a organização?
   const isProductContracted = useMemo(() => {
-    if (user?.isSuperAdmin) return true;
-    return allowedProducts.includes('ALL') || allowedProducts.includes(currentProduct.code);
-  }, [user, allowedProducts, currentProduct.code]);
+    return isAllAllowed || allowedProducts.includes(currentProduct.code);
+  }, [isAllAllowed, allowedProducts, currentProduct.code]);
 
   // Estados principais
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -393,145 +404,184 @@ export default function HubConsulta() {
         </div>
       </div>
 
-      {/* Formulário de Busca */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs print:hidden">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleExecuteSearch();
-          }}
-          className="space-y-4"
-        >
-          <div className="flex flex-col md:flex-row md:items-end gap-3">
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-700">
-                  {currentProduct.inputLabel}
-                </label>
-                {currentProduct.code === 'E18' && (
-                  <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100 text-xs">
+      {/* Formulário de Busca ou Bloqueio de Produto Não Liberado */}
+      {!isProductContracted ? (
+        <div className="bg-white border border-amber-200/90 rounded-xl p-8 shadow-xs print:hidden text-center">
+          <div className="max-w-md mx-auto space-y-3">
+            <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center mx-auto border border-amber-200">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h2 className="text-base font-bold text-slate-900">
+              Produto Não Habilitado para Consulta
+            </h2>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              O produto <strong className="text-slate-900">{currentProduct.code} - {currentProduct.name}</strong> não está liberado no plano contratado da sua organização.
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Para liberar o acesso a esta base de dados, entre em contato com o suporte ou gestor comercial da sua conta.
+            </p>
+            <div className="pt-3 flex flex-wrap items-center justify-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsSelectorOpen(true)}
+                className="px-4 py-2 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition shadow-xs cursor-pointer"
+              >
+                Ver Produtos Liberados ({availableProducts.length})
+              </button>
+              {availableProducts.length > 0 && availableProducts[0].code !== currentProduct.code && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate(`/consultar?produto=${availableProducts[0].code.toLowerCase()}`);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+                >
+                  Ir para {availableProducts[0].code} ({availableProducts[0].shortName})
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs print:hidden">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleExecuteSearch();
+            }}
+            className="space-y-4"
+          >
+            <div className="flex flex-col md:flex-row md:items-end gap-3">
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    {currentProduct.inputLabel}
+                  </label>
+                  {currentProduct.code === 'E18' && (
+                    <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setFiliacaoTipo('mae')}
+                        className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition ${
+                          filiacaoTipo === 'mae'
+                            ? 'bg-purple-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Mãe
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFiliacaoTipo('pai')}
+                        className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition ${
+                          filiacaoTipo === 'pai'
+                            ? 'bg-purple-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Pai
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    placeholder={
+                      currentProduct.code === 'E18'
+                        ? filiacaoTipo === 'mae'
+                          ? 'Ex: MARIA DE JESUS DE BRITO'
+                          : 'Ex: JOSE PEREIRA DA SILVA'
+                        : currentProduct.placeholder
+                    }
+                    disabled={loading}
+                    className={`w-full px-3.5 py-2.5 text-sm ${currentProduct.inputType === 'nome' ? 'font-sans uppercase' : 'font-mono'} bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-600 focus:bg-white transition disabled:opacity-60`}
+                  />
+                  {inputValue && !loading && (
                     <button
                       type="button"
-                      onClick={() => setFiliacaoTipo('mae')}
-                      className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition ${
-                        filiacaoTipo === 'mae'
-                          ? 'bg-purple-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                      onClick={() => {
+                        setInputValue('');
+                        inputRef.current?.focus();
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-700"
                     >
-                      Mãe
+                      Limpar
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setFiliacaoTipo('pai')}
-                      className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition ${
-                        filiacaoTipo === 'pai'
-                          ? 'bg-purple-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Pai
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-              <div className="relative">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={handleInputChange}
-                  placeholder={
-                    currentProduct.code === 'E18'
-                      ? filiacaoTipo === 'mae'
-                        ? 'Ex: MARIA DE JESUS DE BRITO'
-                        : 'Ex: JOSE PEREIRA DA SILVA'
-                      : currentProduct.placeholder
-                  }
-                  disabled={loading}
-                  className={`w-full px-3.5 py-2.5 text-sm ${currentProduct.inputType === 'nome' ? 'font-sans uppercase' : 'font-mono'} bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-600 focus:bg-white transition disabled:opacity-60`}
-                />
-                {inputValue && !loading && (
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="submit"
+                  disabled={loading || !inputValue.trim()}
+                  className="w-full md:w-auto px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg transition shadow-xs flex items-center justify-center space-x-2"
+                >
+                  {loading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      <span>Consultando...</span>
+                    </>
+                  ) : (
+                    <span>Executar Consulta</span>
+                  )}
+                </button>
+
+                {result && (
                   <button
                     type="button"
                     onClick={() => {
+                      setResult(null);
                       setInputValue('');
                       inputRef.current?.focus();
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-700"
+                    className="px-3.5 py-2.5 text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
                   >
-                    Limpar
+                    Nova Consulta
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <button
-                type="submit"
-                disabled={loading || !inputValue.trim()}
-                className="w-full md:w-auto px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg transition shadow-xs flex items-center justify-center space-x-2"
-              >
-                {loading ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    <span>Consultando...</span>
-                  </>
-                ) : (
-                  <span>Executar Consulta</span>
+            {/* Destaques Técnicos e Regra de Cobrança */}
+            <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between text-xs text-slate-500 gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-semibold text-slate-700">Garantia Renacred:</span>
+                <span className="text-slate-600">Cobrança de R$ 0,00 se nenhum dado for localizado.</span>
+                <span>•</span>
+                <span className="text-slate-600">Tempo médio de resposta &lt; 2.5s.</span>
+              </div>
+              <div className="font-mono text-slate-700 flex items-center space-x-1.5">
+                <span>Valor da consulta:</span>
+                <strong className="text-slate-900">
+                  R$ {unitPrice.toFixed(2).replace('.', ',')}
+                </strong>
+                {user?.isSuperAdmin && (
+                  <span className="text-[10px] font-sans font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                    Isento Adm
+                  </span>
                 )}
-              </button>
+              </div>
+            </div>
+          </form>
 
-              {result && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResult(null);
-                    setInputValue('');
-                    inputRef.current?.focus();
-                  }}
-                  className="px-3.5 py-2.5 text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
-                >
-                  Nova Consulta
-                </button>
-              )}
+          {/* Micro-etapas de Progresso em Loading */}
+          {loading && (
+            <div className="mt-5 pt-4 border-t border-slate-100 animate-in fade-in duration-150">
+              <div className="flex items-center space-x-3">
+                <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs font-medium text-slate-700">
+                  {PROGRESS_STEPS[stepIndex]}
+                </p>
+              </div>
             </div>
-          </div>
-
-          {/* Destaques Técnicos e Regra de Cobrança */}
-          <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between text-xs text-slate-500 gap-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="font-semibold text-slate-700">Garantia Renacred:</span>
-              <span className="text-slate-600">Cobrança de R$ 0,00 se nenhum dado for localizado.</span>
-              <span>•</span>
-              <span className="text-slate-600">Tempo médio de resposta &lt; 2.5s.</span>
-            </div>
-            <div className="font-mono text-slate-700 flex items-center space-x-1.5">
-              <span>Valor da consulta:</span>
-              <strong className="text-slate-900">
-                R$ {unitPrice.toFixed(2).replace('.', ',')}
-              </strong>
-              {user?.isSuperAdmin && (
-                <span className="text-[10px] font-sans font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  Isento Adm
-                </span>
-              )}
-            </div>
-          </div>
-        </form>
-
-        {/* Micro-etapas de Progresso em Loading */}
-        {loading && (
-          <div className="mt-5 pt-4 border-t border-slate-100 animate-in fade-in duration-150">
-            <div className="flex items-center space-x-3">
-              <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs font-medium text-slate-700">
-                {PROGRESS_STEPS[stepIndex]}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Exibição do Laudo Pericial Oficial */}
       {result && (
@@ -583,96 +633,98 @@ export default function HubConsulta() {
         </div>
       )}
 
-      {/* Histórico Recente do Produto Ativo */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs print:hidden">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-          <div>
-            <h2 className="text-sm font-bold text-slate-900">
-              Consultas Recentes — {currentProduct.code} ({currentProduct.shortName})
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Últimas requisições realizadas por sua organização para este serviço
-            </p>
+      {/* Histórico Recente do Produto Ativo (Apenas para produtos liberados) */}
+      {isProductContracted && (
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs print:hidden">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">
+                Consultas Recentes — {currentProduct.code} ({currentProduct.shortName})
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Últimas requisições realizadas por sua organização para este serviço
+              </p>
+            </div>
+            <button
+              onClick={() => loadRecentQueries(currentProduct.code)}
+              disabled={loadingHistory}
+              className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200/80 transition"
+            >
+              {loadingHistory ? 'Atualizando...' : 'Atualizar'}
+            </button>
           </div>
-          <button
-            onClick={() => loadRecentQueries(currentProduct.code)}
-            disabled={loadingHistory}
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200/80 transition"
-          >
-            {loadingHistory ? 'Atualizando...' : 'Atualizar'}
-          </button>
-        </div>
 
-        {recentQueries.length === 0 ? (
-          <div className="py-8 text-center text-xs text-slate-400">
-            Nenhuma consulta registrada para {currentProduct.code} recentemente.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider">
-                  <th className="pb-2">Identificador</th>
-                  <th className="pb-2">Data e Hora</th>
-                  <th className="pb-2 text-right">Registros</th>
-                  <th className="pb-2 text-right">Custo</th>
-                  <th className="pb-2 text-right">Tempo</th>
-                  <th className="pb-2 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-mono">
-                {recentQueries.map((q) => (
-                  <tr key={q.id} className="hover:bg-slate-50/70 transition">
-                    <td className="py-2.5 font-bold text-slate-800">
-                      {q.identifier}
-                    </td>
-                    <td className="py-2.5 text-slate-500 font-sans">
-                      {new Date(q.createdAt).toLocaleString('pt-BR')}
-                    </td>
-                    <td className="py-2.5 text-right font-sans">
-                      <span
-                        className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
-                          (q.totalRegistros ?? q.totalDeclaracoes ?? 0) > 0
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        {q.totalRegistros ?? q.totalDeclaracoes ?? 0}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-right text-slate-700 font-mono">
-                      R$ {Number(q.cost || 0).toFixed(2).replace('.', ',')}
-                      {Number(q.cost || 0) === 0 && (
-                        <span className="text-[10px] text-slate-400 block font-sans">Isento</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 text-right text-slate-400 font-sans text-[11px]">
-                      {q.processingTimeMs ? `${q.processingTimeMs}ms` : '-'}
-                    </td>
-                    <td className="py-2.5 text-right font-sans space-x-2">
-                      <button
-                        onClick={() => handleViewHistoricalLaudo(q)}
-                        className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-800 transition"
-                        title="Visualizar laudo completo desta consulta"
-                      >
-                        <Eye className="w-3.5 h-3.5 mr-1" />
-                        Visualizar
-                      </button>
-                      <span className="text-slate-300">|</span>
-                      <button
-                        onClick={() => handleRequeryHistorical(q)}
-                        className="text-xs font-medium text-slate-600 hover:text-slate-900 hover:underline"
-                      >
-                        Reconsultar
-                      </button>
-                    </td>
+          {recentQueries.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-400">
+              Nenhuma consulta registrada para {currentProduct.code} recentemente.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider">
+                    <th className="pb-2">Identificador</th>
+                    <th className="pb-2">Data e Hora</th>
+                    <th className="pb-2 text-right">Registros</th>
+                    <th className="pb-2 text-right">Custo</th>
+                    <th className="pb-2 text-right">Tempo</th>
+                    <th className="pb-2 text-right">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-mono">
+                  {recentQueries.map((q) => (
+                    <tr key={q.id} className="hover:bg-slate-50/70 transition">
+                      <td className="py-2.5 font-bold text-slate-800">
+                        {q.identifier}
+                      </td>
+                      <td className="py-2.5 text-slate-500 font-sans">
+                        {new Date(q.createdAt).toLocaleString('pt-BR')}
+                      </td>
+                      <td className="py-2.5 text-right font-sans">
+                        <span
+                          className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+                            (q.totalRegistros ?? q.totalDeclaracoes ?? 0) > 0
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {q.totalRegistros ?? q.totalDeclaracoes ?? 0}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right text-slate-700 font-mono">
+                        R$ {Number(q.cost || 0).toFixed(2).replace('.', ',')}
+                        {Number(q.cost || 0) === 0 && (
+                          <span className="text-[10px] text-slate-400 block font-sans">Isento</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 text-right text-slate-400 font-sans text-[11px]">
+                        {q.processingTimeMs ? `${q.processingTimeMs}ms` : '-'}
+                      </td>
+                      <td className="py-2.5 text-right font-sans space-x-2">
+                        <button
+                          onClick={() => handleViewHistoricalLaudo(q)}
+                          className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-800 transition"
+                          title="Visualizar laudo completo desta consulta"
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1" />
+                          Visualizar
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          onClick={() => handleRequeryHistorical(q)}
+                          className="text-xs font-medium text-slate-600 hover:text-slate-900 hover:underline"
+                        >
+                          Reconsultar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal de Seleção de Produto */}
       <SeletorProdutoModal

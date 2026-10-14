@@ -147,23 +147,23 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
 
   let eligibility: BillingCheckResult = { allowed: true, price: product.defaultPrice };
 
+  // 3.1 Governança B2B: Checar se o produto está contratado pela empresa (obrigatório para consultas web)
+  const allowedProducts: string[] = company?.allowedProducts || ['ALL'];
+  const isContracted = allowedProducts.includes('ALL') || allowedProducts.includes(product.code);
+
+  if (!isContracted) {
+    return res.status(403).json({
+      success: false,
+      type: 'https://renacred.com.br/errors/product-not-allowed',
+      title: 'Produto Não Contratado',
+      status: 403,
+      detail: `A sua organização não possui permissão para consumir o produto ${product.code} (${product.name}). Entre em contato com seu gestor para liberação.`,
+      code: 'PRODUCT_NOT_ALLOWED',
+      message: `O produto ${product.code} (${product.name}) não está habilitado no plano contratado da sua organização. Entre em contato com seu gestor comercial para liberação imediata.`
+    });
+  }
+
   if (!isSuperAdmin) {
-    // 3.1 Governança B2B: Checar se o produto está contratado pela empresa
-    const allowedProducts: string[] = company?.allowedProducts || ['ALL'];
-    const isContracted = allowedProducts.includes('ALL') || allowedProducts.includes(product.code);
-
-    if (!isContracted) {
-      return res.status(403).json({
-        success: false,
-        type: 'https://renacred.com.br/errors/product-not-allowed',
-        title: 'Produto Não Contratado',
-        status: 403,
-        detail: `A sua organização não possui permissão para consumir o produto ${product.code} (${product.name}). Entre em contato com seu gestor para liberação.`,
-        code: 'PRODUCT_NOT_ALLOWED',
-        message: `O produto ${product.code} (${product.name}) não está habilitado no plano contratado da sua organização. Entre em contato com seu gestor comercial para liberação imediata.`
-      });
-    }
-
     const check = await billingService.checkEligibility(companyId, company);
     if (!check.allowed) {
       return res.status(402).json({

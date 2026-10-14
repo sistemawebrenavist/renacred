@@ -14,7 +14,8 @@ import {
   listCompanyUsers,
   updateUserPasswordAdmin,
   updateUserStatusAdmin,
-  createCompanyUserAdmin
+  createCompanyUserAdmin,
+  impersonateCompany
 } from '../controllers/adminController';
 import { authenticateToken, requireSuperAdmin } from '../middlewares/authMiddleware';
 
@@ -23,6 +24,8 @@ const router = Router();
 // Protegido por Token e SuperAdmin
 router.use(authenticateToken);
 router.use(requireSuperAdmin);
+
+router.post('/companies/:id/impersonate', impersonateCompany);
 
 router.get('/metrics', getDashboardMetrics);
 router.get('/companies', listCompanies);

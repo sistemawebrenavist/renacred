@@ -10,9 +10,15 @@ export default function CatalogoProdutos() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
 
+  const allowedProducts: string[] = user?.company?.allowedProducts || ['ALL'];
+  const isAllAllowed = allowedProducts.includes('ALL');
+
   const filteredProducts = useMemo(() => {
     return PRODUCTS_CATALOG.filter((p) => {
-      const matchesCategory = selectedCategory === 'todos' || p.category === selectedCategory;
+      const isContracted = isAllAllowed || allowedProducts.includes(p.code);
+      if (selectedCategory === 'liberados' && !isContracted) return false;
+
+      const matchesCategory = selectedCategory === 'todos' || selectedCategory === 'liberados' || p.category === selectedCategory;
       const term = searchTerm.trim().toLowerCase();
       if (!term) return matchesCategory;
 
@@ -25,7 +31,7 @@ export default function CatalogoProdutos() {
 
       return matchesCategory && matchesSearch;
     });
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, allowedProducts, isAllAllowed]);
 
   const handleConsultar = (code: string) => {
     navigate(`/consultar?produto=${code.toLowerCase()}`);
@@ -50,6 +56,16 @@ export default function CatalogoProdutos() {
         <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           {/* Categorias */}
           <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={() => setSelectedCategory('liberados')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                selectedCategory === 'liberados'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
+              }`}
+            >
+              Liberados no meu Plano
+            </button>
             {CATEGORIES_CONFIG.map((cat) => {
               const active = selectedCategory === cat.id;
               return (
@@ -87,8 +103,7 @@ export default function CatalogoProdutos() {
       {/* Grid de Cards dos Produtos (Padrão Impeccable + InfoSinistros) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredProducts.map((p) => {
-          const allowedProducts: string[] = user?.company?.allowedProducts || ['ALL'];
-          const isContracted = !!user?.isSuperAdmin || allowedProducts.includes('ALL') || allowedProducts.includes(p.code);
+          const isContracted = isAllAllowed || allowedProducts.includes(p.code);
           const customPrices = (user?.company?.customPrices as Record<string, number>) || {};
           const effectivePrice = typeof customPrices[p.code] === 'number'
             ? customPrices[p.code]
