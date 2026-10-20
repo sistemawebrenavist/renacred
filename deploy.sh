@@ -56,7 +56,8 @@ echo -e "${GREEN}✓ Imagem Docker compilada com sucesso.${NC}"
 
 # 4. Reiniciar Container com Zero Downtime perceptível
 echo -e "\n${YELLOW}[4/5] Reiniciando container renacred-api...${NC}"
-docker compose up -d --remove-orphans
+docker rm -f renacred-api 2>/dev/null || true
+docker compose up -d --remove-orphans --force-recreate
 echo -e "${GREEN}✓ Container iniciado.${NC}"
 
 # 5. Validação de Saúde (Healthcheck)
