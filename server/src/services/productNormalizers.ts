@@ -4,6 +4,7 @@
  * remove códigos duplicados (ex: código numérico do município) e expurga campos nulos/vazios.
  */
 import { translateCBO, translateMosaic } from '../utils/cboMosaicUtils';
+import { translateOrgaoAutuador } from '../utils/orgaosAutuadoresUtils';
 
 export interface NormalizedResult {
   totalRegistros: number;
@@ -419,10 +420,16 @@ export function normalizeE8(raw: any): NormalizedResult {
           }
         }
 
+        const rawOrgao = m.orgao_autuador_descricao || m.orgao_autuador;
+        const codigoOrgao = m.orgao_autuador || m.codigo_orgao_autuador || m.cod_orgao;
+        const orgaoInfo = translateOrgaoAutuador(rawOrgao, codigoOrgao);
+
         return cleanObject({
           auto_infracao: m.auto_infracao,
           codigo_infracao: m.codigo_completo || m.cod_infracao || m.codigo,
-          orgao_autuador: m.orgao_autuador_descricao || m.orgao_autuador,
+          orgao_autuador: orgaoInfo?.descricao || rawOrgao,
+          codigo_orgao_autuador: orgaoInfo?.codigo || (codigoOrgao && /^\d+$/.test(String(codigoOrgao)) ? String(codigoOrgao) : undefined),
+          orgao_autuador_uf: orgaoInfo?.uf,
           data_infracao: dataStr,
           hora_infracao: m.hora_infracao || m.hora,
           local: m.local_infracao || m.local,

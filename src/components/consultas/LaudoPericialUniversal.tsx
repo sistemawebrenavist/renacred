@@ -10,6 +10,7 @@ import { DeclaracaoCard } from '../imobiliario/DeclaracaoCard';
 import { ExportPdfButton } from '../imobiliario/ExportPdfButton';
 import { ExportExcelButton } from '../imobiliario/ExportExcelButton';
 import { translateCBO, translateMosaic } from '../../utils/cboMosaicUtils';
+import { translateOrgaoAutuador } from '../../utils/orgaosAutuadoresUtils';
 import { RenacredLogo } from '../ui/RenacredLogo';
 
 // Formatação universal de Placa (Mercosul ou antiga)
@@ -2629,6 +2630,11 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                       ? m.valor.toFixed(2).replace('.', ',')
                       : (Number(m.valor) ? Number(m.valor).toFixed(2).replace('.', ',') : (m.valor || '0,00'));
 
+                    const orgaoInfo = translateOrgaoAutuador(
+                      m.orgao_autuador,
+                      m.codigo_orgao_autuador || m.cod_orgao || m.orgao_autuador_codigo
+                    );
+
                     return (
                       <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
                         <td className="px-4 py-3 font-mono font-bold text-slate-900 align-top">
@@ -2650,10 +2656,23 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                             <div className="text-[10px] text-slate-400 font-normal">{m.hora_infracao}</div>
                           )}
                         </td>
-                        <td className="px-4 py-3 font-sans text-slate-700 align-top">
-                          <span className="font-semibold text-slate-800 block">
-                            {m.orgao_autuador || '-'}
-                          </span>
+                        <td className="px-4 py-3 font-sans text-slate-700 align-top min-w-[200px] max-w-[280px]">
+                          {orgaoInfo ? (
+                            <div>
+                              <span className="font-semibold text-slate-900 block leading-snug">
+                                {orgaoInfo.descricao}
+                              </span>
+                              {orgaoInfo.codigo && orgaoInfo.descricao !== orgaoInfo.codigo && (
+                                <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                                  Cód. {orgaoInfo.codigo}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="font-semibold text-slate-800 block">
+                              {m.orgao_autuador || '-'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 font-sans text-slate-800 align-top max-w-xs">
                           <p className="leading-snug">
