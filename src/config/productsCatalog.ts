@@ -535,8 +535,8 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
       'Histórico pericial de roubo e furto (E5)',
       'Cadeia de proprietários com detecção de locadoras e seguradoras (E2)'
     ],
-    defaultCost: 0.32,
-    defaultPrice: 0.69,
+    defaultCost: 0.69,
+    defaultPrice: 1.90,
     hasContingency: true,
     badgeColor: {
       bg: 'bg-emerald-50',

@@ -20,6 +20,7 @@ import DashboardAdmin from './pages/admin/DashboardAdmin';
 import GerenciarClientes from './pages/admin/GerenciarClientes';
 import LogsApi from './pages/admin/LogsApi';
 import ConfiguracoesAdmin from './pages/admin/ConfiguracoesAdmin';
+import TabelaPrecosAdmin from './pages/admin/TabelaPrecosAdmin';
 
 // Componente Dinâmico de Visão Geral (SuperAdmin -> DashboardAdmin / Cliente -> DashboardCliente)
 const UnifiedDashboard: React.FC = () => {
@@ -127,6 +128,15 @@ export default function App() {
               </SuperAdminRoute>
             }
           />
+          <Route
+            path="/admin/tabela-precos"
+            element={
+              <SuperAdminRoute>
+                <TabelaPrecosAdmin />
+              </SuperAdminRoute>
+            }
+          />
+          <Route path="/admin/precos" element={<Navigate to="/admin/tabela-precos" replace />} />
         </Route>
 
         {/* Fallback */}

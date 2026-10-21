@@ -15,7 +15,10 @@ import {
   updateUserPasswordAdmin,
   updateUserStatusAdmin,
   createCompanyUserAdmin,
-  impersonateCompany
+  impersonateCompany,
+  getProductPricingTable,
+  updateProductPricingTable,
+  resetProductPricingTable
 } from '../controllers/adminController';
 import { authenticateToken, requireSuperAdmin } from '../middlewares/authMiddleware';
 
@@ -45,5 +48,10 @@ router.put('/users/:userId/status', updateUserStatusAdmin);
 router.post('/consulta-superadmin', superAdminQuery);
 router.get('/logs/response', getLogQueryResponse);
 router.get('/logs', listApiLogs);
+
+// Tabela de Preços e Custos Globais dos Produtos
+router.get('/produtos/tabela-precos', getProductPricingTable);
+router.put('/produtos/tabela-precos', updateProductPricingTable);
+router.post('/produtos/tabela-precos/reset', resetProductPricingTable);
 
 export default router;

@@ -10,7 +10,8 @@ import {
   LayoutDashboard,
   Settings,
   CreditCard,
-  LogOut
+  LogOut,
+  Coins
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { RenacredLogo } from '../ui/RenacredLogo';
@@ -39,6 +40,7 @@ export const Sidebar: React.FC = () => {
   // Menu do Portal de Gestão (Wellington / Admin)
   const adminManagementLinks = [
     { to: '/admin/clientes', label: 'Clientes & Tarifas', icon: Users },
+    { to: '/admin/tabela-precos', label: 'Tabela de Preços', icon: Coins },
     { to: '/admin/logs', label: 'Auditoria de API', icon: Activity },
     { to: '/admin/configuracoes', label: 'Configurações Globais', icon: Settings },
   ];

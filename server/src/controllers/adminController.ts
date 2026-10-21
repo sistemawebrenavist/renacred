@@ -7,6 +7,7 @@ import { fetchbrasilService } from '../services/fetchbrasil.service';
 import { validateIdentifier } from '../utils/cpfCnpjValidator';
 import { TransactionType, InvoiceStatus } from '../types/database';
 import { logger } from '../utils/logger';
+import { productPricingService } from '../services/productPricing.service';
 
 /**
  * Cadastro completo de nova Empresa / Assinante e seu Administrador inicial
@@ -1036,5 +1037,73 @@ export const impersonateCompany = async (req: any, res: Response) => {
     return res.status(500).json({ success: false, message: 'Erro ao gerar acesso de simulação.' });
   }
 };
+
+/**
+ * Retorna a tabela completa de precificação global de produtos
+ * GET /api/admin/produtos/tabela-precos
+ */
+export const getProductPricingTable = async (req: Request, res: Response) => {
+  try {
+    const data = productPricingService.getPricingTable();
+    return res.json({
+      success: true,
+      ...data
+    });
+  } catch (error: any) {
+    logger.error(`[ADMIN] Erro ao obter tabela de preços: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao carregar tabela de preços.' });
+  }
+};
+
+/**
+ * Atualiza custos e preços globais de produtos em lote ou individualmente
+ * PUT /api/admin/produtos/tabela-precos
+ */
+export const updateProductPricingTable = async (req: Request, res: Response) => {
+  try {
+    const { items } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'A lista de produtos para atualização é obrigatória.'
+      });
+    }
+
+    const data = productPricingService.updatePricing(items);
+    logger.info(`[ADMIN] SuperAdmin atualizou preços de ${items.length} produto(s).`);
+
+    return res.json({
+      success: true,
+      message: 'Tabela de preços e custos atualizada com sucesso!',
+      ...data
+    });
+  } catch (error: any) {
+    logger.error(`[ADMIN] Erro ao atualizar tabela de preços: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao salvar tabela de preços.' });
+  }
+};
+
+/**
+ * Restaura preços para os valores padrão de fábrica
+ * POST /api/admin/produtos/tabela-precos/reset
+ */
+export const resetProductPricingTable = async (req: Request, res: Response) => {
+  try {
+    const { codes } = req.body || {};
+    const data = productPricingService.resetToFactoryDefaults(codes);
+    logger.info(`[ADMIN] SuperAdmin restaurou padrões de fábrica ${codes ? `para [${codes.join(', ')}]` : 'para todos os produtos'}.`);
+
+    return res.json({
+      success: true,
+      message: 'Valores padrão de fábrica restaurados com sucesso!',
+      ...data
+    });
+  } catch (error: any) {
+    logger.error(`[ADMIN] Erro ao restaurar padrões de fábrica: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao restaurar padrões.' });
+  }
+};
+
 
 

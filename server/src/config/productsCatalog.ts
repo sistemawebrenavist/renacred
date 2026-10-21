@@ -9,6 +9,7 @@ export interface ServerProductConfig {
   defaultCost: number;
   defaultPrice: number;
   slugAliases: string[];
+  isActive?: boolean;
 }
 
 export const SERVER_PRODUCTS: ServerProductConfig[] = [
@@ -248,8 +249,8 @@ export const SERVER_PRODUCTS: ServerProductConfig[] = [
     inputType: 'placa',
     apiPrimary: 'pre_vistoria',
     apiContingencies: [],
-    defaultCost: 0.32,
-    defaultPrice: 0.69,
+    defaultCost: 0.69,
+    defaultPrice: 1.90,
     slugAliases: ['pre-vistoria-completa', 'vistoria', 'pre-vistoria-veicular']
   }
 ];

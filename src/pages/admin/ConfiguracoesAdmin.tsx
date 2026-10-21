@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   User, 
   Mail, 
@@ -321,6 +322,22 @@ export default function ConfiguracoesAdmin() {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Atalho para Gestão da Tabela de Preços */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
+              Tabela de Preços & Custos
+            </h4>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Consulte e edite as tarifas padrão cobradas dos assinantes, custos unitários dos provedores e margem por produto.
+            </p>
+            <Link
+              to="/admin/tabela-precos"
+              className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              Gerenciar Valores Oficiais
+            </Link>
           </div>
         </div>
       </div>
