@@ -303,5 +303,29 @@ Integrado com sucesso como o segundo produto oficial do bureau Renacred:
    * **Script Executado:** `/opt/renacred/deploy.sh` (Git pull `3e865fb`, OpenResty reload, Docker Compose build & up).
    * **Status de Produção:** Validado com sucesso via `https://api.renacred.com.br/health` e chamada real em `/v1/veicular/proprietarios?token=rena_live_testmaster001&query=ATT0849`.
 
+---
+
+## 14. Extrato de Consumo & Faturamento Analítico (Padrão Gravitas)
+
+Implementado com base no benchmark executivo (Infosinistros):
+
+1. **Causa Raiz do Extrato em Branco para Clientes Pós-Pagos (ex: DATACUBE):**
+   * O frontend consultava `/api/payment/transactions`, alimentado apenas pela tabela `credit_transactions`.
+   * Contas pós-pagas não sofrem débitos pré-pagos e, portanto, possuíam 0 registros em `credit_transactions`, enquanto acumulavam milhares de registros reais na tabela `queries`.
+   * **Correção:** Criação do endpoint analítico de alta performance `GET /api/payment/consumption-statement`, que agrega e pagina dados diretamente da tabela `queries` tanto para pós-pago quanto pré-pago.
+
+2. **Componente Reutilizável `ExtratoConsumoView.tsx`:**
+   * **Atalhos de Ciclo:** `Ciclo Vigente (Dia X)`, `Ciclo Anterior`, `Mês Atual` e `Últimos 30 Dias`, calculados dinamicamente com base no `billingDueDate` da empresa.
+   * **Filtros Operacionais:** Período com seletores de data, seletor de Origem (`Todas`, `Somente API`, `Somente Web`) e busca por Placa, CPF/CNPJ ou Chassi.
+   * **Exportação CSV:** Botão para download de planilha formatada em padrão RFC4180 com UTF-8 BOM.
+   * **4 KPIs Executivos:** Total de Consultas, Total Tarifado, Via Integração API (com percentual) e Ticket Médio / Consulta.
+   * **Tabela de Alta Densidade:** Colunas de Data/Hora, Placa/Identificador (monospace bold), Produto/Tipo, Origem (`API B2B` roxo / `Portal Web` azul), Tarifa Cobrada e botões de Ação (`Ver Laudo` e `Ver JSON`).
+   * **Modais Interativos:** Modal para inspeção estruturada do laudo (multas, veículos ou imóveis) e modal para cópia/inspeção do payload JSON puro.
+
+3. **Pontos de Acesso na Plataforma:**
+   * **Portal do Assinante:** `src/pages/assinante/MinhaAssinatura.tsx` (aba `Extrato de Consumo & Saldo`, disponível para assinantes reais e modo simulação).
+   * **Portal Administrativo:** `src/pages/admin/GerenciarClientes.tsx` (botão `Extrato de Consumo` no menu de ações de cada cliente, abrindo modal analítico completo).
+   * **Rota Standalone:** `src/pages/assinante/ExtratoFinanceiro.tsx`.
+
 
 
