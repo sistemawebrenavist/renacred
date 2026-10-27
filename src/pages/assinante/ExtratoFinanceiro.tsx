@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import ExtratoConsumoView from '../../components/common/ExtratoConsumoView';
 
 export default function ExtratoFinanceiro() {
   const { user } = useAuth();
@@ -146,64 +147,7 @@ export default function ExtratoFinanceiro() {
         {loading ? (
           <div className="py-12 text-center text-xs text-slate-400">Carregando dados financeiros...</div>
         ) : activeTab === 'extrato' ? (
-          transactions.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-400">
-              Nenhuma movimentação financeira registrada até o momento.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
-                  <tr>
-                    <th className="py-3 px-4">Tipo</th>
-                    <th className="py-3 px-4">Descrição</th>
-                    <th className="py-3 px-4">Valor</th>
-                    <th className="py-3 px-4">Saldo Após</th>
-                    <th className="py-3 px-4 text-right">Data</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {transactions.map((tx) => {
-                    const isCredit = tx.type === 'RECHARGE' || tx.type === 'MANUAL_ADJUSTMENT';
-                    return (
-                      <tr key={tx.id} className="hover:bg-slate-50/80 transition">
-                        <td className="py-3 px-4">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                              isCredit
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-slate-100 text-slate-700 border border-slate-200'
-                            }`}
-                          >
-                            {isCredit ? (
-                              <ArrowDownLeft className="w-3 h-3 mr-1 text-emerald-600" />
-                            ) : (
-                              <ArrowUpRight className="w-3 h-3 mr-1 text-slate-500" />
-                            )}
-                            {tx.type}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-slate-900 font-medium">{tx.description}</td>
-                        <td
-                          className={`py-3 px-4 font-bold font-mono ${
-                            isCredit ? 'text-emerald-700' : 'text-slate-900'
-                          }`}
-                        >
-                          {isCredit ? '+' : '-'} R$ {Number(tx.amount).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600 font-mono">
-                          R$ {Number(tx.balance).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-right text-slate-500">
-                          {new Date(tx.createdAt).toLocaleString('pt-BR')}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )
+          <ExtratoConsumoView />
         ) : (
           invoices.length === 0 ? (
             <div className="py-12 text-center text-xs text-slate-400">

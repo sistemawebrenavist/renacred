@@ -17,13 +17,15 @@ import {
   ShieldCheck,
   Receipt,
   UserCog,
-  LogIn
+  LogIn,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { UserAccessModal } from '../../components/admin/UserAccessModal';
+import ExtratoConsumoView from '../../components/common/ExtratoConsumoView';
 import { useAuth } from '../../contexts/AuthContext';
 import { PRODUCTS_CATALOG, getProductByCode } from '../../config/productsCatalog';
 
@@ -74,6 +76,9 @@ export default function GerenciarClientes() {
 
   // Modal de Gestão de Usuário e Alteração de Senha (Admin)
   const [userAccessCompany, setUserAccessCompany] = useState<any | null>(null);
+
+  // Modal de Extrato de Consumo Analítico (Admin)
+  const [statementModalCompany, setStatementModalCompany] = useState<any | null>(null);
 
   // Menu Dropdown de Ações por Cliente
   const [activeActionsMenu, setActiveActionsMenu] = useState<string | null>(null);
@@ -810,6 +815,17 @@ export default function GerenciarClientes() {
                               >
                                 <LogIn className="w-4 h-4 text-emerald-600 shrink-0" />
                                 <span>Acessar Portal do Cliente</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveActionsMenu(null);
+                                  setStatementModalCompany(c);
+                                }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-blue-50/70 flex items-center gap-2.5 text-blue-800 transition cursor-pointer font-semibold"
+                              >
+                                <FileSpreadsheet className="w-4 h-4 text-blue-600 shrink-0" />
+                                <span>Extrato de Consumo</span>
                               </button>
                               <button
                                 type="button"
@@ -1954,6 +1970,44 @@ export default function GerenciarClientes() {
         onClose={() => setUserAccessCompany(null)}
         onUserUpdated={fetchCompanies}
       />
+
+      {/* Modal de Extrato de Consumo Analítico (Admin) */}
+      {statementModalCompany && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center font-bold">
+                  <Building2 className="w-5 h-5 text-blue-700" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <span>{statementModalCompany.razaoSocial}</span>
+                    <span className="text-xs font-mono font-normal text-slate-500">({statementModalCompany.cnpjCpf})</span>
+                  </h3>
+                  <p className="text-xs text-slate-500">Extrato analítico de consultas, tarifação e consumo via Web e API</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setStatementModalCompany(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              <ExtratoConsumoView 
+                companyId={statementModalCompany.id} 
+                companyName={statementModalCompany.razaoSocial} 
+                isModal={true} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

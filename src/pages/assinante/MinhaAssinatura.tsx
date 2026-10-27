@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { PRODUCTS_CATALOG, getProductByCode } from '../../config/productsCatalog';
+import ExtratoConsumoView from '../../components/common/ExtratoConsumoView';
 
 export default function MinhaAssinatura() {
   const { user } = useAuth();
@@ -336,85 +337,90 @@ export default function MinhaAssinatura() {
               </button>
             </div>
 
-            {/* Conteúdo da Aba 1: Extrato de Consumo */}
+            {/* Conteúdo da Aba 1: Extrato de Consumo & Saldo */}
             {activeTab === 'extrato' && (
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">Extrato de Movimentações</h3>
-                    <p className="text-xs text-slate-500">
-                      Histórico detalhado de consultas imobiliárias realizadas e recargas de saldo.
-                    </p>
-                  </div>
-                  {!isPostPaid && (
-                    <button
-                      onClick={() => setShowRechargeModal(true)}
-                      className="text-xs font-semibold text-[#1D4ED8] hover:text-[#1E40AF] flex items-center"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5 mr-1" />
-                      Recarregar via Pix
-                    </button>
-                  )}
-                </div>
+              <div className="space-y-6">
+                <ExtratoConsumoView />
 
-                {loadingTransactions ? (
-                  <div className="py-12 text-center text-xs text-slate-400">Carregando movimentações...</div>
-                ) : transactions.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-slate-400">
-                    Nenhuma movimentação financeira registrada até o momento.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
-                        <tr>
-                          <th className="py-3 px-4">Tipo</th>
-                          <th className="py-3 px-4">Descrição</th>
-                          <th className="py-3 px-4">Valor</th>
-                          <th className="py-3 px-4">Saldo Após</th>
-                          <th className="py-3 px-4 text-right">Data & Hora</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {transactions.map((tx) => {
-                          const isCredit = tx.type === 'RECHARGE' || tx.type === 'MANUAL_ADJUSTMENT';
-                          return (
-                            <tr key={tx.id} className="hover:bg-slate-50/80 transition">
-                              <td className="py-3 px-4">
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                                    isCredit
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                      : 'bg-slate-100 text-slate-700 border border-slate-200'
-                                  }`}
-                                >
-                                  {isCredit ? (
-                                    <ArrowDownLeft className="w-3 h-3 mr-1 text-emerald-600" />
-                                  ) : (
-                                    <ArrowUpRight className="w-3 h-3 mr-1 text-slate-500" />
-                                  )}
-                                  {tx.type === 'QUERY_DEBIT' ? 'CONSULTA' : tx.type === 'RECHARGE' ? 'RECARGA' : tx.type}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 text-slate-900 font-medium">{tx.description}</td>
-                              <td
-                                className={`py-3 px-4 font-bold font-mono ${
-                                  isCredit ? 'text-emerald-700' : 'text-slate-900'
-                                }`}
-                              >
-                                {isCredit ? '+' : '-'} R$ {Number(tx.amount).toFixed(2)}
-                              </td>
-                              <td className="py-3 px-4 text-slate-600 font-mono">
-                                R$ {Number(tx.balance).toFixed(2)}
-                              </td>
-                              <td className="py-3 px-4 text-right text-slate-500">
-                                {new Date(tx.createdAt).toLocaleString('pt-BR')}
-                              </td>
+                {/* Bloco complementar de Recargas e Ajustes Financeiros (Apenas contas Pré-pagas) */}
+                {!isPostPaid && (
+                  <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900">Histórico de Recargas & Saldo</h3>
+                        <p className="text-xs text-slate-500">
+                          Registro de recargas Pix aprovadas e ajustes manuais de saldo.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowRechargeModal(true)}
+                        className="text-xs font-semibold text-[#1D4ED8] hover:text-[#1E40AF] flex items-center"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5 mr-1" />
+                        Recarregar via Pix
+                      </button>
+                    </div>
+
+                    {loadingTransactions ? (
+                      <div className="py-8 text-center text-xs text-slate-400">Carregando recargas...</div>
+                    ) : transactions.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-slate-400">
+                        Nenhuma recarga ou ajuste manual registrado até o momento.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="text-slate-500 uppercase tracking-wider border-b border-slate-200 bg-slate-50/50">
+                            <tr>
+                              <th className="py-3 px-4">Tipo</th>
+                              <th className="py-3 px-4">Descrição</th>
+                              <th className="py-3 px-4">Valor</th>
+                              <th className="py-3 px-4">Saldo Após</th>
+                              <th className="py-3 px-4 text-right">Data & Hora</th>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {transactions.map((tx) => {
+                              const isCredit = tx.type === 'RECHARGE' || tx.type === 'MANUAL_ADJUSTMENT';
+                              return (
+                                <tr key={tx.id} className="hover:bg-slate-50/80 transition">
+                                  <td className="py-3 px-4">
+                                    <span
+                                      className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                                        isCredit
+                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                      }`}
+                                    >
+                                      {isCredit ? (
+                                        <ArrowDownLeft className="w-3 h-3 mr-1 text-emerald-600" />
+                                      ) : (
+                                        <ArrowUpRight className="w-3 h-3 mr-1 text-slate-500" />
+                                      )}
+                                      {tx.type === 'QUERY_DEBIT' ? 'CONSULTA' : tx.type === 'RECHARGE' ? 'RECARGA' : tx.type}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 text-slate-900 font-medium">{tx.description}</td>
+                                  <td
+                                    className={`py-3 px-4 font-bold font-mono ${
+                                      isCredit ? 'text-emerald-700' : 'text-slate-900'
+                                    }`}
+                                  >
+                                    {isCredit ? '+' : '-'} R$ {Number(tx.amount).toFixed(2)}
+                                  </td>
+                                  <td className="py-3 px-4 text-slate-600 font-mono">
+                                    R$ {Number(tx.balance).toFixed(2)}
+                                  </td>
+                                  <td className="py-3 px-4 text-right text-slate-500">
+                                    {new Date(tx.createdAt).toLocaleString('pt-BR')}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

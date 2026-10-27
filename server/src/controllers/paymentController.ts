@@ -306,3 +306,209 @@ export const payInvoiceCheckout = async (req: any, res: Response) => {
   }
 };
 
+/**
+ * Extrato unificado de consumo e faturamento de consultas
+ * Compatível tanto com contas Pós-pagas quanto Pré-pagas
+ */
+export const getConsumptionStatement = async (req: any, res: Response) => {
+  try {
+    const isSuperAdmin = Boolean(req.user?.isSuperAdmin || req.user?.role === 'SUPER_ADMIN');
+    const targetCompanyId = (isSuperAdmin && req.query.companyId) ? String(req.query.companyId) : req.user.companyId;
+
+    const company = await prisma.company.findUnique({
+      where: { id: targetCompanyId },
+      select: {
+        id: true,
+        razaoSocial: true,
+        nomeFantasia: true,
+        cnpjCpf: true,
+        accountType: true,
+        billingDueDate: true,
+        creditsBalance: true,
+        creditLimit: true,
+        customPrices: true,
+        customQueryPrice: true,
+      }
+    });
+
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Empresa não encontrada.' });
+    }
+
+    const {
+      startDate,
+      endDate,
+      source,
+      search,
+      page = 1,
+      limit = 50,
+      status
+    } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page as string) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit as string) || 50));
+    const skip = (pageNum - 1) * limitNum;
+
+    // Calcular ciclos
+    const billingDay = company.billingDueDate || 10;
+    const { cycleStart: currentCycleStart, cycleEnd: currentCycleEnd } = getBillingCycleDates(billingDay);
+
+    // Ciclo anterior
+    const prevStart = new Date(currentCycleStart);
+    prevStart.setMonth(prevStart.getMonth() - 1);
+    const prevEnd = new Date(currentCycleStart);
+    prevEnd.setMilliseconds(-1);
+
+    // Construir filtro WHERE
+    const where: any = {
+      companyId: targetCompanyId,
+    };
+
+    if (status) {
+      where.status = String(status);
+    }
+
+    // Filtro de data
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        where.createdAt.gte = new Date(String(startDate));
+      }
+      if (endDate) {
+        const end = new Date(String(endDate));
+        if (String(endDate).length <= 10) {
+          end.setHours(23, 59, 59, 999);
+        }
+        where.createdAt.lte = end;
+      }
+    }
+
+    // Filtro de origem
+    if (source && source !== 'ALL') {
+      where.source = String(source).toUpperCase();
+    }
+
+    // Filtro de busca por identificador (Placa, CPF, CNPJ, Chassi)
+    if (search && String(search).trim()) {
+      const term = String(search).trim();
+      where.identifier = {
+        contains: term,
+        mode: 'insensitive'
+      };
+    }
+
+    // Buscar contagem e KPIs consolidados
+    const [totalMatching, totalMatchingSum, totalApiCount, totalWebCount] = await Promise.all([
+      prisma.query.count({ where }),
+      prisma.query.aggregate({
+        where,
+        _sum: { cost: true }
+      }),
+      prisma.query.count({
+        where: { ...where, source: 'API' }
+      }),
+      prisma.query.count({
+        where: { ...where, source: 'WEB' }
+      })
+    ]);
+
+    const totalAmount = Number(totalMatchingSum._sum.cost || 0);
+    const averageTicket = totalMatching > 0 ? (totalAmount / totalMatching) : 0;
+
+    // Buscar itens paginados
+    const queries = await prisma.query.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limitNum,
+      select: {
+        id: true,
+        identifier: true,
+        source: true,
+        status: true,
+        cost: true,
+        totalDeclaracoes: true,
+        processingTimeMs: true,
+        requestData: true,
+        resultData: true,
+        createdAt: true,
+      }
+    });
+
+    // Formatar itens para exibição
+    const items = queries.map((q) => {
+      const reqData = (q.requestData as any) || {};
+      const resData = (q.resultData as any) || {};
+
+      let productCode = reqData.product || reqData.productCode || '';
+      let productName = reqData.productName || '';
+
+      if (!productCode) {
+        if (q.source === 'API') {
+          productCode = 'API_B2B';
+          productName = 'Consulta Integrada via API';
+        } else {
+          productCode = 'WEB';
+          productName = 'Consulta Portal Web';
+        }
+      }
+
+      return {
+        id: q.id,
+        createdAt: q.createdAt,
+        identifier: q.identifier,
+        productCode: String(productCode).toUpperCase(),
+        productName: productName,
+        source: q.source,
+        sourceLabel: q.source === 'API' ? 'API B2B' : 'Portal Web',
+        cost: Number(q.cost || 0),
+        status: q.status,
+        totalDeclaracoes: q.totalDeclaracoes,
+        processingTimeMs: q.processingTimeMs,
+        requestData: reqData,
+        resultData: resData,
+      };
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        company: {
+          id: company.id,
+          razaoSocial: company.razaoSocial,
+          cnpjCpf: company.cnpjCpf,
+          accountType: company.accountType,
+          billingDueDate: billingDay,
+          creditsBalance: Number(company.creditsBalance || 0),
+          creditLimit: Number(company.creditLimit || 0),
+        },
+        cycleInfo: {
+          billingDueDate: billingDay,
+          currentCycleStart: currentCycleStart.toISOString(),
+          currentCycleEnd: currentCycleEnd.toISOString(),
+          previousCycleStart: prevStart.toISOString(),
+          previousCycleEnd: prevEnd.toISOString(),
+        },
+        kpis: {
+          totalQueries: totalMatching,
+          totalAmount: totalAmount,
+          apiQueries: totalApiCount,
+          webQueries: totalWebCount,
+          averageTicket: averageTicket,
+        },
+        items,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: totalMatching,
+          totalPages: Math.ceil(totalMatching / limitNum) || 1,
+        }
+      }
+    });
+
+  } catch (error: any) {
+    logger.error(`[BILLING] Erro ao buscar extrato de consumo: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao buscar extrato de consumo.' });
+  }
+};
+
