@@ -24,7 +24,7 @@ router.get('/catalogo', async (req: any, res) => {
     let resolvedPrice = p.defaultPrice;
     if (typeof customPrices[p.code] === 'number') {
       resolvedPrice = Number(customPrices[p.code]);
-    } else if (company?.customQueryPrice) {
+    } else if (p.code === 'E1' && company?.customQueryPrice) {
       resolvedPrice = Number(company.customQueryPrice);
     }
 

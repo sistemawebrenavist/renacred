@@ -107,7 +107,7 @@ export default function CatalogoProdutos() {
           const customPrices = (user?.company?.customPrices as Record<string, number>) || {};
           const effectivePrice = typeof customPrices[p.code] === 'number'
             ? customPrices[p.code]
-            : (user?.company?.customQueryPrice ? Number(user.company.customQueryPrice) : p.defaultPrice);
+            : (p.code === 'E1' && user?.company?.customQueryPrice ? Number(user.company.customQueryPrice) : p.defaultPrice);
 
           return (
             <div

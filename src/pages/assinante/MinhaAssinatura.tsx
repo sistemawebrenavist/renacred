@@ -126,7 +126,7 @@ export default function MinhaAssinatura() {
   const company = data?.company || user?.company;
   const cycle = data?.currentCycle;
   const isPostPaid = company?.accountType === 'POST_PAID';
-  const effectivePrice = Number(company?.effectivePrice || company?.customQueryPrice || 5.00);
+  const effectivePrice = Number(company?.effectivePrice || company?.customPrices?.E1 || company?.customQueryPrice || 5.00);
   const creditsBalance = Number(company?.creditsBalance || 0);
 
   return (

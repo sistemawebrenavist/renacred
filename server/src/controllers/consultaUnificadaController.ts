@@ -173,7 +173,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       });
     }
 
-    // 3.2 Preço efetivo: customPrices[code] > customQueryPrice > defaultPrice
+    // 3.2 Preço efetivo: customPrices[code] > defaultPrice (customQueryPrice apenas para E1 como compatibilidade)
     const customPrices = (company?.customPrices as Record<string, number>) || {};
     let effectivePrice = product.defaultPrice;
     if (typeof customPrices[product.code] === 'number') {
@@ -182,7 +182,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       effectivePrice = Number(customPrices[product.code.toUpperCase()]);
     } else if (typeof customPrices[product.code.toLowerCase()] === 'number') {
       effectivePrice = Number(customPrices[product.code.toLowerCase()]);
-    } else if (company?.customQueryPrice && product.code !== 'E1') {
+    } else if (product.code === 'E1' && company?.customQueryPrice) {
       effectivePrice = Number(company.customQueryPrice);
     }
 
@@ -372,7 +372,7 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       effectivePrice = Number(customPrices[product.code.toUpperCase()]);
     } else if (typeof customPrices[product.code.toLowerCase()] === 'number') {
       effectivePrice = Number(customPrices[product.code.toLowerCase()]);
-    } else if (company?.customQueryPrice && product.code !== 'E1') {
+    } else if (product.code === 'E1' && company?.customQueryPrice) {
       effectivePrice = Number(company.customQueryPrice);
     }
 

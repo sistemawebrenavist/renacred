@@ -154,6 +154,7 @@ export const getSubscriptionDetails = async (req: any, res: Response) => {
         creditsBalance: true,
         creditLimit: true,
         billingDueDate: true,
+        customPrices: true,
         customQueryPrice: true,
         allowedProducts: true,
         isActive: true,
@@ -165,9 +166,12 @@ export const getSubscriptionDetails = async (req: any, res: Response) => {
     }
 
     const defaultPricing = await prisma.pricingConfig.findFirst();
-    const effectivePrice = company.customQueryPrice !== null 
-      ? Number(company.customQueryPrice) 
-      : (defaultPricing ? Number(defaultPricing.defaultQueryPrice) : 5.00);
+    const customPrices = (company.customPrices as any) || {};
+    const effectivePrice = typeof customPrices.E1 === 'number'
+      ? Number(customPrices.E1)
+      : (company.customQueryPrice !== null 
+          ? Number(company.customQueryPrice) 
+          : (defaultPricing ? Number(defaultPricing.defaultQueryPrice) : 5.00));
 
     // Calcular ciclo ativo
     const { cycleStart, cycleEnd, dueDate } = getBillingCycleDates(company.billingDueDate || 10);
@@ -210,6 +214,7 @@ export const getSubscriptionDetails = async (req: any, res: Response) => {
           creditLimit: creditLimitNum,
           billingDueDate: company.billingDueDate,
           effectivePrice,
+          customPrices: company.customPrices,
           isActive: company.isActive,
         },
         currentCycle: {

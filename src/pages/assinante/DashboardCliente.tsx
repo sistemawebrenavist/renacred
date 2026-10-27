@@ -317,7 +317,7 @@ export default function DashboardCliente() {
               <div className="flex items-center justify-between py-1">
                 <span className="text-slate-500">Tarifa por consulta:</span>
                 <span className="font-bold text-emerald-700 font-mono">
-                  R$ {Number(company?.customQueryPrice || 5).toFixed(2)}
+                  R$ {Number(company?.customPrices?.E1 || company?.customQueryPrice || 5).toFixed(2)}
                 </span>
               </div>
               <div className="flex items-center justify-between py-1">

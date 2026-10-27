@@ -88,7 +88,7 @@ export const SeletorProdutoModal: React.FC<SeletorProdutoModalProps> = ({
             const isSelected = p.code.toUpperCase() === currentCode.toUpperCase();
             const effectivePrice = typeof customPrices[p.code] === 'number'
               ? customPrices[p.code]
-              : (user?.company?.customQueryPrice ? Number(user.company.customQueryPrice) : p.defaultPrice);
+              : (p.code === 'E1' && user?.company?.customQueryPrice ? Number(user.company.customQueryPrice) : p.defaultPrice);
 
             return (
               <button

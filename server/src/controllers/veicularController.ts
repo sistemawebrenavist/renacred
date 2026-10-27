@@ -65,7 +65,7 @@ export const consultarVeicularWeb = async (req: any, res: Response) => {
   }
 
   if (!isSuperAdmin) {
-    const check = await billingService.checkEligibility(companyId, company);
+    const check = await billingService.checkEligibility(companyId, company, 'E2');
     if (!check.allowed) {
       return res.status(402).json({
         success: false,
@@ -215,7 +215,7 @@ export const consultarVeicularApiV1 = async (req: any, res: Response) => {
   }
 
   // 1. Checar elegibilidade de faturamento
-  const eligibility = await billingService.checkEligibility(company.id, company);
+  const eligibility = await billingService.checkEligibility(company.id, company, 'E2');
   if (!eligibility.allowed) {
     setImmediate(() => {
       prisma.apiLog.create({

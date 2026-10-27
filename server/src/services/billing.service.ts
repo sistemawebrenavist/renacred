@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import { TransactionType, InvoiceStatus } from '../types/database';
+import { SERVER_PRODUCTS } from '../config/productsCatalog';
 
 export interface BillingCheckResult {
   allowed: boolean;
@@ -109,7 +110,7 @@ export class BillingService {
       return { allowed: true, price: 0 };
     }
 
-    // Resolução de preço: customPrices[productCode] > customQueryPrice > defaultQueryPrice
+    // Resolução de preço: customPrices[productCode] > SERVER_PRODUCTS[productCode].defaultPrice (customQueryPrice apenas para E1 / fallback)
     let price = 5.00;
     const normalizedCode = productCode ? productCode.trim().toUpperCase() : undefined;
 
@@ -117,6 +118,11 @@ export class BillingService {
       price = Number(customPrices[normalizedCode]);
     } else if (normalizedCode && typeof customPrices[normalizedCode.toLowerCase()] === 'number') {
       price = Number(customPrices[normalizedCode.toLowerCase()]);
+    } else if (normalizedCode === 'E1' && company.customQueryPrice !== null && company.customQueryPrice !== undefined) {
+      price = Number(company.customQueryPrice);
+    } else if (normalizedCode) {
+      const catProduct = SERVER_PRODUCTS.find((p) => p.code.toUpperCase() === normalizedCode);
+      price = catProduct ? catProduct.defaultPrice : (company.customQueryPrice !== null ? Number(company.customQueryPrice) : 5.00);
     } else if (company.customQueryPrice !== null && company.customQueryPrice !== undefined) {
       price = Number(company.customQueryPrice);
     } else {

@@ -352,7 +352,9 @@ export default function HubConsulta() {
     if (typeof customPrices[currentProduct.code] === 'number') {
       return customPrices[currentProduct.code];
     }
-    if (user?.company?.customQueryPrice) return Number(user.company.customQueryPrice);
+    if (currentProduct.code === 'E1' && user?.company?.customQueryPrice) {
+      return Number(user.company.customQueryPrice);
+    }
     return currentProduct.defaultPrice;
   }, [user, currentProduct]);
 

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Search, 
-  Wallet, 
-  Calendar, 
-  Check, 
-  X, 
-  Plus, 
+import {
+  Users,
+  Search,
+  Wallet,
+  Calendar,
+  Check,
+  X,
+  Plus,
   Trash2,
   SlidersHorizontal,
   KeyRound,
@@ -277,10 +277,10 @@ export default function GerenciarClientes() {
     setEditingCompany(c);
     const customPrices = (c.customPrices as any) || {};
     const isMaster = Boolean(c.isMasterAdmin) ||
-                     c.cnpjCpf === '00000000000191' ||
-                     c.razaoSocial?.toLowerCase().includes('renacred') ||
-                     Number(c.creditLimit) >= 999999 ||
-                     Boolean(customPrices.isUnlimited);
+      c.cnpjCpf === '00000000000191' ||
+      c.razaoSocial?.toLowerCase().includes('renacred') ||
+      Number(c.creditLimit) >= 999999 ||
+      Boolean(customPrices.isUnlimited);
 
     setIsUnlimitedAccount(isMaster);
     setAccountType(isMaster ? 'POST_PAID' : c.accountType);
@@ -350,11 +350,15 @@ export default function GerenciarClientes() {
       }
 
       const isAllSelected = selectedProducts.length === PRODUCTS_CATALOG.length;
+      const e1CustomPrice = customPricesObj['E1'];
+      const resolvedCustomQueryPrice = typeof e1CustomPrice === 'number'
+        ? e1CustomPrice
+        : (customQueryPrice ? parseFloat(customQueryPrice) : null);
 
       const res = await api.put(`/api/admin/companies/${editingCompany.id}`, {
         accountType: isUnlimitedAccount ? 'POST_PAID' : accountType,
         billingDueDate,
-        customQueryPrice: customQueryPrice ? parseFloat(customQueryPrice) : null,
+        customQueryPrice: resolvedCustomQueryPrice,
         creditLimit: isUnlimitedAccount ? 999999 : (creditLimit ? parseFloat(creditLimit) : 0),
         rateLimitPerMinute: rateLimitPerMinute ? parseInt(rateLimitPerMinute, 10) : 60,
         isActive,
@@ -560,10 +564,10 @@ export default function GerenciarClientes() {
                       {(() => {
                         const customPrices = (c.customPrices as any) || {};
                         const isMaster = Boolean(c.isMasterAdmin) ||
-                                         c.cnpjCpf === '00000000000191' ||
-                                         c.razaoSocial?.toLowerCase().includes('renacred') ||
-                                         Number(c.creditLimit) >= 999999 ||
-                                         Boolean(customPrices.isUnlimited);
+                          c.cnpjCpf === '00000000000191' ||
+                          c.razaoSocial?.toLowerCase().includes('renacred') ||
+                          Number(c.creditLimit) >= 999999 ||
+                          Boolean(customPrices.isUnlimited);
 
                         if (isMaster) {
                           return (
@@ -581,11 +585,10 @@ export default function GerenciarClientes() {
                         return (
                           <>
                             <span
-                              className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                                c.accountType === 'POST_PAID'
+                              className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${c.accountType === 'POST_PAID'
                                   ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                   : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              }`}
+                                }`}
                             >
                               {c.accountType === 'POST_PAID' ? 'Pós-pago' : 'Pré-pago'}
                             </span>
@@ -620,10 +623,10 @@ export default function GerenciarClientes() {
                       {(() => {
                         const customPrices = (c.customPrices as any) || {};
                         const isMaster = Boolean(c.isMasterAdmin) ||
-                                         c.cnpjCpf === '00000000000191' ||
-                                         c.razaoSocial?.toLowerCase().includes('renacred') ||
-                                         Number(c.creditLimit) >= 999999 ||
-                                         Boolean(customPrices.isUnlimited);
+                          c.cnpjCpf === '00000000000191' ||
+                          c.razaoSocial?.toLowerCase().includes('renacred') ||
+                          Number(c.creditLimit) >= 999999 ||
+                          Boolean(customPrices.isUnlimited);
                         const monthlyLimit = Number(customPrices.monthlyRequestLimit || 0);
 
                         if (isMaster) {
@@ -769,16 +772,14 @@ export default function GerenciarClientes() {
                           aria-checked={c.isActive}
                           disabled={togglingCompanyId === c.id}
                           onClick={() => handleToggleCompanyStatus(c)}
-                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden disabled:opacity-50 ${
-                            c.isActive ? 'bg-emerald-500' : 'bg-slate-300'
-                          }`}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden disabled:opacity-50 ${c.isActive ? 'bg-emerald-500' : 'bg-slate-300'
+                            }`}
                           title={c.isActive ? 'Clique para desativar/bloquear este cliente' : 'Clique para ativar este cliente'}
                         >
                           <span
                             aria-hidden="true"
-                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                              c.isActive ? 'translate-x-4' : 'translate-x-0'
-                            }`}
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${c.isActive ? 'translate-x-4' : 'translate-x-0'
+                              }`}
                           />
                         </button>
                         <span className={`text-[9.5px] font-bold ${c.isActive ? 'text-emerald-700' : 'text-slate-400'}`}>
@@ -791,11 +792,10 @@ export default function GerenciarClientes() {
                         <button
                           type="button"
                           onClick={() => setActiveActionsMenu(activeActionsMenu === c.id ? null : c.id)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer shadow-2xs ${
-                            activeActionsMenu === c.id
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer shadow-2xs ${activeActionsMenu === c.id
                               ? 'bg-slate-900 text-white border-slate-900'
                               : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                          }`}
+                            }`}
                         >
                           <span>Ações</span>
                           <ChevronDown className={`w-3.5 h-3.5 transition-transform ${activeActionsMenu === c.id ? 'rotate-180 text-white' : 'text-slate-400'}`} />
@@ -803,9 +803,8 @@ export default function GerenciarClientes() {
 
                         {activeActionsMenu === c.id && (
                           <div
-                            className={`absolute right-0 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 text-xs divide-y divide-slate-100 animate-in fade-in-50 zoom-in-95 duration-100 ${
-                              idx >= companies.length - 2 && companies.length > 2 ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
-                            }`}
+                            className={`absolute right-0 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 text-xs divide-y divide-slate-100 animate-in fade-in-50 zoom-in-95 duration-100 ${idx >= companies.length - 2 && companies.length > 2 ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+                              }`}
                           >
                             <div className="py-1">
                               <button
@@ -1273,11 +1272,10 @@ export default function GerenciarClientes() {
               <button
                 type="button"
                 onClick={() => setModalTab('products')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${
-                  modalTab === 'products'
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${modalTab === 'products'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <Layers className="w-3.5 h-3.5" />
                 <span>Produtos & Preços ({selectedProducts.length}/{PRODUCTS_CATALOG.length})</span>
@@ -1285,11 +1283,10 @@ export default function GerenciarClientes() {
               <button
                 type="button"
                 onClick={() => setModalTab('billing')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${
-                  modalTab === 'billing'
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${modalTab === 'billing'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <Wallet className="w-3.5 h-3.5" />
                 <span>Faturamento & Limites</span>
@@ -1363,11 +1360,10 @@ export default function GerenciarClientes() {
                       return (
                         <div
                           key={p.code}
-                          className={`p-3 rounded-xl border transition flex flex-col md:flex-row md:items-center justify-between gap-3 ${
-                            isEnabled
+                          className={`p-3 rounded-xl border transition flex flex-col md:flex-row md:items-center justify-between gap-3 ${isEnabled
                               ? 'bg-blue-50/30 border-blue-200 shadow-2xs'
                               : 'bg-slate-50/70 border-slate-200 opacity-60'
-                          }`}
+                            }`}
                         >
                           {/* Identificação e Toggle */}
                           <div className="flex items-start space-x-3 flex-1 min-w-0 pr-2">
@@ -1485,11 +1481,10 @@ export default function GerenciarClientes() {
                             setAccountType('PRE_PAID');
                             setIsUnlimitedAccount(false);
                           }}
-                          className={`py-1.5 px-2 rounded-lg border font-bold text-[11px] transition cursor-pointer text-center truncate ${
-                            accountType === 'PRE_PAID' && !isUnlimitedAccount
+                          className={`py-1.5 px-2 rounded-lg border font-bold text-[11px] transition cursor-pointer text-center truncate ${accountType === 'PRE_PAID' && !isUnlimitedAccount
                               ? 'bg-emerald-50 border-emerald-600 text-emerald-700 shadow-2xs'
                               : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                          }`}
+                            }`}
                         >
                           Pré-pago (Recarga)
                         </button>
@@ -1499,11 +1494,10 @@ export default function GerenciarClientes() {
                             setAccountType('POST_PAID');
                             setIsUnlimitedAccount(false);
                           }}
-                          className={`py-1.5 px-2 rounded-lg border font-bold text-[11px] transition cursor-pointer text-center truncate ${
-                            accountType === 'POST_PAID' && !isUnlimitedAccount
+                          className={`py-1.5 px-2 rounded-lg border font-bold text-[11px] transition cursor-pointer text-center truncate ${accountType === 'POST_PAID' && !isUnlimitedAccount
                               ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-2xs'
                               : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                          }`}
+                            }`}
                         >
                           Pós-pago (Fatura)
                         </button>
@@ -1514,11 +1508,10 @@ export default function GerenciarClientes() {
                             setIsUnlimitedAccount(true);
                             setCreditLimit('999999');
                           }}
-                          className={`py-1.5 px-2 rounded-lg border font-bold text-[11px] transition cursor-pointer text-center truncate ${
-                            isUnlimitedAccount
+                          className={`py-1.5 px-2 rounded-lg border font-bold text-[11px] transition cursor-pointer text-center truncate ${isUnlimitedAccount
                               ? 'bg-purple-50 border-purple-600 text-purple-700 shadow-2xs'
                               : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                          }`}
+                            }`}
                         >
                           Ilimitado (Admin)
                         </button>
@@ -1563,8 +1556,8 @@ export default function GerenciarClientes() {
                         {isUnlimitedAccount
                           ? 'Limite Financeiro'
                           : accountType === 'POST_PAID'
-                          ? 'Limite de Consumo (R$)'
-                          : 'Saldo em Conta'}
+                            ? 'Limite de Consumo (R$)'
+                            : 'Saldo em Conta'}
                       </label>
                       {isUnlimitedAccount ? (
                         <div className="w-full bg-purple-50 border border-purple-200 rounded-lg px-2.5 py-1.5 text-xs text-purple-800 font-mono font-bold">
@@ -1623,10 +1616,10 @@ export default function GerenciarClientes() {
                       />
                     </div>
 
-                    {/* Tarifa Global Fallback */}
+                    {/* Tarifa Base E1 */}
                     <div className="col-span-1">
                       <label className="block text-slate-700 font-semibold mb-1 text-[11px]">
-                        Tarifa Fallback (R$)
+                        Tarifa Base E1
                       </label>
                       <input
                         type="number"
@@ -1636,7 +1629,7 @@ export default function GerenciarClientes() {
                         onChange={(e) => setCustomQueryPrice(e.target.value)}
                         placeholder="Ex: 5.00"
                         className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 font-mono"
-                        title="Tarifa aplicada aos produtos que não tiverem preço unitário definido"
+                        title="Preço específico do produto E1 (Histórico Imobiliário) quando não configurado individualmente na aba Produtos"
                       />
                     </div>
                   </div>
@@ -1686,9 +1679,9 @@ export default function GerenciarClientes() {
                   <p className="text-[11px] text-slate-500 truncate max-w-[240px]">{creditModalCompany.razaoSocial}</p>
                 </div>
               </div>
-              <button 
+              <button
                 type="button"
-                onClick={() => setCreditModalCompany(null)} 
+                onClick={() => setCreditModalCompany(null)}
                 className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -1696,11 +1689,10 @@ export default function GerenciarClientes() {
             </div>
 
             {/* Quadro Informativo de Posição Financeira */}
-            <div className={`p-3 rounded-xl border ${
-              creditModalCompany.accountType === 'POST_PAID'
+            <div className={`p-3 rounded-xl border ${creditModalCompany.accountType === 'POST_PAID'
                 ? 'bg-blue-50/60 border-blue-200 text-blue-950'
                 : 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
-            }`}>
+              }`}>
               {creditModalCompany.accountType === 'POST_PAID' ? (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
@@ -1736,11 +1728,10 @@ export default function GerenciarClientes() {
                     setAdjustType('LIMIT');
                     setManualAmount(String(creditModalCompany.creditLimit || ''));
                   }}
-                  className={`py-1.5 rounded-lg transition cursor-pointer ${
-                    adjustType === 'LIMIT'
+                  className={`py-1.5 rounded-lg transition cursor-pointer ${adjustType === 'LIMIT'
                       ? 'bg-white text-blue-700 shadow-2xs font-bold'
                       : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                    }`}
                 >
                   Novo Limite (R$)
                 </button>
@@ -1750,11 +1741,10 @@ export default function GerenciarClientes() {
                     setAdjustType('BALANCE');
                     setManualAmount('');
                   }}
-                  className={`py-1.5 rounded-lg transition cursor-pointer ${
-                    adjustType === 'BALANCE'
+                  className={`py-1.5 rounded-lg transition cursor-pointer ${adjustType === 'BALANCE'
                       ? 'bg-white text-emerald-700 shadow-2xs font-bold'
                       : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                    }`}
                 >
                   Ajustar Saldo
                 </button>
@@ -1864,11 +1854,10 @@ export default function GerenciarClientes() {
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-slate-900">{k.name}</span>
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            k.isActive
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${k.isActive
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : 'bg-rose-50 text-rose-700 border border-rose-200'
-                          }`}
+                            }`}
                         >
                           {k.isActive ? 'Ativa' : 'Revogada'}
                         </span>
@@ -1999,10 +1988,10 @@ export default function GerenciarClientes() {
             </div>
 
             <div className="p-6 overflow-y-auto flex-1">
-              <ExtratoConsumoView 
-                companyId={statementModalCompany.id} 
-                companyName={statementModalCompany.razaoSocial} 
-                isModal={true} 
+              <ExtratoConsumoView
+                companyId={statementModalCompany.id}
+                companyName={statementModalCompany.razaoSocial}
+                isModal={true}
               />
             </div>
           </div>
