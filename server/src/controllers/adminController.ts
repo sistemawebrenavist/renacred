@@ -127,6 +127,7 @@ export const createCompany = async (req: Request, res: Response) => {
           key: initialApiKey,
           rateLimitMin: 60,
           isActive: true,
+          allowedProducts: company.allowedProducts || ['ALL'],
         }
       });
 
@@ -472,6 +473,15 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
       data: dataToUpdate
     });
 
+    // Sincronizar todas as chaves de API existentes da empresa com os produtos permitidos atualizados
+    if (dataToUpdate.allowedProducts) {
+      await prisma.apiKey.updateMany({
+        where: { companyId: id },
+        data: { allowedProducts: dataToUpdate.allowedProducts }
+      });
+      logger.info(`[ADMIN] Chaves de API da empresa ${company.razaoSocial} sincronizadas com allowedProducts: ${JSON.stringify(dataToUpdate.allowedProducts)}`);
+    }
+
     logger.info(`[ADMIN] Parâmetros da empresa ${company.razaoSocial} (${id}) atualizados com sucesso.`);
 
     return res.json({
@@ -743,6 +753,7 @@ export const createApiKeyForCompany = async (req: Request, res: Response) => {
         name: name || `Chave ${company.razaoSocial}`,
         key: fullKey,
         rateLimitMin: 60,
+        allowedProducts: company.allowedProducts || ['ALL'],
       }
     });
 

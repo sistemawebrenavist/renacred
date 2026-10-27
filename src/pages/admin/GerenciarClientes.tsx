@@ -38,7 +38,7 @@ export function getClientApiEndpoint(allowedProducts: string[] | undefined | nul
     return {
       url: `https://api.renacred.com.br/v1/{codigo}?token=${safeToken}&query={parametro}`,
       singleProduct: null,
-      label: 'Todos os 16 Produtos (/v1/:codigo)',
+      label: `Todos os ${PRODUCTS_CATALOG.length} Produtos (/v1/:codigo)`,
     };
   }
 

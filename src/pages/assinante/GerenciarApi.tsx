@@ -23,8 +23,19 @@ export default function GerenciarApi() {
     return availableProducts[0]?.code || 'E1';
   });
 
+  // Manter selectedProductCode em sincronia estrita com os produtos liberados para a empresa
+  useEffect(() => {
+    if (availableProducts.length > 0) {
+      const isAllowed = availableProducts.some(p => p.code === selectedProductCode);
+      if (!isAllowed) {
+        setSelectedProductCode(availableProducts[0].code);
+      }
+    }
+  }, [availableProducts, selectedProductCode]);
+
   const activeProduct: ProductDefinition = React.useMemo(() => {
-    return getProductByCode(selectedProductCode) || availableProducts[0] || PRODUCTS_CATALOG[0];
+    const found = availableProducts.find(p => p.code === selectedProductCode);
+    return found || availableProducts[0] || PRODUCTS_CATALOG[0];
   }, [selectedProductCode, availableProducts]);
 
   const [keys, setKeys] = useState<any[]>([]);
@@ -183,7 +194,7 @@ export default function GerenciarApi() {
             Chaves de Acesso
           </h2>
           <p className="text-slate-500 text-xs mt-1">
-            Gere chaves seguras para integrar as consultas de imóveis diretamente ao seu sistema ou ERP.
+            Gere chaves seguras para integrar as consultas contratadas diretamente ao seu sistema ou ERP.
           </p>
         </div>
 

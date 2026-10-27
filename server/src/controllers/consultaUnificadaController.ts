@@ -149,7 +149,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
 
   // 3.1 Governança B2B: Checar se o produto está contratado pela empresa (obrigatório para consultas web)
   const allowedProducts: string[] = company?.allowedProducts || ['ALL'];
-  const isContracted = allowedProducts.includes('ALL') || allowedProducts.includes(product.code);
+  const isContracted = allowedProducts.includes('ALL') || allowedProducts.some(p => p.toUpperCase() === product.code.toUpperCase());
 
   if (!isContracted) {
     return res.status(403).json({
@@ -164,7 +164,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
   }
 
   if (!isSuperAdmin) {
-    const check = await billingService.checkEligibility(companyId, company);
+    const check = await billingService.checkEligibility(companyId, company, product.code);
     if (!check.allowed) {
       return res.status(402).json({
         success: false,
@@ -178,7 +178,11 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
     let effectivePrice = product.defaultPrice;
     if (typeof customPrices[product.code] === 'number') {
       effectivePrice = Number(customPrices[product.code]);
-    } else if (company?.customQueryPrice) {
+    } else if (typeof customPrices[product.code.toUpperCase()] === 'number') {
+      effectivePrice = Number(customPrices[product.code.toUpperCase()]);
+    } else if (typeof customPrices[product.code.toLowerCase()] === 'number') {
+      effectivePrice = Number(customPrices[product.code.toLowerCase()]);
+    } else if (company?.customQueryPrice && product.code !== 'E1') {
       effectivePrice = Number(company.customQueryPrice);
     }
 
@@ -338,8 +342,8 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
     const companyAllowed: string[] = company?.allowedProducts || ['ALL'];
     const keyAllowed: string[] = apiKey?.allowedProducts || ['ALL'];
 
-    const allowedByCompany = companyAllowed.includes('ALL') || companyAllowed.includes(product.code);
-    const allowedByKey = keyAllowed.includes('ALL') || keyAllowed.includes(product.code);
+    const allowedByCompany = companyAllowed.includes('ALL') || companyAllowed.some(p => p.toUpperCase() === product.code.toUpperCase());
+    const allowedByKey = keyAllowed.includes('ALL') || keyAllowed.some(p => p.toUpperCase() === product.code.toUpperCase());
 
     if (!allowedByCompany || !allowedByKey) {
       return res.status(403).json({
@@ -351,7 +355,7 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       });
     }
 
-    const check = await billingService.checkEligibility(company.id, company);
+    const check = await billingService.checkEligibility(company.id, company, product.code);
     if (!check.allowed) {
       return res.status(402).json({
         success: false,
@@ -364,7 +368,11 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
     let effectivePrice = product.defaultPrice;
     if (typeof customPrices[product.code] === 'number') {
       effectivePrice = Number(customPrices[product.code]);
-    } else if (company?.customQueryPrice) {
+    } else if (typeof customPrices[product.code.toUpperCase()] === 'number') {
+      effectivePrice = Number(customPrices[product.code.toUpperCase()]);
+    } else if (typeof customPrices[product.code.toLowerCase()] === 'number') {
+      effectivePrice = Number(customPrices[product.code.toLowerCase()]);
+    } else if (company?.customQueryPrice && product.code !== 'E1') {
       effectivePrice = Number(company.customQueryPrice);
     }
 

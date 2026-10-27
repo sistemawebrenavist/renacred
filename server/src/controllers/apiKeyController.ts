@@ -41,6 +41,11 @@ export const createApiKey = async (req: any, res: Response) => {
     const randomSecret = crypto.randomBytes(24).toString('hex');
     const fullKey = `rena_live_${randomSecret}`;
 
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { allowedProducts: true }
+    });
+
     const newKey = await prisma.apiKey.create({
       data: {
         companyId,
@@ -48,6 +53,7 @@ export const createApiKey = async (req: any, res: Response) => {
         key: fullKey,
         allowedIps: Array.isArray(allowedIps) ? allowedIps : [],
         rateLimitMin: rateLimitMin ? parseInt(rateLimitMin, 10) : 60,
+        allowedProducts: company?.allowedProducts || ['ALL'],
       }
     });
 

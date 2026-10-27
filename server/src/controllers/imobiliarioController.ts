@@ -35,18 +35,19 @@ export const consultarWeb = async (req: any, res: Response) => {
     company = await prisma.company.findUnique({ where: { id: companyId } });
   }
   const companyAllowed: string[] = company?.allowedProducts || ['ALL'];
-  if (!companyAllowed.includes('ALL') && !companyAllowed.includes('E1')) {
+  const isAllowedWeb = companyAllowed.includes('ALL') || companyAllowed.some(p => p.toUpperCase() === 'E1');
+  if (!isAllowedWeb) {
     return res.status(403).json({
       type: 'https://renacred.com.br/errors/product-not-allowed',
       title: 'Produto Não Contratado',
       status: 403,
-      detail: 'A sua organização não possui permissão para consumir o produto E1 (Histórico Imobiliário). Entre em contato com seu gestor para liberação.',
+      detail: 'A sua organização não possui permissão para consumir o produto E1 (Histórico Imobiliário & Cartórios). Entre em contato com seu gestor para liberação.',
       code: 'PRODUCT_NOT_ALLOWED'
     });
   }
 
   if (!isSuperAdmin) {
-    const check = await billingService.checkEligibility(companyId, company);
+    const check = await billingService.checkEligibility(companyId, company, 'E1');
     if (!check.allowed) {
       return res.status(402).json({
         success: false,
@@ -171,8 +172,8 @@ export const consultarApiV1 = async (req: any, res: Response) => {
   // 0. Checar se produto E1 está contratado pela empresa ou autorizado na chave de API
   const companyAllowed: string[] = company?.allowedProducts || ['ALL'];
   const keyAllowed: string[] = apiKey?.allowedProducts || ['ALL'];
-  const allowedByCompany = companyAllowed.includes('ALL') || companyAllowed.includes('E1');
-  const allowedByKey = keyAllowed.includes('ALL') || keyAllowed.includes('E1');
+  const allowedByCompany = companyAllowed.includes('ALL') || companyAllowed.some(p => p.toUpperCase() === 'E1');
+  const allowedByKey = keyAllowed.includes('ALL') || keyAllowed.some(p => p.toUpperCase() === 'E1');
 
   if (!allowedByCompany || !allowedByKey) {
     return res.status(403).json({
@@ -184,8 +185,8 @@ export const consultarApiV1 = async (req: any, res: Response) => {
     });
   }
 
-  // 1. Checar elegibilidade de faturamento reutilizando a empresa já autenticada
-  const eligibility = await billingService.checkEligibility(company.id, company);
+  // 1. Checar elegibilidade de faturamento reutilizando a empresa já autenticada com tarifação de E1
+  const eligibility = await billingService.checkEligibility(company.id, company, 'E1');
   if (!eligibility.allowed) {
     setImmediate(() => {
       prisma.apiLog.create({

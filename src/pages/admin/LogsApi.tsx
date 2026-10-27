@@ -22,6 +22,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../../services/api';
+import { PRODUCTS_CATALOG, getProductByCode } from '../../config/productsCatalog';
 
 interface ParsedEndpoint {
   cleanPath: string;
@@ -51,62 +52,65 @@ function parseApiEndpoint(endpoint: string): ParsedEndpoint {
       params.get('placa') || 
       params.get('chassi') || 
       params.get('renavam') || 
+      params.get('nome') || 
       '';
 
     const tokenPresent = params.has('token');
-
-    let serviceName = 'Consulta API';
-    let productCode = 'E1';
     const p = rawPath.toLowerCase();
 
-    if (p.includes('/imobiliario/historico') || p.includes('/e1') || p.includes('historico')) {
-      serviceName = 'E1 - Histórico Imobiliário';
-      productCode = 'E1';
-    } else if (p.includes('/e2') || p.includes('/protestos')) {
-      serviceName = 'E2 - Protestos em Cartório';
-      productCode = 'E2';
-    } else if (p.includes('/e3') || p.includes('/processos')) {
-      serviceName = 'E3 - Processos Judiciais';
-      productCode = 'E3';
-    } else if (p.includes('/e4') || p.includes('/imoveis')) {
-      serviceName = 'E4 - Busca de Bens Imóveis';
-      productCode = 'E4';
-    } else if (p.includes('/e5') || p.includes('/veiculos')) {
-      serviceName = 'E5 - Bens Veiculares';
-      productCode = 'E5';
-    } else if (p.includes('/e6') || p.includes('/societario')) {
-      serviceName = 'E6 - Participações Societárias';
-      productCode = 'E6';
-    } else if (p.includes('/e7') || p.includes('/cadastral')) {
-      serviceName = 'E7 - Dados Cadastrais & Receita';
-      productCode = 'E7';
-    } else if (p.includes('/e8') || p.includes('/dividas')) {
-      serviceName = 'E8 - Dívidas Ativas e Fiscais';
-      productCode = 'E8';
-    } else if (p.includes('/e9') || p.includes('/financeiro')) {
-      serviceName = 'E9 - Score & Perfil Financeiro';
-      productCode = 'E9';
-    } else if (p.includes('/e10') || p.includes('/obito')) {
-      serviceName = 'E10 - Certidão de Óbito';
-      productCode = 'E10';
-    } else if (p.includes('/e11') || p.includes('/cnh')) {
-      serviceName = 'E11 - Prontuário CNH & Condutor';
-      productCode = 'E11';
-    } else if (p.includes('/e12') || p.includes('/localizacao')) {
-      serviceName = 'E12 - Localização & Contatos';
-      productCode = 'E12';
-    } else if (p.includes('/e13') || p.includes('/parentes')) {
-      serviceName = 'E13 - Relacionamentos & Parentes';
-      productCode = 'E13';
-    } else if (p.includes('/e14') || p.includes('/trabalhista')) {
-      serviceName = 'E14 - Vínculos Trabalhistas & CBO';
-      productCode = 'E14';
-    } else if (p.includes('/e15') || p.includes('/pesquisa-bens')) {
-      serviceName = 'E15 - Dossiê de Bens & Patrimônio';
-      productCode = 'E15';
-    } else if (p.includes('/e16') || p.includes('/completa') || p.includes('/dossie')) {
-      serviceName = 'E16 - Dossiê Investigativo Integral';
-      productCode = 'E16';
+    // 1. Extração de código de produto se for /v1/e{X} ou /api/consultas/e{X} com delimitação exata de fim/barra
+    // Evita rigorosamente a colisão onde /v1/e19 era capturado por includes('/e1')
+    const matchCode = p.match(/(?:^|\/|\b)e([0-9]{1,2})(?:[\/?\b]|$)/i);
+    let matchedProduct = matchCode ? getProductByCode(`E${matchCode[1]}`) : undefined;
+
+    // 2. Se não bateu pelo código direto eX, checar parâmetro ?api= ou ?produto=
+    if (!matchedProduct) {
+      const apiParam = params.get('api') || params.get('produto');
+      if (apiParam) {
+        matchedProduct = getProductByCode(apiParam);
+      }
+    }
+
+    // 3. Checar slugs oficiais cadastrados no catálogo de 20 produtos
+    if (!matchedProduct) {
+      for (const prod of PRODUCTS_CATALOG) {
+        if (p.includes(`/${prod.slug}`) || p.endsWith(prod.slug)) {
+          matchedProduct = prod;
+          break;
+        }
+      }
+    }
+
+    // 4. Aliases e rotas de retrocompatibilidade
+    if (!matchedProduct) {
+      if (p.includes('/imobiliario') || p.includes('historico')) {
+        matchedProduct = getProductByCode('E1');
+      } else if (p.includes('/proprietarios')) {
+        matchedProduct = getProductByCode('E2');
+      } else if (p.includes('/processos')) {
+        matchedProduct = getProductByCode('E3');
+      } else if (p.includes('/renavam-placa') || p.includes('/renavam')) {
+        matchedProduct = getProductByCode('E19');
+      } else if (p.includes('/multas') || p.includes('/renainf')) {
+        matchedProduct = getProductByCode('E8');
+      } else if (p.includes('/filiacao')) {
+        matchedProduct = getProductByCode('E18');
+      } else if (p.includes('/nome-completo') || p.includes('/nome')) {
+        matchedProduct = getProductByCode('E17');
+      } else if (p.includes('/previstoria') || p.includes('/pre-vistoria')) {
+        matchedProduct = getProductByCode('E20');
+      } else if (p.includes('/roubo-furto') || p.includes('/roubo')) {
+        matchedProduct = getProductByCode('E5');
+      } else if (p.includes('/gravame')) {
+        matchedProduct = getProductByCode('E14');
+      }
+    }
+
+    let serviceName = 'Consulta API';
+    let productCode = matchedProduct ? matchedProduct.code : 'E1';
+
+    if (matchedProduct) {
+      serviceName = `${matchedProduct.code} - ${matchedProduct.shortName || matchedProduct.name}`;
     } else {
       const clean = rawPath.replace(/^\/api\//, '').replace(/^\/v1\//, '').replace(/\/+/g, ' ');
       serviceName = clean ? clean.toUpperCase() : 'ENDPOINT API';
@@ -625,6 +629,10 @@ export default function LogsApi() {
                           const d = r.dados || r;
                           const nome = d.nome || d.razao_social || r.nome || null;
                           const doc = d.cpf || d.cnpj || r.cpf || r.cnpj || null;
+                          const placa = d.placa || r.placa || null;
+                          const renavam = d.renavam || r.renavam || null;
+                          const chassi = d.chassi || r.chassi || null;
+                          const veiculo = d.marca_modelo || d.modelo || d.marca || r.marca_modelo || null;
                           const declaracoes = Array.isArray(r.declaracoes) ? r.declaracoes : null;
 
                           return (
@@ -637,6 +645,35 @@ export default function LogsApi() {
                                   {doc && (
                                     <div className="text-xs text-slate-500 font-mono mt-0.5">
                                       Documento: {formatDocumentDisplay(doc)}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {(placa || renavam || chassi || veiculo) && (
+                                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                  {placa && (
+                                    <div>
+                                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Placa</span>
+                                      <span className="text-xs font-mono font-bold text-slate-900">{placa}</span>
+                                    </div>
+                                  )}
+                                  {renavam && (
+                                    <div>
+                                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">RENAVAM</span>
+                                      <span className="text-xs font-mono font-bold text-slate-900">{renavam}</span>
+                                    </div>
+                                  )}
+                                  {chassi && (
+                                    <div>
+                                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Chassi</span>
+                                      <span className="text-xs font-mono font-bold text-slate-900 truncate block">{chassi}</span>
+                                    </div>
+                                  )}
+                                  {veiculo && (
+                                    <div>
+                                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Veículo</span>
+                                      <span className="text-xs font-semibold text-slate-900 truncate block">{veiculo}</span>
                                     </div>
                                   )}
                                 </div>

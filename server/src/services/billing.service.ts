@@ -73,7 +73,7 @@ export class BillingService {
   /**
    * Valida se a empresa pode realizar a consulta (Pré-pago, Pós-pago ou Ilimitada)
    */
-  async checkEligibility(companyId: string, existingCompany?: any): Promise<BillingCheckResult> {
+  async checkEligibility(companyId: string, existingCompany?: any, productCode?: string): Promise<BillingCheckResult> {
     const company = existingCompany || await prisma.company.findUnique({
       where: { id: companyId },
       select: {
@@ -109,7 +109,19 @@ export class BillingService {
       return { allowed: true, price: 0 };
     }
 
-    const price = company.customQueryPrice ? Number(company.customQueryPrice) : await this.getCompanyQueryPrice(companyId);
+    // Resolução de preço: customPrices[productCode] > customQueryPrice > defaultQueryPrice
+    let price = 5.00;
+    const normalizedCode = productCode ? productCode.trim().toUpperCase() : undefined;
+
+    if (normalizedCode && typeof customPrices[normalizedCode] === 'number') {
+      price = Number(customPrices[normalizedCode]);
+    } else if (normalizedCode && typeof customPrices[normalizedCode.toLowerCase()] === 'number') {
+      price = Number(customPrices[normalizedCode.toLowerCase()]);
+    } else if (company.customQueryPrice !== null && company.customQueryPrice !== undefined) {
+      price = Number(company.customQueryPrice);
+    } else {
+      price = await this.getCompanyQueryPrice(companyId);
+    }
 
     // 1. Validação de Limite de Requisições / Consultas no Ciclo Mensal
     const monthlyRequestLimit = Number(customPrices.monthlyRequestLimit || 0);
