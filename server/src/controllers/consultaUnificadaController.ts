@@ -207,9 +207,11 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
 
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
-    const hasData = totalRegistros > 0 && result.normalized.dados !== null;
+    const hasData = result.normalized.dados !== null;
 
-    // Regra Crítica: Consulta sem dados = Custo Zero (R$ 0,00)
+    // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas
+    // independente do resultado (inclusive certidões com 0 infrações/ocorrências, ex: E8 RENAINF).
+    // Somente em caso de falha/erro técnico na consulta o custo é R$ 0,00.
     const finalCost = (!isSuperAdmin && hasData) ? eligibility.price : 0;
     const hashAutenticacao = generatePericialHash(product.code, cleanQuery);
 
@@ -242,8 +244,8 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       await billingService.chargeQuery(companyId, queryRecord.id, finalCost);
     }
 
-    // Sincronização em tempo real para a InfoSinistros caso seja Produto E2
-    if (product.code === 'E2' && hasData) {
+    // Sincronização em tempo real para a InfoSinistros caso seja Produto E2 com histórico
+    if (product.code === 'E2' && totalRegistros > 0) {
       setImmediate(() => {
         syncVeicularToInfosinistros(cleanQuery, result).catch(e =>
           logger.error(`[SYNC INFOSINISTROS] Erro assíncrono E2 Web: ${e.message}`)
@@ -395,7 +397,11 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
 
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
-    const hasData = totalRegistros > 0 && result.normalized.dados !== null;
+    const hasData = result.normalized.dados !== null;
+
+    // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas
+    // independente do resultado (inclusive certidões com 0 infrações/ocorrências, ex: E8 RENAINF).
+    // Somente em caso de falha/erro técnico na consulta o custo é R$ 0,00.
     const finalCost = (!isSuperAdmin && hasData) ? eligibility.price : 0;
     const hashAutenticacao = generatePericialHash(product.code, cleanQuery);
 
@@ -428,8 +434,8 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       await billingService.chargeQuery(company.id, queryRecord.id, finalCost);
     }
 
-    // Sincronização em tempo real para a InfoSinistros caso seja Produto E2
-    if (product.code === 'E2' && hasData) {
+    // Sincronização em tempo real para a InfoSinistros caso seja Produto E2 com histórico
+    if (product.code === 'E2' && totalRegistros > 0) {
       setImmediate(() => {
         syncVeicularToInfosinistros(cleanQuery, result).catch(e =>
           logger.error(`[SYNC INFOSINISTROS] Erro assíncrono E2 API: ${e.message}`)

@@ -537,7 +537,7 @@ export default function TabelaPrecosAdmin() {
                           <span className="text-slate-400 text-[11px]">R$</span>
                           <input
                             type="number"
-                            step="0.05"
+                            step="0.01"
                             min="0"
                             value={draft?.price !== undefined ? draft.price : p.currentPrice}
                             onChange={(e) => handlePriceChange(p.code, e.target.value)}

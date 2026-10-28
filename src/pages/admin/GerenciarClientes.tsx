@@ -1043,7 +1043,7 @@ export default function GerenciarClientes() {
                     <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Tarifa Customizada (R$)</label>
                     <input
                       type="number"
-                      step="0.10"
+                      step="0.01"
                       min="0"
                       placeholder="Padrão (R$ 5,00)"
                       value={newCompany.customQueryPrice}
@@ -1423,7 +1423,7 @@ export default function GerenciarClientes() {
                                 <span className="text-slate-400 font-mono text-[11px]">R$</span>
                                 <input
                                   type="number"
-                                  step="0.05"
+                                  step="0.01"
                                   min="0"
                                   disabled={!isEnabled}
                                   placeholder={p.defaultPrice.toFixed(2)}
@@ -1623,7 +1623,7 @@ export default function GerenciarClientes() {
                       </label>
                       <input
                         type="number"
-                        step="0.10"
+                        step="0.01"
                         min="0"
                         value={customQueryPrice}
                         onChange={(e) => setCustomQueryPrice(e.target.value)}

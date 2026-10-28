@@ -271,7 +271,7 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
           <div className="border border-slate-200 rounded-lg p-8 text-center bg-slate-50/50">
             <p className="text-sm font-semibold text-slate-800">Nenhum registro oficial localizado</p>
             <p className="text-xs text-slate-500 mt-1 max-w-lg mx-auto">
-              A varredura nas bases oficiais federais e serventias públicas não retornou ocorrências para o documento informado. Conforme a política comercial da Renacred, o custo desta consulta é rigorosamente R$ 0,00.
+              A varredura nas bases oficiais federais e serventias públicas não retornou ocorrências para o documento informado.
             </p>
           </div>
         ) : (
