@@ -78,18 +78,26 @@ export function normalizeE1(raw: any): NormalizedResult {
     dados: cleanObject({
       periodo: raw?.periodo,
       total_declaracoes: declaracoes.length,
-      declaracoes: declaracoes.map((d: any) => ({
-        numDeclaracao: d.numDeclaracao,
-        matricula: d.matricula,
-        registro: d.registro,
-        livro: d.livro,
-        folha: d.folha,
-        dataLavratura: d.dataLavratura || d.infoData,
-        cartorio: d.cartorio,
-        tipoCartorio: d.tipoCartorio,
-        alienantes: d.alienantes || [],
-        adquirentes: d.adquirentes || []
-      }))
+      declaracoes: declaracoes.map((d: any) => {
+        const cnpjCartorio = d.cnpjCartorio || d.cnpj_cartorio || d.cnpj;
+        return cleanObject({
+          numDeclaracao: d.numDeclaracao,
+          nome: d.nome,
+          tipoParte: d.tipoParte,
+          tipoDeclaracao: d.tipoDeclaracao,
+          matricula: d.matricula,
+          registro: d.registro,
+          livro: d.livro,
+          folha: d.folha,
+          dataLavratura: d.dataLavratura || d.infoData,
+          cnpjCartorio: cnpjCartorio,
+          cnpj_cartorio: cnpjCartorio,
+          cartorio: d.cartorio,
+          tipoCartorio: d.tipoCartorio,
+          alienantes: d.alienantes || [],
+          adquirentes: d.adquirentes || []
+        });
+      })
     }) || null
   };
 }

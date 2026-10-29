@@ -18,6 +18,7 @@ export interface DeclaracaoProps {
   dataLavratura?: string;
   infoData?: string;
   cnpjCartorio?: string;
+  cnpj_cartorio?: string;
   cartorio?: string;
   tipoCartorio?: string;
   alienantes?: Parte[];
@@ -93,10 +94,10 @@ const DeclaracaoCardComponent: React.FC<{ declaracao: DeclaracaoProps; index: nu
           </p>
           <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500 mt-1">
             {declaracao.tipoCartorio && <span className="break-words">{declaracao.tipoCartorio}</span>}
-            {declaracao.cnpjCartorio && (
+            {(declaracao.cnpjCartorio || declaracao.cnpj_cartorio) && (
               <>
                 <span>•</span>
-                <span className="font-mono break-all">CNPJ: {declaracao.cnpjCartorio}</span>
+                <span className="font-mono break-all">CNPJ: {declaracao.cnpjCartorio || declaracao.cnpj_cartorio}</span>
               </>
             )}
           </div>

@@ -20,7 +20,7 @@ export const ExportExcelButton: React.FC<ExportExcelProps> = ({ documento, decla
       Livro: dec.livro || '',
       Folha: dec.folha || '',
       Cartorio: dec.cartorio || '',
-      CNPJ_Cartorio: dec.cnpjCartorio || '',
+      CNPJ_Cartorio: dec.cnpjCartorio || dec.cnpj_cartorio || '',
       Tipo_Cartorio: dec.tipoCartorio || '',
       Alienantes: (dec.alienantes || []).map(a => `${a.nome} (${a.cpfCnpj})`).join('; '),
       Adquirentes: (dec.adquirentes || []).map(a => `${a.nome} (${a.cpfCnpj})`).join('; '),

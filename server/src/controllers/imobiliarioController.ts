@@ -87,10 +87,22 @@ export const consultarWeb = async (req: any, res: Response) => {
       await billingService.chargeQuery(companyId, queryRecord.id, finalCost);
     }
 
+    const declaracoesFormatadas = (result.declaracoes || []).map((d: any) => {
+      const cnpj = d.cnpjCartorio || d.cnpj_cartorio || d.cnpj;
+      return {
+        ...d,
+        cnpjCartorio: cnpj,
+        cnpj_cartorio: cnpj
+      };
+    });
+
     return res.json({
       success: true,
       queryId: queryRecord.id,
-      data: result,
+      data: {
+        ...result,
+        declaracoes: declaracoesFormatadas
+      },
       custoDebitado: finalCost,
       tempoProcessamentoMs: processingTimeMs,
     });
@@ -303,11 +315,20 @@ export const consultarApiV1 = async (req: any, res: Response) => {
       }).catch(e => logger.error(`[API LOG] Erro ao gravar log: ${e.message}`));
     });
 
+    const declaracoesFormatadas = (result.declaracoes || []).map((d: any) => {
+      const cnpj = d.cnpjCartorio || d.cnpj_cartorio || d.cnpj;
+      return {
+        ...d,
+        cnpjCartorio: cnpj,
+        cnpj_cartorio: cnpj
+      };
+    });
+
     return res.status(200).json({
       success: true,
       periodo: result.periodo,
       total_declaracoes: totalDeclaracoes,
-      declaracoes: result.declaracoes,
+      declaracoes: declaracoesFormatadas,
       custo_debitado: queryCost,
       api_central: {
         api_utilizada: 'historico_imobiliario',

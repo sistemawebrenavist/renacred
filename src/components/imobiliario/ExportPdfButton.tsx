@@ -365,7 +365,8 @@ export const ExportPdfButton: React.FC<ExportPdfProps> = ({
       doc.setFontSize(5);
       doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'normal');
-      const subCartorio = [dec.tipoCartorio, dec.cnpjCartorio ? `CNPJ: ${formatDocumento(dec.cnpjCartorio)}` : ''].filter(Boolean).join(' • ');
+      const cnpjCart = dec.cnpjCartorio || dec.cnpj_cartorio;
+      const subCartorio = [dec.tipoCartorio, cnpjCart ? `CNPJ: ${formatDocumento(cnpjCart)}` : ''].filter(Boolean).join(' • ');
       const subLines = doc.splitTextToSize(subCartorio, 86);
       doc.text(subLines[0], startX + 95, boxY + 10.5);
 
