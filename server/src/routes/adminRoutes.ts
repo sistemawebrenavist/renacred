@@ -18,7 +18,8 @@ import {
   impersonateCompany,
   getProductPricingTable,
   updateProductPricingTable,
-  resetProductPricingTable
+  resetProductPricingTable,
+  recalculateCompanyInvoice
 } from '../controllers/adminController';
 import { authenticateToken, requireSuperAdmin } from '../middlewares/authMiddleware';
 
@@ -34,6 +35,7 @@ router.get('/metrics', getDashboardMetrics);
 router.get('/companies', listCompanies);
 router.post('/companies', createCompany);
 router.put('/companies/:id', updateCompanySettings);
+router.post('/companies/:id/recalculate-invoice', recalculateCompanyInvoice);
 router.delete('/companies/:id', deleteCompany);
 router.post('/companies/:id/credits', adjustCreditsManual);
 router.post('/companies/:id/keys', createApiKeyForCompany);

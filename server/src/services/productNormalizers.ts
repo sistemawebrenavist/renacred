@@ -73,11 +73,13 @@ export function sanitizeTipoDocumento(tipo?: string | null): string {
  */
 export function normalizeE1(raw: any): NormalizedResult {
   const declaracoes = Array.isArray(raw?.declaracoes) ? raw.declaracoes : [];
+  const mensagem = raw?.message || raw?.mensagem || (raw?.isNotFound || declaracoes.length === 0 ? 'Nenhum histórico imobiliário encontrado para o documento informado.' : undefined);
   return {
     totalRegistros: declaracoes.length,
     dados: cleanObject({
       periodo: raw?.periodo,
       total_declaracoes: declaracoes.length,
+      mensagem: declaracoes.length === 0 ? mensagem : undefined,
       declaracoes: declaracoes.map((d: any) => {
         const cnpjCartorio = d.cnpjCartorio || d.cnpj_cartorio || d.cnpj;
         return cleanObject({
@@ -98,7 +100,7 @@ export function normalizeE1(raw: any): NormalizedResult {
           adquirentes: d.adquirentes || []
         });
       })
-    }) || null
+    }) || { total_declaracoes: 0, declaracoes: [], mensagem: mensagem || 'Nenhum histórico imobiliário encontrado para o documento informado.' }
   };
 }
 
@@ -126,14 +128,17 @@ export function normalizeE2(raw: any): NormalizedResult {
     };
   });
 
+  const mensagem = raw?.message || raw?.mensagem || (raw?.isNotFound || normalizedHistorico.length === 0 ? 'Nenhum histórico de proprietários encontrado para a placa informada.' : undefined);
+
   return {
     totalRegistros: normalizedHistorico.length,
     dados: cleanObject({
       placa: raw?.placa,
       renavam: raw?.renavam,
       proprietario_atual: normalizedPropAtual,
-      historico: normalizedHistorico
-    }) || null
+      historico: normalizedHistorico,
+      mensagem: normalizedHistorico.length === 0 ? mensagem : undefined
+    }) || { total: 0, historico: [], mensagem: mensagem || 'Nenhum histórico de proprietários encontrado para a placa informada.' }
   };
 }
 

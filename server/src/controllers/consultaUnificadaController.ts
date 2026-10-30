@@ -207,11 +207,12 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
 
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
-    const hasData = result.normalized.dados !== null;
+    const isNotFound = !!result.raw?.isNotFound;
+    const hasData = result.normalized.dados !== null && !isNotFound;
 
     // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas
     // independente do resultado (inclusive certidões com 0 infrações/ocorrências, ex: E8 RENAINF).
-    // Somente em caso de falha/erro técnico na consulta o custo é R$ 0,00.
+    // Quando a base oficial retornar "Registro não encontrado" ou erro técnico, o custo é R$ 0,00.
     const finalCost = (!isSuperAdmin && hasData) ? eligibility.price : 0;
     const hashAutenticacao = generatePericialHash(product.code, cleanQuery);
 
@@ -294,7 +295,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
 
     return res.status(500).json({
       success: false,
-      message: `Não foi possível obter dados junto às bases oficiais: ${error.message}`
+      message: error.message || 'Não foi possível obter dados junto às bases oficiais. Tente novamente em alguns instantes.'
     });
   }
 };
@@ -397,11 +398,12 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
 
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
-    const hasData = result.normalized.dados !== null;
+    const isNotFound = !!result.raw?.isNotFound;
+    const hasData = result.normalized.dados !== null && !isNotFound;
 
     // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas
     // independente do resultado (inclusive certidões com 0 infrações/ocorrências, ex: E8 RENAINF).
-    // Somente em caso de falha/erro técnico na consulta o custo é R$ 0,00.
+    // Quando a base oficial retornar "Registro não encontrado" ou erro técnico, o custo é R$ 0,00.
     const finalCost = (!isSuperAdmin && hasData) ? eligibility.price : 0;
     const hashAutenticacao = generatePericialHash(product.code, cleanQuery);
 
@@ -502,7 +504,7 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
 
     return res.status(500).json({
       success: false,
-      message: `Erro na consulta junto às bases oficiais: ${error.message}`
+      message: error.message || 'Erro ao processar consulta junto às bases oficiais. Tente novamente em alguns instantes.'
     });
   }
 };

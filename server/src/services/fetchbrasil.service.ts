@@ -92,6 +92,51 @@ interface VeicularCacheEntry {
   timestamp: number;
 }
 
+/**
+ * Extrai de forma resiliente a mensagem textual de retorno da FetchBrasil (seja message, mensagem, error ou erro)
+ */
+export function extractFetchBrasilMessage(data: any): string | null {
+  if (!data) return null;
+  if (typeof data === 'string') return data;
+  if (typeof data !== 'object') return null;
+  return data.mensagem || data.message || data.error || data.erro || null;
+}
+
+/**
+ * Identifica se uma resposta ou erro da FetchBrasil representa "Registro não encontrado" legítimo
+ */
+export function isFetchBrasilNotFound(data: any, status?: number): boolean {
+  const isJsonObject = data && typeof data === 'object' && !Buffer.isBuffer(data);
+
+  if (status === 404) {
+    // 404 retornado com corpo JSON ou api_central da FetchBrasil é "Nada Consta" / "Registro não encontrado"
+    if (isJsonObject) return true;
+    return false;
+  }
+
+  if (!isJsonObject) return false;
+
+  if (data.error === 'Registro não encontrado' || data.erro === 'Registro não encontrado') {
+    return true;
+  }
+
+  const msg = extractFetchBrasilMessage(data);
+  if (typeof msg === 'string') {
+    if (/não encontrado|nao encontrado|nenhum .* encontrado|não localizado|nao localizado|nada consta/i.test(msg)) {
+      return true;
+    }
+  }
+
+  if (data.success === false && (data.error || data.message || data.mensagem)) {
+    const errorText = String(data.error || data.message || data.mensagem);
+    if (/não encontrado|nao encontrado|nenhum|localizado|inexistente/i.test(errorText)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export class FetchBrasilService {
   private apiURL: string;
   private token: string;
@@ -217,7 +262,20 @@ export class FetchBrasilService {
           const data = response.data;
           let result: FetchBrasilImobiliarioResponse;
 
-          if (data && Array.isArray(data.declaracoes)) {
+          if (isFetchBrasilNotFound(data, response.status)) {
+            result = {
+              periodo: data?.periodo || '',
+              total_declaracoes: 0,
+              declaracoes: [],
+              mensagem: extractFetchBrasilMessage(data) || 'Nenhum histórico imobiliário encontrado para o documento informado.',
+              api_central: data?.api_central || {
+                api_utilizada: 'historico_imobiliario',
+                parametro_utilizado: 'query',
+                query_fornecida: cleanDoc,
+                timestamp: new Date().toISOString(),
+              }
+            };
+          } else if (data && Array.isArray(data.declaracoes)) {
             result = {
               periodo: data.periodo || '',
               total_declaracoes: data.total_declaracoes !== undefined ? data.total_declaracoes : data.declaracoes.length,
@@ -234,6 +292,7 @@ export class FetchBrasilService {
               periodo: data?.periodo || '',
               total_declaracoes: 0,
               declaracoes: [],
+              mensagem: extractFetchBrasilMessage(data) || undefined,
               api_central: data?.api_central
             };
           }
@@ -244,20 +303,43 @@ export class FetchBrasilService {
 
           return result;
         } catch (error: any) {
+          const status = error.response?.status;
+          const respData = error.response?.data;
+
+          if (isFetchBrasilNotFound(respData, status)) {
+            const attemptTime = Date.now() - startTime;
+            logger.info(`[FETCHBRASIL] Registro não encontrado (404/Not Found) para documento ${cleanDoc} em ${attemptTime}ms: ${extractFetchBrasilMessage(respData)}`);
+            const notFoundResult: FetchBrasilImobiliarioResponse = {
+              periodo: respData?.periodo || '',
+              total_declaracoes: 0,
+              declaracoes: [],
+              mensagem: extractFetchBrasilMessage(respData) || 'Nenhum histórico imobiliário encontrado para o documento informado.',
+              api_central: respData?.api_central || {
+                api_utilizada: 'historico_imobiliario',
+                parametro_utilizado: 'query',
+                query_fornecida: cleanDoc,
+                timestamp: new Date().toISOString(),
+              }
+            };
+            this.cache.set(cleanDoc, { data: notFoundResult, timestamp: Date.now() });
+            this.cleanExpiredCache();
+            return notFoundResult;
+          }
+
           lastError = error;
           const attemptTime = Date.now() - startTime;
-          const errorMsg = error.response?.data?.mensagem || error.response?.data?.erro || error.message;
+          const errorMsg = extractFetchBrasilMessage(respData) || error.message;
           logger.warn(`[FETCHBRASIL] Falha na tentativa ${attempt}/${maxAttempts} após ${attemptTime}ms para ${cleanDoc}: ${errorMsg}`);
 
           // Não tentar novamente se for erro de autorização/cliente (400, 401, 403, 404)
-          if (error.response?.status && [400, 401, 403, 404].includes(error.response.status)) {
+          if (status && [400, 401, 403, 404].includes(status)) {
             break;
           }
         }
       }
 
       const totalProcessingTime = Date.now() - startTime;
-      const finalMsg = lastError?.response?.data?.mensagem || lastError?.response?.data?.erro || lastError?.message;
+      const finalMsg = extractFetchBrasilMessage(lastError?.response?.data) || lastError?.message;
       logger.error(`[FETCHBRASIL] Erro na consulta após ${totalProcessingTime}ms para ${cleanDoc}: ${finalMsg}`);
       throw new Error(`Falha ao consultar histórico imobiliário no provedor: ${finalMsg}`);
     })();
@@ -347,6 +429,28 @@ export class FetchBrasilService {
           logger.info(`[FETCHBRASIL] Sucesso na consulta de proprietários (${processingTime}ms) para ${cleanPlaca}`);
 
           const rawData = response.data;
+
+          if (isFetchBrasilNotFound(rawData, response.status)) {
+            const notFoundResult: FetchBrasilProprietarioResponse = {
+              success: true,
+              placa: cleanPlaca,
+              renavam: '',
+              consulta_em: new Date().toISOString(),
+              total: 0,
+              historico: [],
+              message: extractFetchBrasilMessage(rawData) || 'Nenhum histórico de proprietários encontrado para a placa informada.',
+              api_central: rawData?.api_central || {
+                api_utilizada: 'historico_proprietario',
+                parametro_utilizado: 'placa',
+                query_fornecida: cleanPlaca,
+                timestamp: new Date().toISOString(),
+              }
+            };
+            this.veicularCache.set(cleanPlaca, { data: notFoundResult, timestamp: Date.now() });
+            this.cleanExpiredCache();
+            return notFoundResult;
+          }
+
           let historicoOrdenado: HistoricoProprietarioItem[] = [];
 
           if (rawData && Array.isArray(rawData.historico)) {
@@ -396,19 +500,45 @@ export class FetchBrasilService {
 
           return result;
         } catch (error: any) {
+          const status = error.response?.status;
+          const respData = error.response?.data;
+
+          if (isFetchBrasilNotFound(respData, status)) {
+            const attemptTime = Date.now() - startTime;
+            logger.info(`[FETCHBRASIL] Registro não encontrado (404/Not Found) para placa ${cleanPlaca} em ${attemptTime}ms: ${extractFetchBrasilMessage(respData)}`);
+            const notFoundResult: FetchBrasilProprietarioResponse = {
+              success: true,
+              placa: cleanPlaca,
+              renavam: '',
+              consulta_em: new Date().toISOString(),
+              total: 0,
+              historico: [],
+              message: extractFetchBrasilMessage(respData) || 'Nenhum histórico de proprietários encontrado para a placa informada.',
+              api_central: respData?.api_central || {
+                api_utilizada: 'historico_proprietario',
+                parametro_utilizado: 'placa',
+                query_fornecida: cleanPlaca,
+                timestamp: new Date().toISOString(),
+              }
+            };
+            this.veicularCache.set(cleanPlaca, { data: notFoundResult, timestamp: Date.now() });
+            this.cleanExpiredCache();
+            return notFoundResult;
+          }
+
           lastError = error;
           const attemptTime = Date.now() - startTime;
-          const errorMsg = error.response?.data?.mensagem || error.response?.data?.erro || error.message;
+          const errorMsg = extractFetchBrasilMessage(respData) || error.message;
           logger.warn(`[FETCHBRASIL] Falha na tentativa ${attempt}/${maxAttempts} após ${attemptTime}ms para placa ${cleanPlaca}: ${errorMsg}`);
 
-          if (error.response?.status && [400, 401, 403, 404].includes(error.response.status)) {
+          if (status && [400, 401, 403, 404].includes(status)) {
             break;
           }
         }
       }
 
       const totalProcessingTime = Date.now() - startTime;
-      const finalMsg = lastError?.response?.data?.mensagem || lastError?.response?.data?.erro || lastError?.message;
+      const finalMsg = extractFetchBrasilMessage(lastError?.response?.data) || lastError?.message;
       logger.error(`[FETCHBRASIL] Erro na consulta após ${totalProcessingTime}ms para placa ${cleanPlaca}: ${finalMsg}`);
       throw new Error(`Falha ao consultar histórico de proprietários no provedor: ${finalMsg}`);
     })();
@@ -473,6 +603,8 @@ export class FetchBrasilService {
       const endpointsToTry = [product.apiPrimary, ...product.apiContingencies];
       let lastError: any = null;
       let rawData: any = null;
+      let notFoundData: any = null;
+      let notFoundEndpoint = '';
       let successfulEndpoint = '';
 
       for (let i = 0; i < endpointsToTry.length; i++) {
@@ -494,20 +626,46 @@ export class FetchBrasilService {
             params: queryParams
           });
 
-          // Verificar se resposta é válida (não é erro de negócio)
           const data = response.data;
+          if (isFetchBrasilNotFound(data, response.status)) {
+            logger.info(`[FETCHBRASIL] Endpoint '${endpoint}' retornou 'Registro não encontrado' (${response.status}) para ${product.code}`);
+            notFoundData = data;
+            notFoundEndpoint = endpoint;
+            continue;
+          }
+
+          // Verificar se resposta é válida (não é erro de negócio)
           if (data && !data.erro) {
             rawData = data;
             successfulEndpoint = endpoint;
             logger.info(`[FETCHBRASIL] Sucesso no endpoint '${endpoint}' para ${product.code} em ${Date.now() - startTime}ms`);
             break;
           } else {
-            logger.warn(`[FETCHBRASIL] Endpoint '${endpoint}' retornou aviso/erro: ${data?.mensagem || data?.erro || 'Sem dados'}`);
+            logger.warn(`[FETCHBRASIL] Endpoint '${endpoint}' retornou aviso/erro: ${extractFetchBrasilMessage(data) || 'Sem dados'}`);
           }
         } catch (err: any) {
-          lastError = err;
           const status = err.response?.status;
-          const msg = err.response?.data?.mensagem || err.message;
+          const respData = err.response?.data;
+
+          if (isFetchBrasilNotFound(respData, status)) {
+            logger.info(`[FETCHBRASIL] Endpoint '${endpoint}' respondeu 404 / Registro não encontrado para ${product.code} (${cleanQuery}): ${extractFetchBrasilMessage(respData)}`);
+            notFoundData = respData || {
+              success: false,
+              error: 'Registro não encontrado',
+              message: `Nenhum registro encontrado para o parâmetro informado no produto ${product.code}.`,
+              api_central: {
+                api_utilizada: endpoint,
+                parametro_utilizado: 'query',
+                query_fornecida: cleanQuery,
+                timestamp: new Date().toISOString()
+              }
+            };
+            notFoundEndpoint = endpoint;
+            continue;
+          }
+
+          lastError = err;
+          const msg = extractFetchBrasilMessage(respData) || err.message;
           logger.warn(`[FETCHBRASIL] Falha no endpoint '${endpoint}' (${status || 'timeout'}): ${msg}`);
 
           // Se for erro de cliente (400, 401, 403), não adianta tentar contingências
@@ -517,12 +675,26 @@ export class FetchBrasilService {
         }
       }
 
+      // Se nenhum endpoint retornou dados positivos, mas houve "Registro não encontrado" legítimo de fonte oficial:
+      if (!rawData && notFoundData) {
+        rawData = {
+          ...notFoundData,
+          isNotFound: true,
+          declaracoes: notFoundData.declaracoes || [],
+          total_declaracoes: 0,
+          mensagem: extractFetchBrasilMessage(notFoundData) || 'Registro não encontrado nas bases oficiais.'
+        };
+        successfulEndpoint = notFoundEndpoint || product.apiPrimary;
+        lastError = null;
+      }
+
       if (!rawData && lastError) {
-        throw new Error(`Falha em todas as fontes oficiais consultadas para o produto ${product.code}: ${lastError.response?.data?.mensagem || lastError.message}`);
+        const errorDetail = extractFetchBrasilMessage(lastError.response?.data) || lastError.message;
+        throw new Error(`Falha na consulta oficial para o produto ${product.code}: ${errorDetail}`);
       }
 
       // Enriquecimento inteligente para E10 (Comunicação de Venda)
-      if (product.code === 'E10' && rawData) {
+      if (product.code === 'E10' && rawData && !rawData.isNotFound) {
         const cartorio = rawData.dados_veiculo_cartorio;
         if (cartorio && !cartorio.nome_proprietario_crv) {
           try {
@@ -548,7 +720,7 @@ export class FetchBrasilService {
       }
 
       // Enriquecimento inteligente para E12 (BIN Online) se faltar proprietário
-      if (product.code === 'E12' && rawData) {
+      if (product.code === 'E12' && rawData && !rawData.isNotFound) {
         const hasOwner = !!(
           rawData.nomeProprietario ||
           rawData.veiculo?.nomeProprietario ||
@@ -586,7 +758,7 @@ export class FetchBrasilService {
       }
 
       // Enriquecimento inteligente para E5 (Roubo e Furto): se renavam_ocorrencia não trouxe a data exata, busca em ocorrencias_senatran
-      if (product.code === 'E5' && rawData && Array.isArray(rawData.ocorrencias)) {
+      if (product.code === 'E5' && rawData && !rawData.isNotFound && Array.isArray(rawData.ocorrencias)) {
         const precisaDeData = rawData.ocorrencias.some((o: any) => !o.data && !o.boletim_ocorrencia?.data);
         if (precisaDeData && cleanQuery) {
           try {
@@ -627,7 +799,7 @@ export class FetchBrasilService {
       }
 
       // Enriquecimento inteligente para E2 (Histórico de Proprietários) para garantir Razão Social em todos os CNPJs
-      if (product.code === 'E2' && rawData) {
+      if (product.code === 'E2' && rawData && !rawData.isNotFound) {
         await enrichProprietariosWithCnpj(rawData);
       }
 

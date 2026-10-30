@@ -8,6 +8,7 @@ import { validateIdentifier } from '../utils/cpfCnpjValidator';
 import { TransactionType, InvoiceStatus } from '../types/database';
 import { logger } from '../utils/logger';
 import { productPricingService } from '../services/productPricing.service';
+import { billingService } from '../services/billing.service';
 
 /**
  * Cadastro completo de nova Empresa / Assinante e seu Administrador inicial
@@ -482,6 +483,15 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
       logger.info(`[ADMIN] Chaves de API da empresa ${company.razaoSocial} sincronizadas com allowedProducts: ${JSON.stringify(dataToUpdate.allowedProducts)}`);
     }
 
+    // Se houve alteração de tarifas customizadas ou tarifa global, recalcula a fatura aberta automaticamente
+    if (dataToUpdate.customPrices !== undefined || dataToUpdate.customQueryPrice !== undefined) {
+      try {
+        await billingService.recalculateOpenInvoice(id);
+      } catch (recalcErr: any) {
+        logger.error(`[ADMIN] Erro ao recalcular fatura aberta após alteração de preços: ${recalcErr.message}`);
+      }
+    }
+
     logger.info(`[ADMIN] Parâmetros da empresa ${company.razaoSocial} (${id}) atualizados com sucesso.`);
 
     return res.json({
@@ -492,6 +502,31 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error(`[ADMIN] Erro ao atualizar empresa: ${error.message}`);
     return res.status(500).json({ success: false, message: 'Erro ao atualizar empresa.' });
+  }
+};
+
+/**
+ * Recalcula a fatura aberta do ciclo atual de uma empresa com as tarifas vigentes
+ */
+export const recalculateCompanyInvoice = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const result = await billingService.recalculateOpenInvoice(id);
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nenhuma fatura aberta localizada para esta empresa ou a conta é isenta de faturamento.'
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: `Fatura recalculada com sucesso! Novo valor total: R$ ${result.totalAmount.toFixed(2)} (${result.totalQueries} consultas recalculadas).`,
+      data: result
+    });
+  } catch (error: any) {
+    logger.error(`[ADMIN] Erro ao recalcular fatura: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao recalcular fatura.' });
   }
 };
 

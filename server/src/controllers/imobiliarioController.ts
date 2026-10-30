@@ -269,7 +269,7 @@ export const consultarApiV1 = async (req: any, res: Response) => {
         periodo: result.periodo || '',
         total_declaracoes: 0,
         declaracoes: [],
-        mensagem: 'Nenhum histórico imobiliário ou declaração cartorária encontrada para este documento.',
+        mensagem: result.mensagem || 'Nenhum histórico imobiliário ou declaração cartorária encontrada para este documento.',
         custo_debitado: 0.00,
         api_central: {
           api_utilizada: 'historico_imobiliario',

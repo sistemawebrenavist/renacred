@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
-import { TransactionType, InvoiceStatus } from '../types/database';
+import { TransactionType, InvoiceStatus, QueryStatus } from '../types/database';
 import { SERVER_PRODUCTS } from '../config/productsCatalog';
 
 export interface BillingCheckResult {
@@ -321,6 +321,149 @@ export class BillingService {
         logger.info(`[BILLING] Nova fatura ${newInvoice.id} criada e iniciada com R$ ${price.toFixed(2)} para a empresa ${companyId}`);
       }
     }
+  }
+
+  /**
+   * Recalcula os valores de uma fatura aberta com base nas tarifas customizadas atuais da empresa
+   */
+  async recalculateOpenInvoice(companyId: string): Promise<{
+    invoiceId: string;
+    totalQueries: number;
+    totalAmount: number;
+    previousAmount: number;
+    queriesUpdated: number;
+  } | null> {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        razaoSocial: true,
+        cnpjCpf: true,
+        creditLimit: true,
+        customPrices: true,
+        customQueryPrice: true,
+        billingDueDate: true,
+        accountType: true
+      }
+    });
+
+    if (!company) return null;
+
+    const customPrices = (company.customPrices as Record<string, any>) || {};
+    const isMasterAdmin = company.cnpjCpf === '00000000000191' ||
+                         company.razaoSocial?.toLowerCase().includes('renacred') ||
+                         Number(company.creditLimit) >= 999999 ||
+                         Boolean(customPrices.isUnlimited);
+
+    // Se a conta for ilimitada/matriz, remove qualquer fatura aberta pendente
+    if (isMasterAdmin) {
+      await prisma.invoice.deleteMany({
+        where: { companyId, status: InvoiceStatus.OPEN }
+      });
+      return null;
+    }
+
+    // Localizar fatura em aberto
+    const invoice = await prisma.invoice.findFirst({
+      where: { companyId, status: InvoiceStatus.OPEN },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!invoice) return null;
+
+    const previousAmount = Number(invoice.totalAmount);
+
+    // Buscar queries do ciclo da fatura
+    let queries = await prisma.query.findMany({
+      where: {
+        companyId,
+        status: QueryStatus.COMPLETED,
+        createdAt: {
+          gte: invoice.cycleStart,
+          lte: invoice.cycleEnd
+        }
+      }
+    });
+
+    // Fallback: se não encontrar no intervalo exato (ex: fuso horário ou ciclo recém-ajustado),
+    // busca todas as queries completadas da empresa desde cycleStart ou as últimas N da fatura
+    if (queries.length === 0) {
+      queries = await prisma.query.findMany({
+        where: {
+          companyId,
+          status: QueryStatus.COMPLETED
+        },
+        orderBy: { createdAt: 'desc' },
+        take: invoice.totalQueries > 0 ? invoice.totalQueries : 500
+      });
+    }
+
+    let newTotalAmount = 0;
+    let queriesUpdated = 0;
+
+    for (const q of queries) {
+      const currentCost = Number(q.cost);
+
+      // Se a query foi originalmente gratuita (ex: nada consta / isento / erro), mantém custo 0
+      if (currentCost === 0) {
+        continue;
+      }
+
+      const reqData = (q.requestData as any) || {};
+      let prodCode = (reqData.product || reqData.productCode || reqData.codigo || '').toUpperCase();
+      if (!prodCode) {
+        if (reqData.placa) prodCode = 'E2';
+        else prodCode = 'E1';
+      }
+
+      // Determinar preço configurado para o produto
+      const productConfig = SERVER_PRODUCTS.find((p) => p.code.toUpperCase() === prodCode);
+      const defaultPrice = productConfig ? productConfig.defaultPrice : 5.00;
+
+      let effectivePrice = defaultPrice;
+      if (typeof customPrices[prodCode] === 'number') {
+        effectivePrice = Number(customPrices[prodCode]);
+      } else if (typeof customPrices[prodCode.toUpperCase()] === 'number') {
+        effectivePrice = Number(customPrices[prodCode.toUpperCase()]);
+      } else if (typeof customPrices[prodCode.toLowerCase()] === 'number') {
+        effectivePrice = Number(customPrices[prodCode.toLowerCase()]);
+      } else if (prodCode === 'E1' && company.customQueryPrice) {
+        effectivePrice = Number(company.customQueryPrice);
+      }
+
+      if (currentCost !== effectivePrice) {
+        await prisma.query.update({
+          where: { id: q.id },
+          data: { cost: effectivePrice }
+        });
+        queriesUpdated++;
+      }
+
+      newTotalAmount += effectivePrice;
+    }
+
+    newTotalAmount = Math.round(newTotalAmount * 100) / 100;
+
+    // Atualizar registro da fatura aberta
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        totalQueries: queries.length > 0 ? queries.length : invoice.totalQueries,
+        totalAmount: newTotalAmount
+      }
+    });
+
+    logger.info(
+      `[BILLING] Fatura ${invoice.id} da empresa ${company.razaoSocial} recalculada: de R$ ${previousAmount.toFixed(2)} para R$ ${newTotalAmount.toFixed(2)} (${queriesUpdated} queries atualizadas)`
+    );
+
+    return {
+      invoiceId: invoice.id,
+      totalQueries: queries.length > 0 ? queries.length : invoice.totalQueries,
+      totalAmount: newTotalAmount,
+      previousAmount,
+      queriesUpdated
+    };
   }
 }
 

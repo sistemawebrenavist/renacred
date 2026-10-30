@@ -18,7 +18,8 @@ import {
   Receipt,
   UserCog,
   LogIn,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -447,6 +448,26 @@ export default function GerenciarClientes() {
     }
   };
 
+  const handleRecalculateInvoice = async (c: any) => {
+    setActiveActionsMenu(null);
+    try {
+      const res = await api.post(`/api/admin/companies/${c.id}/recalculate-invoice`);
+      if (res.data?.success) {
+        toast.success(res.data.message || 'Fatura recalculada com sucesso!');
+        fetchCompanies();
+        if (editingCompany && editingCompany.id === c.id) {
+          // Atualiza dados na modal de edição se estiver aberta
+          setEditingCompany((prev: any) => ({
+            ...prev,
+            invoices: [{ ...prev?.invoices?.[0], totalAmount: res.data.data.totalAmount, totalQueries: res.data.data.totalQueries }]
+          }));
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erro ao recalcular fatura.');
+    }
+  };
+
   const copyKeyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKeyId(id);
@@ -825,6 +846,15 @@ export default function GerenciarClientes() {
                               >
                                 <FileSpreadsheet className="w-4 h-4 text-blue-600 shrink-0" />
                                 <span>Extrato de Consumo</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRecalculateInvoice(c)}
+                                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50/70 flex items-center gap-2.5 text-emerald-800 transition cursor-pointer font-semibold"
+                                title="Recalcula todas as consultas do ciclo aberto com a tabela de preços atual"
+                              >
+                                <RefreshCw className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>Recalcular Fatura Aberta</span>
                               </button>
                               <button
                                 type="button"
@@ -1632,6 +1662,33 @@ export default function GerenciarClientes() {
                         title="Preço específico do produto E1 (Histórico Imobiliário) quando não configurado individualmente na aba Produtos"
                       />
                     </div>
+
+                    {/* Bloco de Recálculo de Fatura Aberta */}
+                    {accountType === 'POST_PAID' && !isUnlimitedAccount && (
+                      <div className="col-span-1 sm:col-span-2 lg:col-span-4 mt-2 p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 shrink-0">
+                            <RefreshCw className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-blue-900 text-xs">Recalcular Fatura Aberta do Ciclo</p>
+                            <p className="text-[11px] text-blue-700">
+                              Aplica retroativamente as tarifas customizadas salvas a todas as consultas realizadas neste ciclo aberto
+                              {editingCompany?.invoices?.[0]?.totalQueries > 0 && ` (${editingCompany.invoices[0].totalQueries} consultas registradas - Total atual: R$ ${Number(editingCompany.invoices[0].totalAmount || 0).toFixed(2)})`}.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRecalculateInvoice(editingCompany)}
+                          disabled={saving}
+                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs disabled:opacity-50 shrink-0"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          Recalcular Fatura Agora
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
