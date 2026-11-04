@@ -225,6 +225,9 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       custoInternoCalculado = e20Data.custoInternoTotal;
     } else {
       result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
+      if ((result as any).providerUsed === 'base_interna_renacred' || result.raw?.api_central?.cache_interno) {
+        custoInternoCalculado = 0;
+      }
     }
 
     const processingTimeMs = Date.now() - startTime;
@@ -494,6 +497,9 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       custoInternoCalculado = e20Data.custoInternoTotal;
     } else {
       result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
+      if ((result as any).providerUsed === 'base_interna_renacred' || result.raw?.api_central?.cache_interno) {
+        custoInternoCalculado = 0;
+      }
     }
 
     const processingTimeMs = Date.now() - startTime;

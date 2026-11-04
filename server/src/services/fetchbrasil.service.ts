@@ -4,6 +4,8 @@ import { logger } from '../utils/logger';
 import { findServerProduct, ServerProductConfig } from '../config/productsCatalog';
 import { normalizeProductResult, NormalizedResult } from './productNormalizers';
 import { enrichProprietariosWithCnpj } from './cnpjService';
+import { prisma } from '../config/database';
+import { QueryStatus } from '../types/database';
 
 
 export interface ParteDeclaracao {
@@ -38,6 +40,11 @@ export interface FetchBrasilImobiliarioResponse {
     parametro_utilizado?: string;
     query_fornecida?: string;
     timestamp?: string;
+    tempo_resposta_ms?: number;
+    origem?: string;
+    data_captura_original?: string;
+    cache_interno?: boolean;
+    [key: string]: any;
   };
   erro?: string;
   mensagem?: string;
@@ -79,6 +86,11 @@ export interface FetchBrasilProprietarioResponse {
     parametro_utilizado?: string;
     query_fornecida?: string;
     timestamp?: string;
+    tempo_resposta_ms?: number;
+    origem?: string;
+    data_captura_original?: string;
+    cache_interno?: boolean;
+    [key: string]: any;
   };
 }
 
@@ -382,6 +394,76 @@ export class FetchBrasilService {
   }
 
   /**
+   * Busca no banco de dados interno da Renacred se a placa já foi consultada
+   * para o produto E2 (Histórico de Proprietários) com sucesso dentro da janela de validade (padrão: 60 dias).
+   * Se encontrada, retorna os dados da base interna com custo ZERO de fornecedor.
+   */
+  async buscarE2BaseInterna(
+    cleanPlaca: string,
+    maxAgeDays?: number
+  ): Promise<FetchBrasilProprietarioResponse | null> {
+    try {
+      const days = typeof maxAgeDays === 'number' && maxAgeDays > 0
+        ? maxAgeDays
+        : parseInt(process.env.E2_CACHE_TTL_DAYS || '60', 10);
+      const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const record = await prisma.query.findFirst({
+        where: {
+          identifier: cleanPlaca,
+          status: QueryStatus.COMPLETED,
+          totalDeclaracoes: { gt: 0 },
+          createdAt: { gte: cutoffDate },
+          OR: [
+            { requestData: { path: ['product'], equals: 'E2' } },
+            { requestData: { path: ['product'], equals: 'historico_proprietario' } },
+            { requestData: { path: ['product'], equals: 'proprietarios' } }
+          ]
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (!record || !record.resultData) {
+        return null;
+      }
+
+      const raw = record.resultData as any;
+      const historico = Array.isArray(raw.historico) ? raw.historico : [];
+      if (historico.length === 0 && !raw.proprietario_atual) {
+        return null;
+      }
+
+      logger.info(
+        `[BASE INTERNA E2] Placa ${cleanPlaca} localizada na base interna (Consulta original: ${record.createdAt.toISOString()}). Fornecedor externo poupado (Custo: R$ 0,00).`
+      );
+
+      return {
+        success: true,
+        placa: raw.placa || cleanPlaca,
+        renavam: raw.renavam || '',
+        consulta_em: record.createdAt.toISOString(),
+        total: historico.length || record.totalDeclaracoes,
+        proprietario_atual: raw.proprietario_atual || undefined,
+        historico,
+        message: raw.message || null,
+        api_central: {
+          api_utilizada: 'historico_proprietario',
+          parametro_utilizado: 'placa',
+          query_fornecida: cleanPlaca,
+          timestamp: new Date().toISOString(),
+          tempo_resposta_ms: 5,
+          origem: 'BASE_INTERNA_RENACRED',
+          data_captura_original: record.createdAt.toISOString(),
+          cache_interno: true
+        }
+      };
+    } catch (err: any) {
+      logger.error(`[BASE INTERNA E2] Erro ao consultar base interna para ${cleanPlaca}: ${err.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Consulta Histórico de Proprietários Veiculares por Placa (PRODUTO E2)
    * A API externa devolve decrescente (mais recente primeiro).
    * Esta função reordena a lista cronologicamente da DATA MAIS ANTIGA para a MAIS RECENTE.
@@ -394,6 +476,13 @@ export class FetchBrasilService {
     if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL_MS)) {
       logger.info(`[FETCHBRASIL] Cache HIT instantâneo para placa: ${cleanPlaca} (0ms)`);
       return cached.data;
+    }
+
+    // 1.5 Verificar Base Interna no Banco de Dados (Economia de Fornecedor - R$ 0,00)
+    const baseInternaResult = await this.buscarE2BaseInterna(cleanPlaca);
+    if (baseInternaResult) {
+      this.veicularCache.set(cleanPlaca, { data: baseInternaResult, timestamp: Date.now() });
+      return baseInternaResult;
     }
 
     // 2. Verificar se já existe chamada em voo (Deduplicação / Singleflight)
@@ -585,6 +674,27 @@ export class FetchBrasilService {
         providerUsed: cached.providerUsed,
         processingTimeMs: 0
       };
+    }
+
+    // 1.5 Base Interna Prioritária para E2 (Histórico de Proprietários - Custo ZERO de fornecedor)
+    if (product.code === 'E2') {
+      const cleanPlaca = cleanQuery.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      const baseInternaResult = await this.buscarE2BaseInterna(cleanPlaca);
+      if (baseInternaResult) {
+        const normalized = normalizeProductResult('E2', baseInternaResult, cleanPlaca);
+        this.genericCache.set(cacheKey, {
+          data: normalized,
+          timestamp: Date.now(),
+          providerUsed: 'base_interna_renacred'
+        });
+        return {
+          product,
+          normalized,
+          raw: baseInternaResult,
+          providerUsed: 'base_interna_renacred',
+          processingTimeMs: 5
+        };
+      }
     }
 
     // 2. Deduplicação em voo (Singleflight)

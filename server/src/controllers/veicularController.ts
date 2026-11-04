@@ -259,7 +259,7 @@ export const consultarVeicularApiV1 = async (req: any, res: Response) => {
                 cost: 0,
                 totalDeclaracoes: 0,
                 processingTimeMs: responseTimeMs,
-                requestData: { product: 'E2', placa: cleanPlaca },
+                requestData: { product: 'E2', placa: cleanPlaca, custoInterno: (result as any).api_central?.cache_interno ? 0 : 0.17 },
                 resultData: result as any,
               }
             }),
@@ -311,7 +311,7 @@ export const consultarVeicularApiV1 = async (req: any, res: Response) => {
         cost: queryCost,
         totalDeclaracoes: totalRegistros,
         processingTimeMs: responseTimeMs,
-        requestData: { product: 'E2', placa: cleanPlaca },
+        requestData: { product: 'E2', placa: cleanPlaca, custoInterno: (result as any).api_central?.cache_interno ? 0 : 0.17 },
         resultData: result as any,
       }
     });

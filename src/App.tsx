@@ -11,6 +11,7 @@ import CatalogoProdutos from './pages/assinante/CatalogoProdutos';
 import ConsultarImobiliario from './pages/assinante/ConsultarImobiliario';
 import ConsultarProprietarios from './pages/assinante/ConsultarProprietarios';
 import MinhaAssinatura from './pages/assinante/MinhaAssinatura';
+import RelatorioConsumo from './pages/assinante/RelatorioConsumo';
 import GerenciarApi from './pages/assinante/GerenciarApi';
 import PortalDevDocs from './pages/assinante/PortalDevDocs';
 import ConfiguracoesCliente from './pages/assinante/ConfiguracoesCliente';
@@ -96,8 +97,9 @@ export default function App() {
           <Route path="/admin/consulta" element={<Navigate to="/consultar" replace />} />
 
           {/* Módulos do Assinante */}
+          <Route path="/relatorio-consumo" element={<RelatorioConsumo />} />
+          <Route path="/extrato" element={<RelatorioConsumo />} />
           <Route path="/minha-assinatura" element={<MinhaAssinatura />} />
-          <Route path="/extrato" element={<Navigate to="/minha-assinatura" replace />} />
           <Route path="/api-keys" element={<GerenciarApi />} />
           <Route path="/docs" element={<PortalDevDocs />} />
           <Route path="/configuracoes" element={<ConfiguracoesCliente />} />

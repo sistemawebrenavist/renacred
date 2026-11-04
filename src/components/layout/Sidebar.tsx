@@ -11,7 +11,8 @@ import {
   Settings,
   CreditCard,
   LogOut,
-  Coins
+  Coins,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { RenacredLogo } from '../ui/RenacredLogo';
@@ -47,6 +48,7 @@ export const Sidebar: React.FC = () => {
 
   // Menu do Portal do Assinante (Empresas Clientes)
   const clientManagementLinks = [
+    { to: '/relatorio-consumo', label: 'Relatório de Consumo', icon: FileSpreadsheet },
     { to: '/minha-assinatura', label: 'Minha Assinatura', icon: CreditCard },
     { to: '/api-keys', label: 'Chaves de Acesso', icon: KeyRound },
     { to: '/docs', label: 'Guia de Integração', icon: FileCode2 },
