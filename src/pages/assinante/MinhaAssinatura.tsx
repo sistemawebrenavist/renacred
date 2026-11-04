@@ -126,7 +126,20 @@ export default function MinhaAssinatura() {
   const company = data?.company || user?.company;
   const cycle = data?.currentCycle;
   const isPostPaid = company?.accountType === 'POST_PAID';
-  const effectivePrice = Number(company?.effectivePrice || company?.customPrices?.E1 || company?.customQueryPrice || 5.00);
+  const allowedProducts: string[] = Array.isArray(company?.allowedProducts) && company.allowedProducts.length > 0
+    ? company.allowedProducts
+    : ['ALL'];
+  const customPrices = (company?.customPrices as Record<string, number>) || {};
+
+  const isAllAllowed = allowedProducts.includes('ALL') || allowedProducts.length >= PRODUCTS_CATALOG.length;
+  const singleProductCode = !isAllAllowed && allowedProducts.length === 1 ? allowedProducts[0] : null;
+  const singleProduct = singleProductCode ? getProductByCode(singleProductCode) : null;
+  const singleProductPrice = singleProductCode
+    ? (typeof customPrices[singleProductCode] === 'number'
+        ? customPrices[singleProductCode]
+        : (singleProductCode === 'E1' && company?.customQueryPrice ? Number(company.customQueryPrice) : singleProduct?.defaultPrice || 5.00))
+    : null;
+
   const creditsBalance = Number(company?.creditsBalance || 0);
 
   return (
@@ -192,18 +205,52 @@ export default function MinhaAssinatura() {
               </span>
             </div>
 
-            {/* Tarifa Vigente */}
+            {/* Produtos / Tarifas Contratadas */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
               <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase mb-2">
-                <span>Tarifa por Consulta</span>
+                <span>{singleProductCode ? 'Tarifa por Consulta' : 'Produtos Contratados'}</span>
                 <Receipt className="w-4 h-4 text-emerald-600" />
               </div>
-              <p className="text-2xl font-bold text-emerald-700 font-mono">
-                R$ {effectivePrice.toFixed(2)}
-              </p>
-              <span className="text-xs text-slate-500 mt-2 block">
-                Valor unitário por CPF/CNPJ
-              </span>
+
+              {singleProductCode ? (
+                <>
+                  <p className="text-2xl font-bold text-emerald-700 font-mono">
+                    R$ {Number(singleProductPrice).toFixed(2)}
+                  </p>
+                  <span className="text-xs text-slate-500 mt-2 block truncate" title={`${singleProductCode} · ${singleProduct?.name || 'Consulta'}`}>
+                    {singleProductCode} · {singleProduct?.name || 'Consulta'}
+                  </span>
+                </>
+              ) : isAllAllowed ? (
+                <>
+                  <p className="text-2xl font-bold text-slate-900 font-mono">
+                    Todos ({PRODUCTS_CATALOG.length})
+                  </p>
+                  <span className="text-xs text-slate-500 mt-2 block">
+                    Portfólio completo liberado
+                  </span>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-slate-900 font-mono">
+                    {allowedProducts.length} Produtos
+                  </p>
+                  <span
+                    className="text-xs text-slate-500 mt-2 block truncate font-mono text-[11px]"
+                    title={allowedProducts.map((c: string) => {
+                      const p = getProductByCode(c);
+                      const price = typeof customPrices[c] === 'number' ? customPrices[c] : p?.defaultPrice || 0;
+                      return `${c}: R$ ${Number(price).toFixed(2)}`;
+                    }).join(' · ')}
+                  >
+                    {allowedProducts.map((c: string) => {
+                      const p = getProductByCode(c);
+                      const price = typeof customPrices[c] === 'number' ? customPrices[c] : p?.defaultPrice || 0;
+                      return `${c}: R$ ${Number(price).toFixed(2)}`;
+                    }).join(' · ')}
+                  </span>
+                </>
+              )}
             </div>
 
             {/* Saldo ou Limite */}

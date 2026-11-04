@@ -8,10 +8,10 @@ export default function CatalogoProdutos() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('todos');
 
   const allowedProducts: string[] = user?.company?.allowedProducts || ['ALL'];
   const isAllAllowed = allowedProducts.includes('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<string>(isAllAllowed ? 'todos' : 'liberados');
 
   const filteredProducts = useMemo(() => {
     return PRODUCTS_CATALOG.filter((p) => {
@@ -138,10 +138,16 @@ export default function CatalogoProdutos() {
                         Custo: R$ {p.defaultCost.toFixed(2).replace('.', ',')}
                       </span>
                     )}
-                    <span className="text-xs font-bold font-mono text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 shadow-2xs">
-                      R$ {effectivePrice.toFixed(2).replace('.', ',')}
-                      <span className="text-[10px] font-normal text-slate-500 ml-1">/cons</span>
-                    </span>
+                    {isContracted ? (
+                      <span className="text-xs font-bold font-mono text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 shadow-2xs">
+                        R$ {effectivePrice.toFixed(2).replace('.', ',')}
+                        <span className="text-[10px] font-normal text-emerald-600 ml-1">/cons</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10.5px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200" title="Não incluso no plano contratado">
+                        Não Contratado
+                      </span>
+                    )}
                   </div>
                 </div>
 
