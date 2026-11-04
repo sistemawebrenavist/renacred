@@ -569,8 +569,8 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
         </div>
       </form>
 
-      {/* 3. Cinco Cartões de Indicadores (KPIs Executivos Consolidados) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+      {/* 3. Quatro Cartões de Indicadores (KPIs Executivos Faturados) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {/* TOTAL DE CONSULTAS NO EXTRATO */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
           <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -620,19 +620,6 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
           </div>
           <span className="text-[10px] text-slate-400 mt-0.5 block">
             {kpis.totalQueries > 0 ? `${Math.round((kpis.apiQueries / kpis.totalQueries) * 100)}% via token API` : 'Via token'}
-          </span>
-        </div>
-
-        {/* AUDITORIA DE REQUISIÇÕES BRUTAS */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
-          <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">
-            TRÁFEGO BRUTO TOTAL
-          </span>
-          <div className="text-2xl font-extrabold text-slate-800 font-mono mt-1">
-            {((kpis.billedQueries || 0) + (kpis.freeQueries || 0) + (kpis.failedQueries || 0)).toLocaleString('pt-BR')}
-          </div>
-          <span className="text-[10px] text-slate-400 mt-0.5 block">
-            {(kpis.freeQueries || 0).toLocaleString('pt-BR')} isentas / R$ 0,00
           </span>
         </div>
       </div>
