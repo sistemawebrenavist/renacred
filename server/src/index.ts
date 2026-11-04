@@ -20,6 +20,9 @@ import consultasRoutes from './routes/consultasRoutes';
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// Confiar no reverse proxy (OpenResty / Cloudflare) para obter req.ip e cabeçalhos reais
+app.set('trust proxy', true);
+
 // Compressão Gzip para respostas com mais de 1KB
 app.use(compression({ threshold: 1024 }));
 

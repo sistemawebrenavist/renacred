@@ -11,6 +11,7 @@ import { logger } from '../utils/logger';
 import { QuerySource, QueryStatus } from '../types/database';
 import { e20Service } from '../services/e20Service';
 import { normalizeE20, NormalizedResult } from '../services/productNormalizers';
+import { getClientNetworkInfo } from '../utils/networkUtils';
 
 /**
  * Validador genérico por tipo de input configurado no produto
@@ -113,6 +114,7 @@ export function generatePericialHash(productCode: string, query: string): string
  */
 export const executarConsultaWeb = async (req: any, res: Response) => {
   const startTime = Date.now();
+  const networkInfo = getClientNetworkInfo(req);
   const { codigo } = req.params;
   const companyId = req.user.companyId;
   const userId = req.user.id;
@@ -208,12 +210,14 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
     const isNotFound = !!result.raw?.isNotFound;
-    const hasData = result.normalized.dados !== null && !isNotFound;
 
-    // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas
-    // independente do resultado (inclusive certidões com 0 infrações/ocorrências, ex: E8 RENAINF).
-    // Quando a base oficial retornar "Registro não encontrado" ou erro técnico, o custo é R$ 0,00.
-    const finalCost = (!isSuperAdmin && hasData) ? eligibility.price : 0;
+    // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas,
+    // inclusive certidões com "nada consta", 0 registros ou sem ocorrências (houve busca e processamento).
+    // Isenção de cobrança (custo R$ 0,00) aplica-se exclusivamente a:
+    // 1) Testes internos da equipe Renacred (origem Paraná ou Santa Catarina / faixas IP de teste)
+    // 2) Usuários Super Admin
+    const isTest = networkInfo.isInternalTest || isSuperAdmin;
+    const finalCost = isTest ? 0 : eligibility.price;
     const hashAutenticacao = generatePericialHash(product.code, cleanQuery);
 
     // 5. Persistir auditoria da consulta no banco
@@ -234,7 +238,10 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
           query: cleanQuery,
           tipo: product.code === 'E18' ? tipoParam : undefined,
           hash: hashAutenticacao,
-          custoInterno: custoInternoCalculado
+          custoInterno: custoInternoCalculado,
+          clientIp: networkInfo.ip,
+          location: networkInfo.locationLabel,
+          isInternalTest: networkInfo.isInternalTest
         },
         resultData: result.normalized.dados as any
       }
@@ -287,7 +294,10 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
         requestData: {
           product: product.code,
           productName: product.name,
-          query: cleanQuery
+          query: cleanQuery,
+          clientIp: networkInfo.ip,
+          location: networkInfo.locationLabel,
+          isInternalTest: networkInfo.isInternalTest
         },
         errorData: { message: error.message }
       }
@@ -306,6 +316,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
  */
 export const executarConsultaApiV1 = async (req: any, res: Response) => {
   const startTime = Date.now();
+  const networkInfo = getClientNetworkInfo(req);
   const productIdentifier = req.params.codigo || req.query.api || req.body?.api;
 
   if (!productIdentifier) {
@@ -399,12 +410,14 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
     const isNotFound = !!result.raw?.isNotFound;
-    const hasData = result.normalized.dados !== null && !isNotFound;
 
-    // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas
-    // independente do resultado (inclusive certidões com 0 infrações/ocorrências, ex: E8 RENAINF).
-    // Quando a base oficial retornar "Registro não encontrado" ou erro técnico, o custo é R$ 0,00.
-    const finalCost = (!isSuperAdmin && hasData) ? eligibility.price : 0;
+    // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas,
+    // inclusive certidões com "nada consta", 0 registros ou sem ocorrências (houve busca e processamento).
+    // Isenção de cobrança (custo R$ 0,00) aplica-se exclusivamente a:
+    // 1) Testes internos da equipe Renacred (origem Paraná ou Santa Catarina / faixas IP de teste)
+    // 2) Usuários Super Admin
+    const isTest = networkInfo.isInternalTest || isSuperAdmin;
+    const finalCost = isTest ? 0 : eligibility.price;
     const hashAutenticacao = generatePericialHash(product.code, cleanQuery);
 
     // Gravar consulta no banco
@@ -425,13 +438,16 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
           tipo: product.code === 'E18' ? tipoParam : undefined,
           apiKeyId: apiKey?.id,
           hash: hashAutenticacao,
-          custoInterno: custoInternoCalculado
+          custoInterno: custoInternoCalculado,
+          clientIp: networkInfo.ip,
+          location: networkInfo.locationLabel,
+          isInternalTest: networkInfo.isInternalTest
         },
         resultData: result.normalized.dados as any
       }
     });
 
-    // Debitar créditos se houver dados
+    // Debitar créditos se houver cobrança
     if (finalCost > 0) {
       await billingService.chargeQuery(company.id, queryRecord.id, finalCost);
     }
@@ -457,7 +473,7 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
             statusCode: 200,
             responseTimeMs: processingTimeMs,
             creditsUsed: finalCost,
-            ipAddress: req.ip || req.headers['x-forwarded-for'] || null
+            ipAddress: networkInfo.ip
           }
         });
       } catch (logErr: any) {
@@ -485,6 +501,34 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
     const processingTimeMs = Date.now() - startTime;
     logger.error(`[API_V1] Erro ao consultar ${product.code} para ${cleanQuery}: ${error.message}`);
 
+    // Persistir auditoria de falha técnica no extrato da empresa (status ERROR, custo R$ 0,00)
+    try {
+      await prisma.query.create({
+        data: {
+          companyId: company.id,
+          identifier: cleanQuery,
+          source: QuerySource.API,
+          status: QueryStatus.ERROR,
+          cost: 0,
+          totalDeclaracoes: 0,
+          processingTimeMs,
+          requestData: {
+            product: product.code,
+            productName: product.name,
+            category: product.category,
+            query: cleanQuery,
+            apiKeyId: apiKey?.id,
+            clientIp: networkInfo.ip,
+            location: networkInfo.locationLabel,
+            isInternalTest: networkInfo.isInternalTest
+          },
+          errorData: { message: error.message }
+        }
+      });
+    } catch (e: any) {
+      logger.error(`[API_V1] Falha ao gravar Query de erro: ${e.message}`);
+    }
+
     setImmediate(async () => {
       try {
         await prisma.apiLog.create({
@@ -496,7 +540,7 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
             statusCode: 500,
             responseTimeMs: processingTimeMs,
             creditsUsed: 0,
-            ipAddress: req.ip || req.headers['x-forwarded-for'] || null
+            ipAddress: networkInfo.ip
           }
         });
       } catch {}

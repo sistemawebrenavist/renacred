@@ -262,7 +262,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
           ],
           ['Valor Total Faturado:', Number(summary.totalAmount || 0)],
           [],
-          ['Data / Hora', 'Placa / Identificador', 'Código Produto', 'Nome do Produto', 'Origem', 'Tarifa (R$)', 'Status da Consulta', 'ID Consulta']
+          ['Data / Hora', 'Placa / Identificador', 'Código Produto', 'Nome do Produto', 'Origem', 'IP', 'Localização', 'Tarifa (R$)', 'Status da Consulta', 'ID Consulta']
         ];
 
         for (const it of exportItems) {
@@ -272,6 +272,8 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
             it.productCode,
             it.productName,
             it.sourceLabel,
+            it.clientIp || '-',
+            it.location || '-',
             Number(it.cost || 0),
             it.statusLabel,
             it.id
@@ -281,6 +283,8 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
         wsData.push([]);
         wsData.push([
           'TOTAL GERAL FATURADO',
+          '',
+          '',
           '',
           '',
           '',
@@ -298,6 +302,8 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
           { wch: 15 },
           { wch: 38 },
           { wch: 14 },
+          { wch: 18 },
+          { wch: 22 },
           { wch: 16 },
           { wch: 32 },
           { wch: 38 },
@@ -322,19 +328,21 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
           ],
           [`"Valor Total Faturado: R$ ${Number(summary.totalAmount || 0).toFixed(2)}"`],
           [''],
-          ['"Data / Hora"', '"Placa / Identificador"', '"Código Produto"', '"Nome do Produto"', '"Origem"', '"Tarifa (R$)"', '"Status da Consulta"', '"ID Consulta"'],
+          ['"Data / Hora"', '"Placa / Identificador"', '"Código Produto"', '"Nome do Produto"', '"Origem"', '"IP"', '"Localização"', '"Tarifa (R$)"', '"Status da Consulta"', '"ID Consulta"'],
           ...exportItems.map((it: any) => [
             `"${new Date(it.createdAt).toLocaleString('pt-BR')}"`,
             `"${it.identifier}"`,
             `"${it.productCode}"`,
             `"${(it.productName || '').replace(/"/g, '""')}"`,
             `"${it.sourceLabel}"`,
+            `"${it.clientIp || '-'}"`,
+            `"${it.location || '-'}"`,
             `"${Number(it.cost || 0).toFixed(2)}"`,
             `"${it.statusLabel}"`,
             `"${it.id}"`
           ]),
           [''],
-          ['"TOTAL GERAL FATURADO"', '""', '""', '""', '""', `"${Number(summary.totalAmount || 0).toFixed(2)}"`, `"${summary.billedQueries || 0} consultas faturadas (falhas não cobradas)"`, '""']
+          ['"TOTAL GERAL FATURADO"', '""', '""', '""', '""', '""', '""', `"${Number(summary.totalAmount || 0).toFixed(2)}"`, `"${summary.billedQueries || 0} consultas faturadas (falhas não cobradas)"`, '""']
         ];
 
         const csvContent = '\uFEFF' + csvRows.map(r => r.join(';')).join('\r\n');
@@ -650,6 +658,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
                   <th className="py-3 px-4">PLACA / IDENTIFICADOR</th>
                   <th className="py-3 px-4">PRODUTO / TIPO</th>
                   <th className="py-3 px-4">ORIGEM</th>
+                  <th className="py-3 px-4">IP / LOCAL</th>
                   <th className="py-3 px-4">TARIFA COBRADA</th>
                   <th className="py-3 px-4">STATUS</th>
                   <th className="py-3 px-4 text-right">AÇÃO</th>
@@ -700,6 +709,18 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
                         </span>
                       </td>
 
+                      {/* IP / Local */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-slate-700 text-xs">
+                            {row.location || row.requestData?.location || (row.requestData?.isInternalTest ? 'Teste PR/SC' : 'Brasil')}
+                          </span>
+                          <span className="font-mono text-[10.5px] text-slate-400">
+                            {row.clientIp || row.requestData?.clientIp || (isApi ? 'API B2B' : 'Web')}
+                          </span>
+                        </div>
+                      </td>
+
                       {/* Tarifa Cobrada */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span className="font-mono font-bold text-slate-900 text-xs">
@@ -720,9 +741,9 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
                         ) : (
                           <span
                             className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-100 text-slate-600 border border-slate-200"
-                            title="Consulta realizada sem ocorrências / custo zero"
+                            title={row.statusLabel || "Sem cobrança"}
                           >
-                            Sem Cobrança (R$ 0,00)
+                            {row.statusLabel || "Sem Cobrança (R$ 0,00)"}
                           </span>
                         )}
                       </td>

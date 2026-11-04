@@ -484,11 +484,18 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
       }
 
       const costNum = Number(q.cost || 0);
+      const clientIp = reqData.clientIp || reqData.ip || (q.source === 'API' ? 'API B2B' : '-');
+      const location = reqData.location || (reqData.isInternalTest ? 'Teste Interno (PR/SC)' : '-');
+
       let statusLabel = 'Sucesso (Tarifado)';
       if (q.status === 'ERROR') {
         statusLabel = 'Falha Técnica (Não Cobrado)';
       } else if (costNum === 0) {
-        statusLabel = 'Sucesso (Sem Ocorrências / Custo Zero)';
+        if (reqData.isInternalTest) {
+          statusLabel = 'Teste Interno (Não Cobrado)';
+        } else {
+          statusLabel = 'Isento / Custo Zero';
+        }
       }
 
       return {
@@ -500,6 +507,8 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
         source: q.source,
         sourceLabel: q.source === 'API' ? 'API B2B' : 'Portal Web',
         cost: costNum,
+        clientIp,
+        location,
         status: q.status,
         statusLabel,
         totalDeclaracoes: q.totalDeclaracoes,
@@ -681,11 +690,18 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
       }
 
       const costNum = Number(q.cost || 0);
+      const clientIp = reqData.clientIp || reqData.ip || (q.source === 'API' ? 'API B2B' : '-');
+      const location = reqData.location || (reqData.isInternalTest ? 'Teste Interno (PR/SC)' : '-');
+
       let statusLabel = 'Sucesso (Tarifado)';
       if (q.status === 'ERROR') {
         statusLabel = 'Falha Técnica (Não Cobrado)';
       } else if (costNum === 0) {
-        statusLabel = 'Sucesso (Sem Ocorrências / Custo Zero)';
+        if (reqData.isInternalTest) {
+          statusLabel = 'Teste Interno (Não Cobrado)';
+        } else {
+          statusLabel = 'Isento / Custo Zero';
+        }
       }
 
       return {
@@ -697,6 +713,8 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
         source: q.source,
         sourceLabel: q.source === 'API' ? 'API B2B' : 'Portal Web',
         cost: costNum,
+        clientIp,
+        location,
         status: q.status,
         statusLabel,
       };
@@ -730,19 +748,21 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
         [`"${typeLabel}"`, `"Total no Arquivo: ${queries.length}"`, `"Faturadas: ${billedCount}"`, `"Não Cobradas / Isentas: ${freeCount}"`],
         [`"Valor Total Faturado: R$ ${totalAmount.toFixed(2)}"`],
         [''],
-        ['"Data / Hora"', '"Placa / Identificador"', '"Código Produto"', '"Nome do Produto"', '"Origem"', '"Tarifa (R$)"', '"Status da Consulta"', '"ID Consulta"'],
+        ['"Data / Hora"', '"Placa / Identificador"', '"Código Produto"', '"Nome do Produto"', '"Origem"', '"IP"', '"Localização"', '"Tarifa (R$)"', '"Status da Consulta"', '"ID Consulta"'],
         ...items.map((it) => [
           `"${new Date(it.createdAt).toLocaleString('pt-BR')}"`,
           `"${it.identifier}"`,
           `"${it.productCode}"`,
           `"${(it.productName || '').replace(/"/g, '""')}"`,
           `"${it.sourceLabel}"`,
+          `"${it.clientIp || '-'}"`,
+          `"${it.location || '-'}"`,
           `"${Number(it.cost).toFixed(2)}"`,
           `"${it.statusLabel}"`,
           `"${it.id}"`
         ]),
         [''],
-        ['"TOTAL GERAL FATURADO"', '""', '""', '""', '""', `"${totalAmount.toFixed(2)}"`, `"${billedCount} consultas faturadas"`, '""']
+        ['"TOTAL GERAL FATURADO"', '""', '""', '""', '""', '""', '""', `"${totalAmount.toFixed(2)}"`, `"${billedCount} consultas faturadas"`, '""']
       ];
 
       const csvContent = '\uFEFF' + csvRows.map(r => r.join(';')).join('\r\n');
