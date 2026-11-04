@@ -370,11 +370,15 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
       companyId: targetCompanyId,
     };
 
-    // Por padrão (BILLED), exibe somente as consultas faturadas (com custo > 0) para coincidir com a fatura
+    // Por padrão (BILLED), exibe consultas faturadas (custo > 0) e falhas técnicas (status ERROR) para auditoria completa
     if (billingType === 'BILLED') {
-      where.cost = { gt: 0 };
+      where.OR = [
+        { cost: { gt: 0 } },
+        { status: 'ERROR' }
+      ];
     } else if (billingType === 'FREE') {
       where.cost = 0;
+      where.status = { not: 'ERROR' };
     }
 
     if (status) {
@@ -602,11 +606,15 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
       companyId: targetCompanyId,
     };
 
-    // Por padrão (BILLED), exporta somente as consultas faturadas (com custo > 0)
+    // Por padrão (BILLED), exporta consultas faturadas (custo > 0) e falhas técnicas (status ERROR) para auditoria completa
     if (billingType === 'BILLED') {
-      where.cost = { gt: 0 };
+      where.OR = [
+        { cost: { gt: 0 } },
+        { status: 'ERROR' }
+      ];
     } else if (billingType === 'FREE') {
       where.cost = 0;
+      where.status = { not: 'ERROR' };
     }
 
     if (status) {
@@ -748,7 +756,7 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
         [`"${typeLabel}"`, `"Total no Arquivo: ${queries.length}"`, `"Faturadas: ${billedCount}"`, `"Não Cobradas / Isentas: ${freeCount}"`],
         [`"Valor Total Faturado: R$ ${totalAmount.toFixed(2)}"`],
         [''],
-        ['"Data / Hora"', '"Placa / Identificador"', '"Código Produto"', '"Nome do Produto"', '"Origem"', '"IP"', '"Localização"', '"Tarifa (R$)"', '"Status da Consulta"', '"ID Consulta"'],
+        ['"Data / Hora"', '"Placa / Identificador"', '"Código Produto"', '"Nome do Produto"', '"Origem"', '"IP"', '"Tarifa (R$)"', '"Status da Consulta"', '"ID Consulta"'],
         ...items.map((it) => [
           `"${new Date(it.createdAt).toLocaleString('pt-BR')}"`,
           `"${it.identifier}"`,
@@ -756,13 +764,12 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
           `"${(it.productName || '').replace(/"/g, '""')}"`,
           `"${it.sourceLabel}"`,
           `"${it.clientIp || '-'}"`,
-          `"${it.location || '-'}"`,
           `"${Number(it.cost).toFixed(2)}"`,
           `"${it.statusLabel}"`,
           `"${it.id}"`
         ]),
         [''],
-        ['"TOTAL GERAL FATURADO"', '""', '""', '""', '""', '""', '""', `"${totalAmount.toFixed(2)}"`, `"${billedCount} consultas faturadas"`, '""']
+        ['"TOTAL GERAL FATURADO"', '""', '""', '""', '""', '""', `"${totalAmount.toFixed(2)}"`, `"${billedCount} consultas faturadas"`, '""']
       ];
 
       const csvContent = '\uFEFF' + csvRows.map(r => r.join(';')).join('\r\n');

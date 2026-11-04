@@ -13,6 +13,25 @@ import { e20Service } from '../services/e20Service';
 import { normalizeE20, NormalizedResult } from '../services/productNormalizers';
 import { getClientNetworkInfo } from '../utils/networkUtils';
 
+interface CachedQueryEntry {
+  timestamp: number;
+  responsePayload: any;
+  queryId: string;
+}
+
+// Cache em memória de curto prazo (10 segundos) para deduplicação de requisições simultâneas
+const recentQueriesDedupCache = new Map<string, CachedQueryEntry>();
+
+// Limpeza periódica do cache a cada 60 segundos
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of recentQueriesDedupCache.entries()) {
+    if (now - entry.timestamp > 30000) {
+      recentQueriesDedupCache.delete(key);
+    }
+  }
+}, 60000);
+
 /**
  * Validador genérico por tipo de input configurado no produto
  */
@@ -140,6 +159,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
   }
 
   const cleanQuery = validation.cleaned;
+  const dedupKey = `${companyId}_${product.code}_${cleanQuery}`;
 
   // 3. Checagem de elegibilidade e faturamento
   let company = req.user?.company;
@@ -261,7 +281,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       });
     }
 
-    return res.json({
+    const responsePayload = {
       success: true,
       queryId: queryRecord.id,
       produto: {
@@ -276,7 +296,16 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       hash_autenticacao: hashAutenticacao,
       consultado_em: new Date().toISOString(),
       dados: result.normalized.dados
+    };
+
+    // Armazenar no cache de deduplicação por 10 segundos
+    recentQueriesDedupCache.set(dedupKey, {
+      timestamp: Date.now(),
+      responsePayload,
+      queryId: queryRecord.id
     });
+
+    return res.json(responsePayload);
   } catch (error: any) {
     const processingTimeMs = Date.now() - startTime;
     logger.error(`[CONSULTA] Erro ao executar produto ${product.code} para ${cleanQuery}: ${error.message}`);
@@ -393,6 +422,66 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
     eligibility = { allowed: true, price: effectivePrice };
   }
 
+  // 2. Proteção contra chamadas duplicadas simultâneas (rajadas / workers concorrentes da API)
+  const dedupKey = `${company.id}_${product.code}_${cleanQuery}`;
+  const now = Date.now();
+  const cached = recentQueriesDedupCache.get(dedupKey);
+
+  // Se a mesma empresa consultou exatamente o mesmo produto e identificador há menos de 10 segundos:
+  if (cached && (now - cached.timestamp < 10000)) {
+    const processingTimeMs = Date.now() - startTime;
+    logger.info(`[DEDUP] Chamada duplicada detectada para empresa ${company.razaoSocial} (${cleanQuery} / ${product.code}) em menos de 10s. Retornando cache sem nova cobrança.`);
+
+    const dupRecord = await prisma.query.create({
+      data: {
+        companyId: company.id,
+        identifier: cleanQuery,
+        source: QuerySource.API,
+        status: QueryStatus.COMPLETED,
+        cost: 0,
+        totalDeclaracoes: cached.responsePayload.total_registros || 0,
+        processingTimeMs,
+        requestData: {
+          product: product.code,
+          productName: product.name,
+          category: product.category,
+          query: cleanQuery,
+          apiKeyId: apiKey?.id,
+          clientIp: networkInfo.ip,
+          isDuplicate: true,
+          originalQueryId: cached.queryId,
+          duplicateNotice: 'Consulta duplicada em menos de 10 segundos - Cobrança isenta'
+        },
+        resultData: cached.responsePayload.dados
+      }
+    });
+
+    setImmediate(async () => {
+      try {
+        await prisma.apiLog.create({
+          data: {
+            companyId: company.id,
+            apiKeyId: apiKey?.id,
+            endpoint: `/v1/${product.code.toLowerCase()}`,
+            method: req.method,
+            statusCode: 200,
+            responseTimeMs: processingTimeMs,
+            creditsUsed: 0,
+            ipAddress: networkInfo.ip
+          }
+        });
+      } catch {}
+    });
+
+    return res.json({
+      ...cached.responsePayload,
+      queryId: dupRecord.id,
+      custo_debitado: 0,
+      is_duplicada: true,
+      mensagem: 'Consulta duplicada recebida em menos de 10 segundos. Dados retornados com sucesso sem tarifação adicional.'
+    });
+  }
+
   try {
     const tipoParam = req.query.tipo || req.body?.tipo || 'mae';
     let result: { normalized: NormalizedResult; raw?: any };
@@ -481,7 +570,7 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       }
     });
 
-    return res.json({
+    const responsePayload = {
       success: true,
       queryId: queryRecord.id,
       produto: {
@@ -496,7 +585,16 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       hash_autenticacao: hashAutenticacao,
       consultado_em: new Date().toISOString(),
       dados: result.normalized.dados
+    };
+
+    // Armazenar no cache de deduplicação por 10 segundos
+    recentQueriesDedupCache.set(dedupKey, {
+      timestamp: Date.now(),
+      responsePayload,
+      queryId: queryRecord.id
     });
+
+    return res.json(responsePayload);
   } catch (error: any) {
     const processingTimeMs = Date.now() - startTime;
     logger.error(`[API_V1] Erro ao consultar ${product.code} para ${cleanQuery}: ${error.message}`);
