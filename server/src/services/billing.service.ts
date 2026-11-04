@@ -403,13 +403,14 @@ export class BillingService {
 
     for (const q of queries) {
       const currentCost = Number(q.cost);
+      const reqData = (q.requestData as any) || {};
 
-      // Se a query foi originalmente gratuita (ex: nada consta / isento / erro), mantém custo 0
-      if (currentCost === 0) {
+      // Isenção mantida apenas para falhas técnicas (status ERROR) ou testes internos da equipe (PR/SC)
+      const isInternalTest = reqData.isInternalTest || reqData.location?.includes('PR') || reqData.location?.includes('SC');
+      if (q.status === QueryStatus.ERROR || isInternalTest) {
         continue;
       }
 
-      const reqData = (q.requestData as any) || {};
       let prodCode = (reqData.product || reqData.productCode || reqData.codigo || '').toUpperCase();
       if (!prodCode) {
         if (reqData.placa) prodCode = 'E2';
