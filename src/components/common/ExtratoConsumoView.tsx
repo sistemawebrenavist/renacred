@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { 
   Calendar, 
   Filter, 
@@ -11,7 +12,10 @@ import {
   ChevronLeft, 
   ChevronRight,
   RotateCw,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileText,
+  Download,
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -35,15 +39,23 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
 
   // Dados do Backend
   const [loading, setLoading] = useState<boolean>(true);
+  const [exporting, setExporting] = useState<boolean>(false);
+  const [showExportMenu, setShowExportMenu] = useState<boolean>(false);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [kpis, setKpis] = useState<{
     totalQueries: number;
+    billedQueries?: number;
+    freeQueries?: number;
+    failedQueries?: number;
     totalAmount: number;
     apiQueries: number;
     webQueries: number;
     averageTicket: number;
   }>({
     totalQueries: 0,
+    billedQueries: 0,
+    freeQueries: 0,
+    failedQueries: 0,
     totalAmount: 0,
     apiQueries: 0,
     webQueries: 0,
@@ -192,35 +204,151 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
     }, 50);
   };
 
-  // Exportação CSV formatada (RFC4180 com UTF-8 BOM para Excel)
-  const handleExportCSV = () => {
-    if (!items || items.length === 0) {
-      toast.error('Nenhum dado encontrado para exportar com os filtros atuais.');
-      return;
+  // Exportação completa de todas as consultas do período (Excel .xlsx ou CSV .csv)
+  const handleExport = async (exportFormat: 'xlsx' | 'csv') => {
+    setShowExportMenu(false);
+    setExporting(true);
+    const toastId = toast.loading(`Buscando todas as consultas do período para exportação (${exportFormat.toUpperCase()})...`);
+
+    try {
+      const params: any = {
+        format: 'json'
+      };
+      if (companyId) params.companyId = companyId;
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+      if (sourceFilter !== 'ALL') params.source = sourceFilter;
+      if (searchTerm.trim()) params.search = searchTerm.trim();
+
+      const res = await api.get('/api/payment/consumption-statement/export', { params });
+      if (!res.data?.success || !res.data?.data) {
+        throw new Error(res.data?.message || 'Falha ao buscar dados de exportação.');
+      }
+
+      const { company, summary, items: exportItems } = res.data.data;
+      if (!exportItems || exportItems.length === 0) {
+        toast.dismiss(toastId);
+        toast.error('Nenhum dado encontrado para exportar com os filtros atuais.');
+        return;
+      }
+
+      const clientName = company?.razaoSocial || companyInfo?.razaoSocial || companyName || 'Cliente';
+      const clientCnpj = company?.cnpjCpf || companyInfo?.cnpjCpf || '';
+      const clientNameClean = clientName.replace(/[^a-zA-Z0-9]/g, '_');
+      const periodLabel = `${startDate || 'inicio'}_${endDate || 'fim'}`;
+      const emissionDate = new Date().toLocaleString('pt-BR');
+
+      if (exportFormat === 'xlsx') {
+        // Geração da Planilha Excel (.xlsx) com SheetJS
+        const wb = XLSX.utils.book_new();
+
+        const wsData: any[][] = [
+          ['RELATÓRIO ANALÍTICO DE CONSUMO E TARIFAS - RENACRED'],
+          ['Cliente:', clientName, 'CNPJ / CPF:', clientCnpj],
+          ['Período de Leitura:', `${startDate || 'Início'} até ${endDate || 'Fim'}`, 'Emissão:', emissionDate],
+          [
+            'Total de Consultas:', Number(summary.totalQueries || exportItems.length),
+            'Consultas Faturadas:', Number(summary.billedQueries || 0),
+            'Não Cobradas (Isentas):', Number(summary.freeQueries || 0),
+            'Falhas Técnicas:', Number(summary.failedQueries || 0)
+          ],
+          ['Valor Total Faturado:', Number(summary.totalAmount || 0)],
+          [],
+          ['Data / Hora', 'Placa / Identificador', 'Código Produto', 'Nome do Produto', 'Origem', 'Tarifa (R$)', 'Status da Consulta', 'ID Consulta']
+        ];
+
+        for (const it of exportItems) {
+          wsData.push([
+            new Date(it.createdAt).toLocaleString('pt-BR'),
+            it.identifier,
+            it.productCode,
+            it.productName,
+            it.sourceLabel,
+            Number(it.cost || 0),
+            it.statusLabel,
+            it.id
+          ]);
+        }
+
+        wsData.push([]);
+        wsData.push([
+          'TOTAL GERAL FATURADO',
+          '',
+          '',
+          '',
+          '',
+          Number(summary.totalAmount || 0),
+          `${summary.billedQueries || 0} consultas faturadas (falhas e isentas = R$ 0,00)`,
+          ''
+        ]);
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        ws['!cols'] = [
+          { wch: 20 },
+          { wch: 22 },
+          { wch: 15 },
+          { wch: 38 },
+          { wch: 14 },
+          { wch: 16 },
+          { wch: 32 },
+          { wch: 38 },
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Extrato Consumo');
+        XLSX.writeFile(wb, `extrato_consumo_${clientNameClean}_${periodLabel}.xlsx`);
+        toast.dismiss(toastId);
+        toast.success(`Relatório Excel exportado com sucesso! (${exportItems.length} consultas)`);
+
+      } else {
+        // Geração do Arquivo CSV com UTF-8 BOM e delimitador ';' para Excel BR
+        const csvRows = [
+          ['"RELATÓRIO ANALÍTICO DE CONSUMO E TARIFAS - RENACRED"'],
+          [`"Cliente: ${clientName.replace(/"/g, '""')}"`, `"CNPJ/CPF: ${clientCnpj}"`],
+          [`"Período de Leitura: ${startDate || 'Início'} até ${endDate || 'Fim'}"`, `"Emissão: ${emissionDate}"`],
+          [
+            `"Total de Consultas: ${summary.totalQueries || exportItems.length}"`,
+            `"Faturadas: ${summary.billedQueries || 0}"`,
+            `"Não Cobradas / Isentas: ${summary.freeQueries || 0}"`,
+            `"Falhas Técnicas: ${summary.failedQueries || 0}"`
+          ],
+          [`"Valor Total Faturado: R$ ${Number(summary.totalAmount || 0).toFixed(2)}"`],
+          [''],
+          ['"Data / Hora"', '"Placa / Identificador"', '"Código Produto"', '"Nome do Produto"', '"Origem"', '"Tarifa (R$)"', '"Status da Consulta"', '"ID Consulta"'],
+          ...exportItems.map((it: any) => [
+            `"${new Date(it.createdAt).toLocaleString('pt-BR')}"`,
+            `"${it.identifier}"`,
+            `"${it.productCode}"`,
+            `"${(it.productName || '').replace(/"/g, '""')}"`,
+            `"${it.sourceLabel}"`,
+            `"${Number(it.cost || 0).toFixed(2)}"`,
+            `"${it.statusLabel}"`,
+            `"${it.id}"`
+          ]),
+          [''],
+          ['"TOTAL GERAL FATURADO"', '""', '""', '""', '""', `"${Number(summary.totalAmount || 0).toFixed(2)}"`, `"${summary.billedQueries || 0} consultas faturadas (falhas não cobradas)"`, '""']
+        ];
+
+        const csvContent = '\uFEFF' + csvRows.map(r => r.join(';')).join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `extrato_consumo_${clientNameClean}_${periodLabel}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.dismiss(toastId);
+        toast.success(`Relatório CSV exportado com sucesso! (${exportItems.length} consultas)`);
+      }
+
+    } catch (err: any) {
+      console.error('Erro ao exportar extrato de consumo:', err);
+      toast.dismiss(toastId);
+      toast.error(err.response?.data?.message || err.message || 'Erro ao exportar extrato de consumo.');
+    } finally {
+      setExporting(false);
     }
-
-    const headers = ['Data/Hora', 'Placa/Identificador', 'Código Produto', 'Nome Produto', 'Origem', 'Tarifa (R$)', 'Status'];
-    const rows = items.map((it) => [
-      `"${new Date(it.createdAt).toLocaleString('pt-BR')}"`,
-      `"${it.identifier}"`,
-      `"${it.productCode}"`,
-      `"${(it.productName || '').replace(/"/g, '""')}"`,
-      `"${it.sourceLabel}"`,
-      `"${Number(it.cost).toFixed(2)}"`,
-      `"${it.status}"`
-    ]);
-
-    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const clientNameClean = (companyInfo?.razaoSocial || companyName || 'empresa').replace(/[^a-zA-Z0-9]/g, '_');
-    link.setAttribute('download', `extrato_consumo_${clientNameClean}_${startDate || 'inicio'}_${endDate || 'fim'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Extrato CSV exportado com sucesso!');
   };
 
   const handleCopyJson = () => {
@@ -354,75 +482,124 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
               <Filter className="w-3.5 h-3.5 mr-1" />
               Filtrar
             </button>
-            <button
-              type="button"
-              onClick={handleExportCSV}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 px-3 rounded-xl text-xs flex items-center justify-center transition cursor-pointer shadow-xs whitespace-nowrap"
-              title="Exportar dados filtrados para planilha CSV"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />
-              Exportar CSV
-            </button>
+
+            {/* Dropdown de Exportação (Excel / CSV) */}
+            <div className="relative">
+              <button
+                type="button"
+                disabled={exporting}
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-1.5 px-3 rounded-xl text-xs flex items-center justify-center transition cursor-pointer shadow-xs whitespace-nowrap gap-1"
+                title="Exportar todas as consultas filtradas do período"
+              >
+                {exporting ? (
+                  <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+                <span>Exportar</span>
+                <ChevronDown className="w-3 h-3 opacity-80" />
+              </button>
+
+              {showExportMenu && (
+                <div
+                  className="absolute right-0 mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 text-xs divide-y divide-slate-100"
+                  onMouseLeave={() => setShowExportMenu(false)}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleExport('xlsx')}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 flex items-center gap-2.5 cursor-pointer font-medium transition"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="block font-bold">Planilha Excel (.xlsx)</span>
+                      <span className="text-[10px] text-slate-400">Completa com cabeçalho e totais</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleExport('csv')}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50 text-slate-700 hover:text-blue-800 flex items-center gap-2.5 cursor-pointer font-medium transition"
+                  >
+                    <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div>
+                      <span className="block font-bold">Arquivo CSV (.csv)</span>
+                      <span className="text-[10px] text-slate-400">Padrão RFC4180 (UTF-8 BOM)</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </form>
 
-      {/* 3. Quatro Cartões de Indicadores (KPIs Executivos) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 3. Cinco Cartões de Indicadores (KPIs Executivos Consolidados) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         {/* TOTAL DE CONSULTAS */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+          <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">
             TOTAL DE CONSULTAS
           </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono mt-1">
+          <div className="text-2xl font-extrabold text-slate-900 font-mono mt-1">
             {kpis.totalQueries.toLocaleString('pt-BR')}
           </div>
-          <span className="text-[10.5px] text-slate-400 mt-1 block">
-            No período selecionado
+          <span className="text-[10px] text-slate-400 mt-0.5 block">
+            Volume bruto de requisições
+          </span>
+        </div>
+
+        {/* CONSULTAS FATURADAS */}
+        <div className="bg-white border border-blue-200/80 rounded-2xl p-4 shadow-xs bg-blue-50/20">
+          <span className="text-[10.5px] font-bold text-blue-700 uppercase tracking-wider block">
+            CONSULTAS FATURADAS
+          </span>
+          <div className="text-2xl font-extrabold text-blue-700 font-mono mt-1">
+            {(kpis.billedQueries || 0).toLocaleString('pt-BR')}
+          </div>
+          <span className="text-[10px] text-blue-600/80 mt-0.5 block">
+            Sucesso com tarifação
+          </span>
+        </div>
+
+        {/* CONSULTAS ISENTAS */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+          <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">
+            ISENTAS / CUSTO ZERO
+          </span>
+          <div className="text-2xl font-extrabold text-slate-600 font-mono mt-1">
+            {(kpis.freeQueries || 0).toLocaleString('pt-BR')}
+          </div>
+          <span className="text-[10px] text-slate-400 mt-0.5 block">
+            Nada consta / Não cobradas
+          </span>
+        </div>
+
+        {/* FALHAS TÉCNICAS */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+          <span className="text-[10.5px] font-bold text-rose-600 uppercase tracking-wider block">
+            FALHAS TÉCNICAS
+          </span>
+          <div className="text-2xl font-extrabold text-rose-600 font-mono mt-1">
+            {(kpis.failedQueries || 0).toLocaleString('pt-BR')}
+          </div>
+          <span className="text-[10px] text-rose-500/80 mt-0.5 block">
+            Isentas de cobrança (R$ 0,00)
           </span>
         </div>
 
         {/* TOTAL TARIFADO */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-            TOTAL TARIFADO
+        <div className="bg-white border border-emerald-200/80 rounded-2xl p-4 shadow-xs bg-emerald-50/20">
+          <span className="text-[10.5px] font-bold text-emerald-800 uppercase tracking-wider block">
+            TOTAL FATURADO
           </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-700 font-mono mt-1">
+          <div className="text-2xl font-extrabold text-emerald-700 font-mono mt-1">
             R$ {Number(kpis.totalAmount || 0).toFixed(2)}
           </div>
-          <span className="text-[10.5px] text-slate-400 mt-1 block">
-            Base Interna (Custo ext. R$ 0,00)
-          </span>
-        </div>
-
-        {/* VIA INTEGRAÇÃO API */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-            VIA INTEGRAÇÃO API
-          </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-purple-700 font-mono mt-1 flex items-baseline gap-2">
-            <span>{kpis.apiQueries.toLocaleString('pt-BR')}</span>
-            {kpis.totalQueries > 0 && (
-              <span className="text-xs font-semibold text-purple-600">
-                ({Math.round((kpis.apiQueries / kpis.totalQueries) * 100)}%)
-              </span>
-            )}
-          </div>
-          <span className="text-[10.5px] text-slate-400 mt-1 block">
-            Requisições consumidas via token
-          </span>
-        </div>
-
-        {/* TICKET MÉDIO / CONS. */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-            TICKET MÉDIO / CONS.
-          </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-blue-700 font-mono mt-1">
-            R$ {Number(kpis.averageTicket || 0).toFixed(2)}
-          </div>
-          <span className="text-[10.5px] text-slate-400 mt-1 block">
-            Valor médio debitado por consulta
+          <span className="text-[10px] text-emerald-600/80 mt-0.5 block">
+            Médio: R$ {Number(kpis.averageTicket || 0).toFixed(2)} / fat.
           </span>
         </div>
       </div>
@@ -449,6 +626,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
                   <th className="py-3 px-4">PRODUTO / TIPO</th>
                   <th className="py-3 px-4">ORIGEM</th>
                   <th className="py-3 px-4">TARIFA COBRADA</th>
+                  <th className="py-3 px-4">STATUS</th>
                   <th className="py-3 px-4 text-right">AÇÃO</th>
                 </tr>
               </thead>
@@ -502,6 +680,26 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
                         <span className="font-mono font-bold text-slate-900 text-xs">
                           R$ {Number(row.cost).toFixed(2)}
                         </span>
+                      </td>
+
+                      {/* Status da Consulta */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {row.status === 'ERROR' ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            Falha Técnica
+                          </span>
+                        ) : Number(row.cost) > 0 ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Sucesso (Tarifado)
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-100 text-slate-600 border border-slate-200"
+                            title="Consulta realizada sem ocorrências / custo zero"
+                          >
+                            Sem Cobrança (R$ 0,00)
+                          </span>
+                        )}
                       </td>
 
                       {/* Ações */}

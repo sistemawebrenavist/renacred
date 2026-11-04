@@ -402,12 +402,29 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
       };
     }
 
-    // Buscar contagem e KPIs consolidados
-    const [totalMatching, totalMatchingSum, totalApiCount, totalWebCount] = await Promise.all([
+    // Buscar contagem e KPIs consolidados com detalhamento de faturadas, isentas e falhas
+    const [
+      totalMatching,
+      totalMatchingSum,
+      totalBilledCount,
+      totalFreeCount,
+      totalErrorCount,
+      totalApiCount,
+      totalWebCount
+    ] = await Promise.all([
       prisma.query.count({ where }),
       prisma.query.aggregate({
         where,
         _sum: { cost: true }
+      }),
+      prisma.query.count({
+        where: { ...where, cost: { gt: 0 } }
+      }),
+      prisma.query.count({
+        where: { ...where, cost: 0, status: 'COMPLETED' }
+      }),
+      prisma.query.count({
+        where: { ...where, status: 'ERROR' }
       }),
       prisma.query.count({
         where: { ...where, source: 'API' }
@@ -418,7 +435,7 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
     ]);
 
     const totalAmount = Number(totalMatchingSum._sum.cost || 0);
-    const averageTicket = totalMatching > 0 ? (totalAmount / totalMatching) : 0;
+    const averageTicket = totalBilledCount > 0 ? (totalAmount / totalBilledCount) : 0;
 
     // Buscar itens paginados
     const queries = await prisma.query.findMany({
@@ -458,6 +475,14 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
         }
       }
 
+      const costNum = Number(q.cost || 0);
+      let statusLabel = 'Sucesso (Tarifado)';
+      if (q.status === 'ERROR') {
+        statusLabel = 'Falha Técnica (Não Cobrado)';
+      } else if (costNum === 0) {
+        statusLabel = 'Sucesso (Sem Ocorrências / Custo Zero)';
+      }
+
       return {
         id: q.id,
         createdAt: q.createdAt,
@@ -466,8 +491,9 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
         productName: productName,
         source: q.source,
         sourceLabel: q.source === 'API' ? 'API B2B' : 'Portal Web',
-        cost: Number(q.cost || 0),
+        cost: costNum,
         status: q.status,
+        statusLabel,
         totalDeclaracoes: q.totalDeclaracoes,
         processingTimeMs: q.processingTimeMs,
         requestData: reqData,
@@ -496,6 +522,9 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
         },
         kpis: {
           totalQueries: totalMatching,
+          billedQueries: totalBilledCount,
+          freeQueries: totalFreeCount,
+          failedQueries: totalErrorCount,
           totalAmount: totalAmount,
           apiQueries: totalApiCount,
           webQueries: totalWebCount,
@@ -514,6 +543,210 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
   } catch (error: any) {
     logger.error(`[BILLING] Erro ao buscar extrato de consumo: ${error.message}`);
     return res.status(500).json({ success: false, message: 'Erro ao buscar extrato de consumo.' });
+  }
+};
+
+/**
+ * Exporta todos os registros de consumo do período selecionado
+ * Suporta retorno em JSON completo (para XLSX no frontend) ou download direto em CSV
+ */
+export const exportConsumptionStatement = async (req: any, res: Response) => {
+  try {
+    const isSuperAdmin = Boolean(req.user?.isSuperAdmin || req.user?.role === 'SUPER_ADMIN');
+    const targetCompanyId = (isSuperAdmin && req.query.companyId) ? String(req.query.companyId) : req.user.companyId;
+
+    const company = await prisma.company.findUnique({
+      where: { id: targetCompanyId },
+      select: {
+        id: true,
+        razaoSocial: true,
+        nomeFantasia: true,
+        cnpjCpf: true,
+        accountType: true,
+        billingDueDate: true,
+      }
+    });
+
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Empresa não encontrada.' });
+    }
+
+    const {
+      startDate,
+      endDate,
+      source,
+      search,
+      status,
+      format = 'json'
+    } = req.query;
+
+    const where: any = {
+      companyId: targetCompanyId,
+    };
+
+    if (status) {
+      where.status = String(status);
+    }
+
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        where.createdAt.gte = new Date(String(startDate));
+      }
+      if (endDate) {
+        const end = new Date(String(endDate));
+        if (String(endDate).length <= 10) {
+          end.setHours(23, 59, 59, 999);
+        }
+        where.createdAt.lte = end;
+      }
+    }
+
+    if (source && source !== 'ALL') {
+      where.source = String(source).toUpperCase();
+    }
+
+    if (search && String(search).trim()) {
+      const term = String(search).trim();
+      where.identifier = {
+        contains: term,
+        mode: 'insensitive'
+      };
+    }
+
+    // Buscar todas as consultas do período sem limite de paginação
+    const [queries, aggregateSum, billedCount, freeCount, errorCount] = await Promise.all([
+      prisma.query.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          identifier: true,
+          source: true,
+          status: true,
+          cost: true,
+          totalDeclaracoes: true,
+          processingTimeMs: true,
+          requestData: true,
+          resultData: true,
+          createdAt: true,
+        }
+      }),
+      prisma.query.aggregate({
+        where,
+        _sum: { cost: true }
+      }),
+      prisma.query.count({
+        where: { ...where, cost: { gt: 0 } }
+      }),
+      prisma.query.count({
+        where: { ...where, cost: 0, status: 'COMPLETED' }
+      }),
+      prisma.query.count({
+        where: { ...where, status: 'ERROR' }
+      })
+    ]);
+
+    const totalAmount = Number(aggregateSum._sum.cost || 0);
+
+    const items = queries.map((q) => {
+      const reqData = (q.requestData as any) || {};
+      let productCode = reqData.product || reqData.productCode || '';
+      let productName = reqData.productName || '';
+
+      if (!productCode) {
+        if (q.source === 'API') {
+          productCode = 'API_B2B';
+          productName = 'Consulta Integrada via API';
+        } else {
+          productCode = 'WEB';
+          productName = 'Consulta Portal Web';
+        }
+      }
+
+      const costNum = Number(q.cost || 0);
+      let statusLabel = 'Sucesso (Tarifado)';
+      if (q.status === 'ERROR') {
+        statusLabel = 'Falha Técnica (Não Cobrado)';
+      } else if (costNum === 0) {
+        statusLabel = 'Sucesso (Sem Ocorrências / Custo Zero)';
+      }
+
+      return {
+        id: q.id,
+        createdAt: q.createdAt,
+        identifier: q.identifier,
+        productCode: String(productCode).toUpperCase(),
+        productName: productName,
+        source: q.source,
+        sourceLabel: q.source === 'API' ? 'API B2B' : 'Portal Web',
+        cost: costNum,
+        status: q.status,
+        statusLabel,
+      };
+    });
+
+    const summary = {
+      startDate: startDate || '',
+      endDate: endDate || '',
+      totalQueries: queries.length,
+      billedQueries: billedCount,
+      freeQueries: freeCount,
+      failedQueries: errorCount,
+      totalAmount,
+    };
+
+    if (format === 'csv') {
+      const clientNameClean = (company.razaoSocial || 'empresa').replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `extrato_consumo_${clientNameClean}_${startDate || 'inicio'}_${endDate || 'fim'}.csv`;
+
+      const csvRows = [
+        ['"RELATÓRIO ANALÍTICO DE CONSUMO E TARIFAS - RENACRED"'],
+        [`"Cliente: ${company.razaoSocial}"`, `"CNPJ/CPF: ${company.cnpjCpf}"`],
+        [`"Período de Leitura: ${startDate || 'Início'} até ${endDate || 'Fim'}"`, `"Emissão: ${new Date().toLocaleString('pt-BR')}"`],
+        [`"Total de Consultas: ${queries.length}"`, `"Faturadas: ${billedCount}"`, `"Não Cobradas / Isentas: ${freeCount}"`, `"Falhas Técnicas: ${errorCount}"`],
+        [`"Valor Total Faturado: R$ ${totalAmount.toFixed(2)}"`],
+        [''],
+        ['"Data / Hora"', '"Placa / Identificador"', '"Código Produto"', '"Nome do Produto"', '"Origem"', '"Tarifa (R$)"', '"Status da Consulta"', '"ID Consulta"'],
+        ...items.map((it) => [
+          `"${new Date(it.createdAt).toLocaleString('pt-BR')}"`,
+          `"${it.identifier}"`,
+          `"${it.productCode}"`,
+          `"${(it.productName || '').replace(/"/g, '""')}"`,
+          `"${it.sourceLabel}"`,
+          `"${Number(it.cost).toFixed(2)}"`,
+          `"${it.statusLabel}"`,
+          `"${it.id}"`
+        ]),
+        [''],
+        ['"TOTAL GERAL FATURADO"', '""', '""', '""', '""', `"${totalAmount.toFixed(2)}"`, `"${billedCount} consultas faturadas (falhas não cobradas)"`, '""']
+      ];
+
+      const csvContent = '\uFEFF' + csvRows.map(r => r.join(';')).join('\r\n');
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.status(200).send(csvContent);
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        company: {
+          id: company.id,
+          razaoSocial: company.razaoSocial,
+          cnpjCpf: company.cnpjCpf,
+          accountType: company.accountType,
+          billingDueDate: company.billingDueDate,
+        },
+        summary,
+        items
+      }
+    });
+
+  } catch (error: any) {
+    logger.error(`[BILLING] Erro ao exportar extrato de consumo: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Erro ao exportar extrato de consumo.' });
   }
 };
 

@@ -696,8 +696,11 @@ export default function GerenciarClientes() {
                             </span>
                             <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
                               {c.invoices?.[0]?.totalQueries > 0 && (
-                                <span className="text-[9px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded font-sans font-semibold whitespace-nowrap">
-                                  {c.invoices[0].totalQueries} consultas
+                                <span
+                                  className="text-[9px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded font-sans font-semibold whitespace-nowrap"
+                                  title="Total de consultas tarifadas no ciclo da fatura em aberto"
+                                >
+                                  {c.invoices[0].totalQueries} tarifadas
                                 </span>
                               )}
                               <span className="text-[10px] text-slate-500 font-sans whitespace-nowrap">

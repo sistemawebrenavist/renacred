@@ -5,7 +5,8 @@ import {
   listInvoices, 
   getSubscriptionDetails, 
   payInvoiceCheckout,
-  getConsumptionStatement
+  getConsumptionStatement,
+  exportConsumptionStatement
 } from '../controllers/paymentController';
 import { authenticateToken } from '../middlewares/authMiddleware';
 
@@ -17,6 +18,7 @@ router.get('/transactions', listTransactions);
 router.get('/invoices', listInvoices);
 router.get('/subscription', getSubscriptionDetails);
 router.post('/invoices/:id/pay', payInvoiceCheckout);
+router.get('/consumption-statement/export', exportConsumptionStatement);
 router.get('/consumption-statement', getConsumptionStatement);
 
 export default router;
