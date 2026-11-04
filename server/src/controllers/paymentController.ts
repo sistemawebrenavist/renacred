@@ -347,7 +347,8 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
       search,
       page = 1,
       limit = 50,
-      status
+      status,
+      billingType = 'BILLED'
     } = req.query;
 
     const pageNum = Math.max(1, parseInt(page as string) || 1);
@@ -368,6 +369,13 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
     const where: any = {
       companyId: targetCompanyId,
     };
+
+    // Por padrão (BILLED), exibe somente as consultas faturadas (com custo > 0) para coincidir com a fatura
+    if (billingType === 'BILLED') {
+      where.cost = { gt: 0 };
+    } else if (billingType === 'FREE') {
+      where.cost = 0;
+    }
 
     if (status) {
       where.status = String(status);
@@ -577,12 +585,20 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
       source,
       search,
       status,
+      billingType = 'BILLED',
       format = 'json'
     } = req.query;
 
     const where: any = {
       companyId: targetCompanyId,
     };
+
+    // Por padrão (BILLED), exporta somente as consultas faturadas (com custo > 0)
+    if (billingType === 'BILLED') {
+      where.cost = { gt: 0 };
+    } else if (billingType === 'FREE') {
+      where.cost = 0;
+    }
 
     if (status) {
       where.status = String(status);
@@ -689,6 +705,7 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
     const summary = {
       startDate: startDate || '',
       endDate: endDate || '',
+      billingType: String(billingType),
       totalQueries: queries.length,
       billedQueries: billedCount,
       freeQueries: freeCount,
@@ -700,11 +717,17 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
       const clientNameClean = (company.razaoSocial || 'empresa').replace(/[^a-zA-Z0-9]/g, '_');
       const filename = `extrato_consumo_${clientNameClean}_${startDate || 'inicio'}_${endDate || 'fim'}.csv`;
 
+      const typeLabel = billingType === 'BILLED'
+        ? 'Relatório: Apenas Consultas Faturadas (Cobrança)'
+        : billingType === 'FREE'
+        ? 'Relatório: Consultas Isentas / Custo Zero'
+        : 'Relatório: Todas as Requisições (Bruto)';
+
       const csvRows = [
         ['"RELATÓRIO ANALÍTICO DE CONSUMO E TARIFAS - RENACRED"'],
         [`"Cliente: ${company.razaoSocial}"`, `"CNPJ/CPF: ${company.cnpjCpf}"`],
         [`"Período de Leitura: ${startDate || 'Início'} até ${endDate || 'Fim'}"`, `"Emissão: ${new Date().toLocaleString('pt-BR')}"`],
-        [`"Total de Consultas: ${queries.length}"`, `"Faturadas: ${billedCount}"`, `"Não Cobradas / Isentas: ${freeCount}"`, `"Falhas Técnicas: ${errorCount}"`],
+        [`"${typeLabel}"`, `"Total no Arquivo: ${queries.length}"`, `"Faturadas: ${billedCount}"`, `"Não Cobradas / Isentas: ${freeCount}"`],
         [`"Valor Total Faturado: R$ ${totalAmount.toFixed(2)}"`],
         [''],
         ['"Data / Hora"', '"Placa / Identificador"', '"Código Produto"', '"Nome do Produto"', '"Origem"', '"Tarifa (R$)"', '"Status da Consulta"', '"ID Consulta"'],
@@ -719,7 +742,7 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
           `"${it.id}"`
         ]),
         [''],
-        ['"TOTAL GERAL FATURADO"', '""', '""', '""', '""', `"${totalAmount.toFixed(2)}"`, `"${billedCount} consultas faturadas (falhas não cobradas)"`, '""']
+        ['"TOTAL GERAL FATURADO"', '""', '""', '""', '""', `"${totalAmount.toFixed(2)}"`, `"${billedCount} consultas faturadas"`, '""']
       ];
 
       const csvContent = '\uFEFF' + csvRows.map(r => r.join(';')).join('\r\n');

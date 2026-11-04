@@ -28,11 +28,12 @@ interface ExtratoConsumoViewProps {
 }
 
 export default function ExtratoConsumoView({ companyId, companyName, isModal = false }: ExtratoConsumoViewProps) {
-  // Estado dos Filtros
+  // Estado dos Filtros (Padrão: Apenas Faturadas para coincidir rigorosamente com a fatura)
   const [activeCyclePreset, setActiveCyclePreset] = useState<'current' | 'previous' | 'month' | 'last30'>('current');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'API' | 'WEB'>('ALL');
+  const [billingTypeFilter, setBillingTypeFilter] = useState<'BILLED' | 'ALL' | 'FREE'>('BILLED');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [page, setPage] = useState<number>(1);
   const [limit] = useState<number>(50);
@@ -160,6 +161,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
       if (sourceFilter !== 'ALL') params.source = sourceFilter;
+      if (billingTypeFilter) params.billingType = billingTypeFilter;
       if (searchTerm.trim()) params.search = searchTerm.trim();
 
       const res = await api.get('/api/payment/consumption-statement', { params });
@@ -187,7 +189,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
 
   useEffect(() => {
     fetchStatement(1);
-  }, [companyId, page]);
+  }, [companyId, page, billingTypeFilter]);
 
   const handleFilterSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -218,6 +220,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
       if (sourceFilter !== 'ALL') params.source = sourceFilter;
+      if (billingTypeFilter) params.billingType = billingTypeFilter;
       if (searchTerm.trim()) params.search = searchTerm.trim();
 
       const res = await api.get('/api/payment/consumption-statement/export', { params });
@@ -238,6 +241,12 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
       const periodLabel = `${startDate || 'inicio'}_${endDate || 'fim'}`;
       const emissionDate = new Date().toLocaleString('pt-BR');
 
+      const typeLabel = billingTypeFilter === 'BILLED'
+        ? 'Relatório: Apenas Consultas Faturadas (Cobrança)'
+        : billingTypeFilter === 'FREE'
+        ? 'Relatório: Consultas Isentas / Custo Zero'
+        : 'Relatório: Todas as Requisições (Bruto)';
+
       if (exportFormat === 'xlsx') {
         // Geração da Planilha Excel (.xlsx) com SheetJS
         const wb = XLSX.utils.book_new();
@@ -247,10 +256,9 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
           ['Cliente:', clientName, 'CNPJ / CPF:', clientCnpj],
           ['Período de Leitura:', `${startDate || 'Início'} até ${endDate || 'Fim'}`, 'Emissão:', emissionDate],
           [
-            'Total de Consultas:', Number(summary.totalQueries || exportItems.length),
-            'Consultas Faturadas:', Number(summary.billedQueries || 0),
-            'Não Cobradas (Isentas):', Number(summary.freeQueries || 0),
-            'Falhas Técnicas:', Number(summary.failedQueries || 0)
+            'Filtro Aplicado:', typeLabel,
+            'Total de Consultas no Arquivo:', Number(summary.totalQueries || exportItems.length),
+            'Consultas Faturadas:', Number(summary.billedQueries || 0)
           ],
           ['Valor Total Faturado:', Number(summary.totalAmount || 0)],
           [],
@@ -425,7 +433,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
       <form onSubmit={handleFilterSubmit} className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Período de / até */}
-          <div className="md:col-span-5 flex items-center space-x-2">
+          <div className="md:col-span-4 flex items-center space-x-1.5">
             <span className="text-xs text-slate-500 font-semibold whitespace-nowrap">Período:</span>
             <input
               type="date"
@@ -434,7 +442,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
                 setStartDate(e.target.value);
                 setActiveCyclePreset('' as any);
               }}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
             />
             <span className="text-xs text-slate-400">até</span>
             <input
@@ -444,20 +452,37 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
                 setEndDate(e.target.value);
                 setActiveCyclePreset('' as any);
               }}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
+          {/* Filtro de Faturamento (Padrão: Apenas Faturadas) */}
+          <div className="md:col-span-2">
+            <select
+              value={billingTypeFilter}
+              onChange={(e) => {
+                setBillingTypeFilter(e.target.value as any);
+                setPage(1);
+              }}
+              className="w-full bg-blue-50/60 border border-blue-200 text-blue-900 rounded-xl px-2.5 py-1.5 text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              title="Filtrar por consultas faturadas (com custo) ou incluir gratuitas"
+            >
+              <option value="BILLED">Apenas Faturadas</option>
+              <option value="ALL">Todas (Incluir Custo Zero)</option>
+              <option value="FREE">Apenas Isentas (R$ 0,00)</option>
+            </select>
+          </div>
+
           {/* Origem Dropdown */}
-          <div className="md:col-span-3">
+          <div className="md:col-span-2">
             <select
               value={sourceFilter}
               onChange={(e) => setSourceFilter(e.target.value as any)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-medium focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:outline-hidden focus:ring-1 focus:ring-blue-500"
             >
-              <option value="ALL">Todas as Origens (Web + API)</option>
-              <option value="API">Somente Integração API</option>
-              <option value="WEB">Somente Portal Web</option>
+              <option value="ALL">Todas Origens</option>
+              <option value="API">API B2B</option>
+              <option value="WEB">Portal Web</option>
             </select>
           </div>
 
@@ -538,59 +563,20 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
 
       {/* 3. Cinco Cartões de Indicadores (KPIs Executivos Consolidados) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-        {/* TOTAL DE CONSULTAS */}
+        {/* TOTAL DE CONSULTAS NO EXTRATO */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
           <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">
-            TOTAL DE CONSULTAS
+            {billingTypeFilter === 'BILLED' ? 'CONSULTAS FATURADAS' : billingTypeFilter === 'FREE' ? 'CONSULTAS ISENTAS' : 'TOTAL DE REQUISIÇÕES'}
           </span>
-          <div className="text-2xl font-extrabold text-slate-900 font-mono mt-1">
+          <div className="text-2xl font-extrabold text-blue-700 font-mono mt-1">
             {kpis.totalQueries.toLocaleString('pt-BR')}
           </div>
           <span className="text-[10px] text-slate-400 mt-0.5 block">
-            Volume bruto de requisições
+            {billingTypeFilter === 'BILLED' ? 'Itens com cobrança na lista' : 'Total no filtro ativo'}
           </span>
         </div>
 
-        {/* CONSULTAS FATURADAS */}
-        <div className="bg-white border border-blue-200/80 rounded-2xl p-4 shadow-xs bg-blue-50/20">
-          <span className="text-[10.5px] font-bold text-blue-700 uppercase tracking-wider block">
-            CONSULTAS FATURADAS
-          </span>
-          <div className="text-2xl font-extrabold text-blue-700 font-mono mt-1">
-            {(kpis.billedQueries || 0).toLocaleString('pt-BR')}
-          </div>
-          <span className="text-[10px] text-blue-600/80 mt-0.5 block">
-            Sucesso com tarifação
-          </span>
-        </div>
-
-        {/* CONSULTAS ISENTAS */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
-          <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">
-            ISENTAS / CUSTO ZERO
-          </span>
-          <div className="text-2xl font-extrabold text-slate-600 font-mono mt-1">
-            {(kpis.freeQueries || 0).toLocaleString('pt-BR')}
-          </div>
-          <span className="text-[10px] text-slate-400 mt-0.5 block">
-            Nada consta / Não cobradas
-          </span>
-        </div>
-
-        {/* FALHAS TÉCNICAS */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
-          <span className="text-[10.5px] font-bold text-rose-600 uppercase tracking-wider block">
-            FALHAS TÉCNICAS
-          </span>
-          <div className="text-2xl font-extrabold text-rose-600 font-mono mt-1">
-            {(kpis.failedQueries || 0).toLocaleString('pt-BR')}
-          </div>
-          <span className="text-[10px] text-rose-500/80 mt-0.5 block">
-            Isentas de cobrança (R$ 0,00)
-          </span>
-        </div>
-
-        {/* TOTAL TARIFADO */}
+        {/* VALOR TOTAL FATURADO */}
         <div className="bg-white border border-emerald-200/80 rounded-2xl p-4 shadow-xs bg-emerald-50/20">
           <span className="text-[10.5px] font-bold text-emerald-800 uppercase tracking-wider block">
             TOTAL FATURADO
@@ -599,7 +585,46 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
             R$ {Number(kpis.totalAmount || 0).toFixed(2)}
           </div>
           <span className="text-[10px] text-emerald-600/80 mt-0.5 block">
-            Médio: R$ {Number(kpis.averageTicket || 0).toFixed(2)} / fat.
+            Soma das tarifas faturadas
+          </span>
+        </div>
+
+        {/* TICKET MÉDIO */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+          <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">
+            TICKET MÉDIO
+          </span>
+          <div className="text-2xl font-extrabold text-slate-700 font-mono mt-1">
+            R$ {Number(kpis.averageTicket || 0).toFixed(2)}
+          </div>
+          <span className="text-[10px] text-slate-400 mt-0.5 block">
+            Valor médio por consulta
+          </span>
+        </div>
+
+        {/* ORIGEM API */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+          <span className="text-[10.5px] font-bold text-purple-600 uppercase tracking-wider block">
+            INTEGRAÇÃO API B2B
+          </span>
+          <div className="text-2xl font-extrabold text-purple-700 font-mono mt-1">
+            {kpis.apiQueries.toLocaleString('pt-BR')}
+          </div>
+          <span className="text-[10px] text-slate-400 mt-0.5 block">
+            {kpis.totalQueries > 0 ? `${Math.round((kpis.apiQueries / kpis.totalQueries) * 100)}% via token API` : 'Via token'}
+          </span>
+        </div>
+
+        {/* AUDITORIA DE REQUISIÇÕES BRUTAS */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+          <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">
+            TRÁFEGO BRUTO TOTAL
+          </span>
+          <div className="text-2xl font-extrabold text-slate-800 font-mono mt-1">
+            {((kpis.billedQueries || 0) + (kpis.freeQueries || 0) + (kpis.failedQueries || 0)).toLocaleString('pt-BR')}
+          </div>
+          <span className="text-[10px] text-slate-400 mt-0.5 block">
+            {(kpis.freeQueries || 0).toLocaleString('pt-BR')} isentas / R$ 0,00
           </span>
         </div>
       </div>
