@@ -11,7 +11,7 @@ export default function CatalogoProdutos() {
 
   const allowedProducts: string[] = user?.company?.allowedProducts || ['ALL'];
   const isAllAllowed = allowedProducts.includes('ALL');
-  const [selectedCategory, setSelectedCategory] = useState<string>(isAllAllowed ? 'todos' : 'liberados');
+  const [selectedCategory, setSelectedCategory] = useState<string>('todos');
 
   const filteredProducts = useMemo(() => {
     return PRODUCTS_CATALOG.filter((p) => {
@@ -115,7 +115,7 @@ export default function CatalogoProdutos() {
               className={`bg-white border rounded-xl p-5 flex flex-col justify-between transition ${
                 isContracted
                   ? 'border-slate-200 hover:border-slate-300 hover:shadow-xs'
-                  : 'border-slate-200/80 bg-slate-50/50 opacity-80'
+                  : 'border-slate-200/80 bg-slate-50/40 hover:border-slate-300'
               }`}
             >
               <div>
@@ -144,8 +144,9 @@ export default function CatalogoProdutos() {
                         <span className="text-[10px] font-normal text-emerald-600 ml-1">/cons</span>
                       </span>
                     ) : (
-                      <span className="text-[10.5px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200" title="Não incluso no plano contratado">
-                        Não Contratado
+                      <span className="text-xs font-bold font-mono text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200" title="Preço de tabela padrão da plataforma">
+                        R$ {p.defaultPrice.toFixed(2).replace('.', ',')}
+                        <span className="text-[10px] font-normal text-slate-500 ml-1">/cons</span>
                       </span>
                     )}
                   </div>
@@ -181,12 +182,14 @@ export default function CatalogoProdutos() {
                     {p.inputLabel}
                   </span>
                   {isContracted ? (
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                       Liberado
                     </span>
                   ) : (
-                    <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                      Não Contratado
+                    <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                      Não Liberado
                     </span>
                   )}
                 </div>
@@ -201,11 +204,11 @@ export default function CatalogoProdutos() {
                 ) : (
                   <button
                     onClick={() => {
-                      toast.info(`O produto ${p.code} (${p.name}) não está ativo no seu plano. Entre em contato com seu gestor comercial.`);
+                      toast.info(`O produto ${p.code} (${p.name}) está disponível para contratação. Entre em contato com seu gestor comercial para ativar.`);
                     }}
-                    className="px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition cursor-pointer"
+                    className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition cursor-pointer"
                   >
-                    Solicitar
+                    Solicitar Liberação
                   </button>
                 )}
               </div>

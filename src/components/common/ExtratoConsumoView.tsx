@@ -238,7 +238,16 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
       const clientName = company?.razaoSocial || companyInfo?.razaoSocial || companyName || 'Cliente';
       const clientCnpj = company?.cnpjCpf || companyInfo?.cnpjCpf || '';
       const clientNameClean = clientName.replace(/[^a-zA-Z0-9]/g, '_');
-      const periodLabel = `${startDate || 'inicio'}_${endDate || 'fim'}`;
+
+      const formatBr = (dStr: string) => {
+        if (!dStr) return '';
+        if (dStr.includes('/')) return dStr;
+        const [y, m, d] = dStr.split('-');
+        if (y && m && d) return `${d}/${m}/${y}`;
+        return dStr;
+      };
+      const periodLabel = `${formatBr(startDate) || 'inicio'}_${formatBr(endDate) || 'fim'}`;
+      const periodLabelBr = `${formatBr(startDate) || 'Início'} até ${formatBr(endDate) || 'Fim'}`;
       const emissionDate = new Date().toLocaleString('pt-BR');
 
       const typeLabel = billingTypeFilter === 'BILLED'
@@ -254,7 +263,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
         const wsData: any[][] = [
           ['RELATÓRIO ANALÍTICO DE CONSUMO E TARIFAS - RENACRED'],
           ['Cliente:', clientName, 'CNPJ / CPF:', clientCnpj],
-          ['Período de Leitura:', `${startDate || 'Início'} até ${endDate || 'Fim'}`, 'Emissão:', emissionDate],
+          ['Período de Leitura:', periodLabelBr, 'Emissão:', emissionDate],
           [
             'Filtro Aplicado:', typeLabel,
             'Total de Consultas no Arquivo:', Number(summary.totalQueries || exportItems.length),

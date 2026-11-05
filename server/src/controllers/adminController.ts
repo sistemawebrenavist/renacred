@@ -381,6 +381,18 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const {
+      // Dados Cadastrais (Master Admin)
+      razaoSocial,
+      nomeFantasia,
+      cnpjCpf,
+      email,
+      telefone,
+      endereco,
+      cidade,
+      estado,
+      cep,
+
+      // Parâmetros Comerciais & Cobrança
       accountType,
       billingDueDate,
       customQueryPrice,
@@ -399,6 +411,63 @@ export const updateCompanySettings = async (req: Request, res: Response) => {
     }
 
     const dataToUpdate: any = {};
+
+    // 1. Atualização de Dados Cadastrais
+    if (razaoSocial !== undefined && String(razaoSocial).trim()) {
+      dataToUpdate.razaoSocial = String(razaoSocial).trim();
+    }
+
+    if (nomeFantasia !== undefined) {
+      dataToUpdate.nomeFantasia = String(nomeFantasia).trim() || null;
+    }
+
+    if (cnpjCpf !== undefined && String(cnpjCpf).trim()) {
+      const cleanDoc = String(cnpjCpf).replace(/\D/g, '');
+      if (cleanDoc && cleanDoc !== company.cnpjCpf) {
+        const existingDoc = await prisma.company.findFirst({
+          where: { cnpjCpf: cleanDoc, id: { not: id } }
+        });
+        if (existingDoc) {
+          return res.status(400).json({ success: false, message: 'Já existe outra empresa cadastrada com este CNPJ/CPF.' });
+        }
+        dataToUpdate.cnpjCpf = cleanDoc;
+      }
+    }
+
+    if (email !== undefined && String(email).trim()) {
+      const cleanEmail = String(email).trim().toLowerCase();
+      if (cleanEmail && cleanEmail !== company.email.toLowerCase()) {
+        const existingEmail = await prisma.company.findFirst({
+          where: { email: cleanEmail, id: { not: id } }
+        });
+        if (existingEmail) {
+          return res.status(400).json({ success: false, message: 'Já existe outra empresa cadastrada com este e-mail.' });
+        }
+        dataToUpdate.email = cleanEmail;
+      }
+    }
+
+    if (telefone !== undefined) {
+      dataToUpdate.telefone = String(telefone).trim() || null;
+    }
+
+    if (endereco !== undefined) {
+      dataToUpdate.endereco = String(endereco).trim() || null;
+    }
+
+    if (cidade !== undefined) {
+      dataToUpdate.cidade = String(cidade).trim() || null;
+    }
+
+    if (estado !== undefined) {
+      dataToUpdate.estado = String(estado).trim().toUpperCase() || null;
+    }
+
+    if (cep !== undefined) {
+      dataToUpdate.cep = String(cep).replace(/\D/g, '') || null;
+    }
+
+    // 2. Parâmetros Comerciais & Financeiros
 
     if (accountType !== undefined) {
       dataToUpdate.accountType = accountType === 'POST_PAID' ? 'POST_PAID' : 'PRE_PAID';

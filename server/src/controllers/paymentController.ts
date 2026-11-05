@@ -311,6 +311,38 @@ export const payInvoiceCheckout = async (req: any, res: Response) => {
   }
 };
 
+// Helper para converter string de data (YYYY-MM-DD ou DD/MM/YYYY) para os limites exatos do dia no fuso de Brasília (UTC-3)
+function parseDateBoundary(dateStr: string, isEnd: boolean): Date {
+  const str = String(dateStr).trim();
+  let year: number, month: number, day: number;
+
+  if (str.includes('/')) {
+    const parts = str.split('/');
+    day = parseInt(parts[0], 10);
+    month = parseInt(parts[1], 10) - 1;
+    year = parseInt(parts[2], 10);
+  } else if (str.includes('-')) {
+    const parts = str.split('T')[0].split('-');
+    year = parseInt(parts[0], 10);
+    month = parseInt(parts[1], 10) - 1;
+    day = parseInt(parts[2], 10);
+  } else {
+    return new Date(str);
+  }
+
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+    return new Date(str);
+  }
+
+  if (isEnd) {
+    // 23:59:59.999 no horário de Brasília (UTC-3) -> 02:59:59.999 UTC do dia subsequente
+    return new Date(Date.UTC(year, month, day + 1, 2, 59, 59, 999));
+  } else {
+    // 00:00:00.000 no horário de Brasília (UTC-3) -> 03:00:00.000 UTC
+    return new Date(Date.UTC(year, month, day, 3, 0, 0, 0));
+  }
+}
+
 /**
  * Extrato unificado de consumo e faturamento de consultas
  * Compatível tanto com contas Pós-pagas quanto Pré-pagas
@@ -385,18 +417,14 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
       where.status = String(status);
     }
 
-    // Filtro de data
+    // Filtro de data com precisão horária no fuso de Brasília
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) {
-        where.createdAt.gte = new Date(String(startDate));
+        where.createdAt.gte = parseDateBoundary(String(startDate), false);
       }
       if (endDate) {
-        const end = new Date(String(endDate));
-        if (String(endDate).length <= 10) {
-          end.setHours(23, 59, 59, 999);
-        }
-        where.createdAt.lte = end;
+        where.createdAt.lte = parseDateBoundary(String(endDate), true);
       }
     }
 
@@ -621,17 +649,14 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
       where.status = String(status);
     }
 
+    // Filtro de data com precisão horária no fuso de Brasília
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) {
-        where.createdAt.gte = new Date(String(startDate));
+        where.createdAt.gte = parseDateBoundary(String(startDate), false);
       }
       if (endDate) {
-        const end = new Date(String(endDate));
-        if (String(endDate).length <= 10) {
-          end.setHours(23, 59, 59, 999);
-        }
-        where.createdAt.lte = end;
+        where.createdAt.lte = parseDateBoundary(String(endDate), true);
       }
     }
 
@@ -749,16 +774,26 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
         ? 'Relatório: Consultas Isentas / Custo Zero'
         : 'Relatório: Todas as Requisições (Bruto)';
 
+      const formatBr = (dStr: any) => {
+        if (!dStr) return '';
+        const s = String(dStr).trim();
+        if (s.includes('/')) return s;
+        const [y, m, d] = s.split('T')[0].split('-');
+        if (y && m && d) return `${d}/${m}/${y}`;
+        return s;
+      };
+      const periodLabel = `${formatBr(startDate) || 'Início'} até ${formatBr(endDate) || 'Fim'}`;
+
       const csvRows = [
         ['"RELATÓRIO ANALÍTICO DE CONSUMO E TARIFAS - RENACRED"'],
         [`"Cliente: ${company.razaoSocial}"`, `"CNPJ/CPF: ${company.cnpjCpf}"`],
-        [`"Período de Leitura: ${startDate || 'Início'} até ${endDate || 'Fim'}"`, `"Emissão: ${new Date().toLocaleString('pt-BR')}"`],
+        [`"Período de Leitura: ${periodLabel}"`, `"Emissão: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}"`],
         [`"${typeLabel}"`, `"Total no Arquivo: ${queries.length}"`, `"Faturadas: ${billedCount}"`, `"Não Cobradas / Isentas: ${freeCount}"`],
         [`"Valor Total Faturado: R$ ${totalAmount.toFixed(2)}"`],
         [''],
         ['"Data / Hora"', '"Placa / Identificador"', '"Código Produto"', '"Nome do Produto"', '"Origem"', '"IP"', '"Tarifa (R$)"', '"Status da Consulta"', '"ID Consulta"'],
         ...items.map((it) => [
-          `"${new Date(it.createdAt).toLocaleString('pt-BR')}"`,
+          `"${new Date(it.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}"`,
           `"${it.identifier}"`,
           `"${it.productCode}"`,
           `"${(it.productName || '').replace(/"/g, '""')}"`,

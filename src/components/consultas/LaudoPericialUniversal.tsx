@@ -57,12 +57,14 @@ const formatDocumento = (doc?: string | number | null) => {
 
   // 3. Tratamento estritamente numérico
   const clean = str.replace(/\D/g, '');
-  if (clean.length > 0 && clean.length <= 11) {
-    const padded = clean.padStart(11, '0');
+  // Detecção inteligente de CPF preenchido com zeros à esquerda (padrão SNG B3: 000 + 11 dígitos)
+  const unpadded = (clean.length === 14 && clean.startsWith('000')) ? clean.slice(3) : clean;
+  if (unpadded.length > 0 && unpadded.length <= 11) {
+    const padded = unpadded.padStart(11, '0');
     return padded.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   }
-  if (clean.length === 14) {
-    return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  if (unpadded.length === 14) {
+    return unpadded.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
   }
   return str.toUpperCase();
 };

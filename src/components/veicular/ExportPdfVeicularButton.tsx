@@ -37,11 +37,12 @@ export const ExportPdfVeicularButton: React.FC<ExportPdfVeicularProps> = ({
   const formatDocumento = (doc: string) => {
     if (!doc) return '-';
     const clean = doc.replace(/\D/g, '');
-    if (clean.length === 11) {
-      return clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    const unpadded = (clean.length === 14 && clean.startsWith('000')) ? clean.slice(3) : clean;
+    if (unpadded.length === 11) {
+      return unpadded.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
     }
-    if (clean.length === 14) {
-      return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    if (unpadded.length === 14) {
+      return unpadded.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
     }
     return doc;
   };

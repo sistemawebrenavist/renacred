@@ -983,16 +983,27 @@ export function normalizeE14(raw: any): NormalizedResult {
     const isBaixado = statusDesc && /baixad|desalienad|cancelad|liberad/i.test(statusDesc);
     const isAtivo = !isBaixado && (g.ativo !== false);
 
+    // Desacolchoar CPF caso venha com padding de 14 dígitos (padrão SNG B3: 000 + 11 dígitos do CPF)
+    let docFinanciado = g.documento_financiado || g.documento || g.cpf_cnpj || g.cpf;
+    if (docFinanciado) {
+      const cleanDoc = String(docFinanciado).replace(/\D/g, '');
+      if (cleanDoc.length === 14 && cleanDoc.startsWith('000')) {
+        docFinanciado = cleanDoc.slice(3); // 11 dígitos do CPF legítimo
+      } else {
+        docFinanciado = cleanDoc;
+      }
+    }
+
     return cleanObject({
       status_descricao: statusDesc || (isAtivo ? 'Gravame Ativo' : 'Gravame Baixado'),
       situacao: isAtivo ? 'ATIVO' : 'BAIXADO',
       nome_agente: g.nome_agente || g.agente_financeiro,
-      cnpj_agente: g.cnpj_agente,
+      cnpj_agente: g.cnpj_agente ? String(g.cnpj_agente).replace(/\D/g, '') : undefined,
       numero_contrato: g.numero_contrato || g.contrato,
       data_contrato: dtContrato,
       numero_restricao: g.numero_restricao,
       nome_financiado: g.nome_financiado,
-      documento_financiado: g.documento_financiado,
+      documento_financiado: docFinanciado,
       uf_licenciamento: g.uf_licenciamento,
       informante_restricao: g.informante_restricao_descricao || g.informante,
       assinatura_eletronica: g.assinatura_eletronica,

@@ -159,7 +159,16 @@ export default function GerenciarClientes() {
   const [saving, setSaving] = useState(false);
 
   // Gestão Comercial de Produtos & Preços Unitários por Assinante (19 Produtos)
-  const [modalTab, setModalTab] = useState<'products' | 'billing'>('products');
+  const [modalTab, setModalTab] = useState<'cadastro' | 'products' | 'billing'>('cadastro');
+  const [editRazaoSocial, setEditRazaoSocial] = useState('');
+  const [editNomeFantasia, setEditNomeFantasia] = useState('');
+  const [editCnpjCpf, setEditCnpjCpf] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editTelefone, setEditTelefone] = useState('');
+  const [editEndereco, setEditEndereco] = useState('');
+  const [editCidade, setEditCidade] = useState('');
+  const [editEstado, setEditEstado] = useState('');
+  const [editCep, setEditCep] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [productPrices, setProductPrices] = useState<Record<string, string>>({});
   const [productSearch, setProductSearch] = useState('');
@@ -274,8 +283,19 @@ export default function GerenciarClientes() {
     }
   };
 
-  const openEditModal = (c: any) => {
+  const openEditModal = (c: any, initialTab: 'cadastro' | 'products' | 'billing' = 'cadastro') => {
     setEditingCompany(c);
+    setEditRazaoSocial(c.razaoSocial || '');
+    setEditNomeFantasia(c.nomeFantasia || '');
+    setEditCnpjCpf(c.cnpjCpf || '');
+    setEditEmail(c.email || '');
+    setEditTelefone(c.telefone || '');
+    setEditEndereco(c.endereco || '');
+    setEditCidade(c.cidade || '');
+    setEditEstado(c.estado || '');
+    setEditCep(c.cep || '');
+    setModalTab(initialTab);
+
     const customPrices = (c.customPrices as any) || {};
     const isMaster = Boolean(c.isMasterAdmin) ||
       c.cnpjCpf === '00000000000191' ||
@@ -291,7 +311,6 @@ export default function GerenciarClientes() {
     setMonthlyRequestLimit(customPrices.monthlyRequestLimit ? String(customPrices.monthlyRequestLimit) : '');
     setRateLimitPerMinute(c.rateLimitPerMinute ? String(c.rateLimitPerMinute) : '60');
     setIsActive(c.isActive);
-    setModalTab('products');
     setProductSearch('');
 
     // Resolver produtos autorizados
@@ -357,6 +376,15 @@ export default function GerenciarClientes() {
         : (customQueryPrice ? parseFloat(customQueryPrice) : null);
 
       const res = await api.put(`/api/admin/companies/${editingCompany.id}`, {
+        razaoSocial: editRazaoSocial.trim(),
+        nomeFantasia: editNomeFantasia.trim() || null,
+        cnpjCpf: editCnpjCpf.trim(),
+        email: editEmail.trim(),
+        telefone: editTelefone.trim() || null,
+        endereco: editEndereco.trim() || null,
+        cidade: editCidade.trim() || null,
+        estado: editEstado.trim().toUpperCase() || null,
+        cep: editCep.trim() || null,
         accountType: isUnlimitedAccount ? 'POST_PAID' : accountType,
         billingDueDate,
         customQueryPrice: resolvedCustomQueryPrice,
@@ -566,9 +594,14 @@ export default function GerenciarClientes() {
                     <td className="py-3 px-3">
                       <div className="min-w-[170px] max-w-[260px]">
                         <div className="flex items-start gap-1.5 flex-wrap">
-                          <p className="font-bold text-slate-900 text-xs break-words leading-snug" title={c.razaoSocial}>
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(c, 'cadastro')}
+                            className="font-bold text-slate-900 text-xs break-words leading-snug hover:text-blue-600 hover:underline transition cursor-pointer text-left"
+                            title="Clique para editar dados cadastrais deste cliente"
+                          >
                             {c.razaoSocial}
-                          </p>
+                          </button>
                           {(c.isMasterAdmin || c.cnpjCpf === '00000000000191' || c.customPrices?.isUnlimited) && (
                             <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-100 text-purple-800 border border-purple-200 shrink-0 self-start">
                               Matriz
@@ -827,7 +860,7 @@ export default function GerenciarClientes() {
 
                         {activeActionsMenu === c.id && (
                           <div
-                            className={`absolute right-0 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 text-xs divide-y divide-slate-100 animate-in fade-in-50 zoom-in-95 duration-100 ${idx >= companies.length - 2 && companies.length > 2 ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+                            className={`absolute right-0 w-60 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 text-xs divide-y divide-slate-100 animate-in fade-in-50 zoom-in-95 duration-100 ${idx >= companies.length - 2 && companies.length > 2 ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
                               }`}
                           >
                             <div className="py-1">
@@ -838,6 +871,28 @@ export default function GerenciarClientes() {
                               >
                                 <LogIn className="w-4 h-4 text-emerald-600 shrink-0" />
                                 <span>Acessar Portal do Cliente</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveActionsMenu(null);
+                                  openEditModal(c, 'cadastro');
+                                }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-blue-50/70 flex items-center gap-2.5 text-blue-800 transition cursor-pointer font-semibold"
+                              >
+                                <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+                                <span>Editar Dados Cadastrais</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveActionsMenu(null);
+                                  openEditModal(c, 'products');
+                                }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 transition cursor-pointer"
+                              >
+                                <SlidersHorizontal className="w-4 h-4 text-slate-500 shrink-0" />
+                                <span>Configurar Plano & Tarifas</span>
                               </button>
                               <button
                                 type="button"
@@ -858,17 +913,6 @@ export default function GerenciarClientes() {
                               >
                                 <RefreshCw className="w-4 h-4 text-emerald-600 shrink-0" />
                                 <span>Recalcular Fatura Aberta</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveActionsMenu(null);
-                                  openEditModal(c);
-                                }}
-                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 transition cursor-pointer"
-                              >
-                                <SlidersHorizontal className="w-4 h-4 text-slate-500 shrink-0" />
-                                <span>Configurar Plano & Tarifas</span>
                               </button>
                               <button
                                 type="button"
@@ -1281,10 +1325,18 @@ export default function GerenciarClientes() {
               <div>
                 <div className="flex items-center space-x-2">
                   <span className="p-1.5 bg-blue-50 text-blue-700 rounded-lg">
-                    <SlidersHorizontal className="w-4 h-4" />
+                    {modalTab === 'cadastro' ? (
+                      <Building2 className="w-4 h-4" />
+                    ) : (
+                      <SlidersHorizontal className="w-4 h-4" />
+                    )}
                   </span>
                   <h3 className="text-base font-bold text-slate-900">
-                    Configuração Comercial & Produtos
+                    {modalTab === 'cadastro'
+                      ? 'Editar Dados Cadastrais do Cliente'
+                      : modalTab === 'billing'
+                        ? 'Parâmetros Comerciais & Faturamento'
+                        : 'Configuração de Produtos & Tarifas'}
                   </h3>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
@@ -1304,11 +1356,24 @@ export default function GerenciarClientes() {
             <div className="flex items-center space-x-2 border-b border-slate-100 pb-2 shrink-0 text-xs">
               <button
                 type="button"
-                onClick={() => setModalTab('products')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${modalTab === 'products'
+                onClick={() => setModalTab('cadastro')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${
+                  modalTab === 'cadastro'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
-                  }`}
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Dados Cadastrais</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalTab('products')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${
+                  modalTab === 'products'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+                }`}
               >
                 <Layers className="w-3.5 h-3.5" />
                 <span>Produtos & Preços ({selectedProducts.length}/{PRODUCTS_CATALOG.length})</span>
@@ -1316,10 +1381,11 @@ export default function GerenciarClientes() {
               <button
                 type="button"
                 onClick={() => setModalTab('billing')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${modalTab === 'billing'
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${
+                  modalTab === 'billing'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
-                  }`}
+                }`}
               >
                 <Wallet className="w-3.5 h-3.5" />
                 <span>Faturamento & Limites</span>
@@ -1327,6 +1393,159 @@ export default function GerenciarClientes() {
             </div>
 
             <form onSubmit={handleSaveSettings} className="flex-1 overflow-hidden flex flex-col space-y-4 text-xs">
+              {/* ABA 0: Dados Cadastrais da Empresa (Master Admin) */}
+              {modalTab === 'cadastro' && (
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-3">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-blue-600" />
+                      <span>Identificação Jurídica & Contato</span>
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Razão Social / Nome Oficial *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={editRazaoSocial}
+                          onChange={(e) => setEditRazaoSocial(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Nome Fantasia
+                        </label>
+                        <input
+                          type="text"
+                          value={editNomeFantasia}
+                          onChange={(e) => setEditNomeFantasia(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          CNPJ ou CPF *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={editCnpjCpf}
+                          onChange={(e) => setEditCnpjCpf(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono focus:outline-hidden focus:ring-1 focus:ring-blue-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          E-mail Corporativo de Contato *
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={editEmail}
+                          onChange={(e) => setEditEmail(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Telefone / WhatsApp
+                        </label>
+                        <input
+                          type="text"
+                          value={editTelefone}
+                          onChange={(e) => setEditTelefone(e.target.value)}
+                          placeholder="(00) 00000-0000"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          CEP
+                        </label>
+                        <input
+                          type="text"
+                          value={editCep}
+                          onChange={(e) => setEditCep(e.target.value)}
+                          placeholder="00000-000"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono focus:outline-hidden focus:ring-1 focus:ring-blue-600"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Endereço / Logradouro
+                        </label>
+                        <input
+                          type="text"
+                          value={editEndereco}
+                          onChange={(e) => setEditEndereco(e.target.value)}
+                          placeholder="Rua, número, complemento, bairro"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-600"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="col-span-2">
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            Cidade
+                          </label>
+                          <input
+                            type="text"
+                            value={editCidade}
+                            onChange={(e) => setEditCidade(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            UF
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={2}
+                            value={editEstado}
+                            onChange={(e) => setEditEstado(e.target.value.toUpperCase())}
+                            placeholder="PR"
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 uppercase text-center font-bold focus:outline-hidden focus:ring-1 focus:ring-blue-600"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">Status da Conta</span>
+                      <span className="text-[11px] text-slate-500 block">
+                        Se inativo, o cliente e suas chaves de API não conseguem realizar consultas.
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isActive}
+                        onChange={(e) => setIsActive(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                      <span className="ml-2 text-xs font-semibold text-slate-700">
+                        {isActive ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
               {/* ABA 1: Matriz dos Produtos & Preços Customizados */}
               {modalTab === 'products' && (
                 <div className="flex-1 overflow-hidden flex flex-col space-y-3">
