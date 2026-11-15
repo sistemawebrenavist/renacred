@@ -48,11 +48,8 @@ export function getClientNetworkInfo(req: Request): ClientNetworkInfo {
   const state = String(headers['cf-region'] || headers['cf-region-code'] || '').toUpperCase();
   const city = String(headers['cf-ipcity'] || '').trim();
 
-  // 3. Verificar se é consulta de teste interna (SC / PR ou IPs da equipe)
+  // 3. Verificar se é consulta de teste interna (apenas IPs estritos da equipe de desenvolvimento)
   let isInternalTest = false;
-  if (state === 'PR' || state === 'SC') {
-    isInternalTest = true;
-  }
   for (const pattern of TEST_IP_PATTERNS) {
     if (cleanIp.includes(pattern)) {
       isInternalTest = true;

@@ -296,6 +296,17 @@ export default function GerenciarClientes() {
     setEditCep(c.cep || '');
     setModalTab(initialTab);
 
+    setEditRazaoSocial(c.razaoSocial || '');
+    setEditNomeFantasia(c.nomeFantasia || '');
+    setEditCnpjCpf(c.cnpjCpf || '');
+    setEditEmail(c.email || '');
+    setEditTelefone(c.telefone || '');
+    setEditEndereco(c.endereco || '');
+    setEditCidade(c.cidade || '');
+    setEditEstado(c.estado || '');
+    setEditCep(c.cep || '');
+    setModalTab(initialTab);
+
     const customPrices = (c.customPrices as any) || {};
     const isMaster = Boolean(c.isMasterAdmin) ||
       c.cnpjCpf === '00000000000191' ||

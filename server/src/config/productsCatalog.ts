@@ -237,7 +237,7 @@ export const SERVER_PRODUCTS: ServerProductConfig[] = [
     inputType: 'placa',
     apiPrimary: 'placa_df',
     apiContingencies: [],
-    defaultCost: 0.04,
+    defaultCost: 0.15,
     defaultPrice: 1.32,
     slugAliases: ['renavam-placa', 'renavam', 'localizar-renavam', 'busca-renavam']
   },

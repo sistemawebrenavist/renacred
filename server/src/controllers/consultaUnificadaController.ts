@@ -237,10 +237,13 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
     // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas,
     // inclusive certidões com "nada consta", 0 registros ou sem ocorrências (houve busca e processamento).
     // Isenção de cobrança (custo R$ 0,00) aplica-se exclusivamente a:
-    // 1) Testes internos da equipe Renacred (origem Paraná ou Santa Catarina / faixas IP de teste)
-    // 2) Usuários Super Admin
-    const isTest = networkInfo.isInternalTest || isSuperAdmin;
-    const finalCost = isTest ? 0 : eligibility.price;
+    // 1) Usuários Super Admin
+    // 2) Empresa Matriz / Ilimitada Renacred
+    const isMasterAdmin = isSuperAdmin ||
+                          company?.cnpjCpf === '00000000000191' ||
+                          company?.razaoSocial?.toLowerCase().includes('renacred') ||
+                          Number(company?.creditLimit) >= 999999;
+    const finalCost = isMasterAdmin ? 0 : eligibility.price;
     const hashAutenticacao = generatePericialHash(product.code, cleanQuery);
 
     // 5. Persistir auditoria da consulta no banco
@@ -284,7 +287,11 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       });
     }
 
-    const responsePayload = {
+    const mensagemRetorno = isNotFound
+      ? (result.raw?.mensagem || result.raw?.message || 'Registro não localizado nas bases oficiais.')
+      : undefined;
+
+    const responsePayload: any = {
       success: true,
       queryId: queryRecord.id,
       produto: {
@@ -300,6 +307,10 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       consultado_em: new Date().toISOString(),
       dados: result.normalized.dados
     };
+
+    if (mensagemRetorno) {
+      responsePayload.mensagem = mensagemRetorno;
+    }
 
     // Armazenar no cache de deduplicação por 10 segundos
     recentQueriesDedupCache.set(dedupKey, {
@@ -509,10 +520,13 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
     // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas,
     // inclusive certidões com "nada consta", 0 registros ou sem ocorrências (houve busca e processamento).
     // Isenção de cobrança (custo R$ 0,00) aplica-se exclusivamente a:
-    // 1) Testes internos da equipe Renacred (origem Paraná ou Santa Catarina / faixas IP de teste)
-    // 2) Usuários Super Admin
-    const isTest = networkInfo.isInternalTest || isSuperAdmin;
-    const finalCost = isTest ? 0 : eligibility.price;
+    // 1) Usuários Super Admin
+    // 2) Empresa Matriz / Ilimitada Renacred
+    const isMasterAdmin = isSuperAdmin ||
+                          company?.cnpjCpf === '00000000000191' ||
+                          company?.razaoSocial?.toLowerCase().includes('renacred') ||
+                          Number(company?.creditLimit) >= 999999;
+    const finalCost = isMasterAdmin ? 0 : eligibility.price;
     const hashAutenticacao = generatePericialHash(product.code, cleanQuery);
 
     // Gravar consulta no banco
@@ -576,7 +590,11 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       }
     });
 
-    const responsePayload = {
+    const mensagemRetorno = isNotFound
+      ? (result.raw?.mensagem || result.raw?.message || 'Registro não localizado nas bases oficiais.')
+      : undefined;
+
+    const responsePayload: any = {
       success: true,
       queryId: queryRecord.id,
       produto: {
@@ -592,6 +610,10 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       consultado_em: new Date().toISOString(),
       dados: result.normalized.dados
     };
+
+    if (mensagemRetorno) {
+      responsePayload.mensagem = mensagemRetorno;
+    }
 
     // Armazenar no cache de deduplicação por 10 segundos
     recentQueriesDedupCache.set(dedupKey, {

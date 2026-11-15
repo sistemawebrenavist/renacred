@@ -83,7 +83,11 @@ export const consultarVeicularWeb = async (req: any, res: Response) => {
 
     const totalRegistros = result.total !== undefined ? result.total : (result.historico ? result.historico.length : 0);
     const hasData = totalRegistros > 0 && Array.isArray(result.historico) && result.historico.length > 0;
-    const finalCost = (!isSuperAdmin && hasData) ? eligibility.price : 0;
+    const isMasterAdmin = isSuperAdmin ||
+                          company?.cnpjCpf === '00000000000191' ||
+                          company?.razaoSocial?.toLowerCase().includes('renacred') ||
+                          Number(company?.creditLimit) >= 999999;
+    const finalCost = isMasterAdmin ? 0 : eligibility.price;
 
     // 3. Registrar a consulta no banco de dados identificando PRODUTO E2
     const queryRecord = await prisma.query.create({
@@ -245,63 +249,13 @@ export const consultarVeicularApiV1 = async (req: any, res: Response) => {
     const totalRegistros = result.total !== undefined ? result.total : (result.historico ? result.historico.length : 0);
     const hasData = totalRegistros > 0 && Array.isArray(result.historico) && result.historico.length > 0;
 
-    // 3. Regra de Negócio: Se NÃO houver dados, CUSTO ZERO
-    if (!hasData) {
-      setImmediate(async () => {
-        try {
-          await Promise.all([
-            prisma.query.create({
-              data: {
-                companyId: company.id,
-                identifier: cleanPlaca,
-                source: QuerySource.API,
-                status: QueryStatus.COMPLETED,
-                cost: 0,
-                totalDeclaracoes: 0,
-                processingTimeMs: responseTimeMs,
-                requestData: { product: 'E2', placa: cleanPlaca, custoInterno: (result as any).api_central?.cache_interno ? 0 : 0.17 },
-                resultData: result as any,
-              }
-            }),
-            prisma.apiLog.create({
-              data: {
-                apiKeyId: apiKey.id,
-                companyId: company.id,
-                endpoint: req.originalUrl || '/v1/veicular/proprietarios',
-                method: req.method,
-                statusCode: 200,
-                responseTimeMs,
-                ipAddress: clientIp,
-                creditsUsed: 0,
-              }
-            })
-          ]);
-        } catch (e: any) {
-          logger.error(`[API V1 E2] Erro na gravação em background de query sem dados: ${e.message}`);
-        }
-      });
+    // 3. Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas,
+    // inclusive certidões com "nada consta", 0 registros ou veículo não encontrado (houve busca e processamento).
+    const isMasterAdminCompany = company?.cnpjCpf === '00000000000191' ||
+                                 company?.razaoSocial?.toLowerCase().includes('renacred') ||
+                                 Number(company?.creditLimit) >= 999999;
+    const queryCost = isMasterAdminCompany ? 0 : eligibility.price;
 
-      return res.status(200).json({
-        success: true,
-        placa: cleanPlaca,
-        renavam: result.renavam || '',
-        total: 0,
-        proprietario_atual: null,
-        historico: [],
-        mensagem: 'Nenhum histórico de proprietários localizado para esta placa veicular.',
-        custo_debitado: 0.00,
-        api_central: {
-          api_utilizada: 'historico_proprietario',
-          parametro_utilizado: 'placa',
-          query_fornecida: cleanPlaca,
-          timestamp: new Date().toISOString(),
-          tempo_resposta_ms: responseTimeMs,
-        }
-      });
-    }
-
-    // 4. Caso TENHA DADOS: Efetuar cobrança e registrar query tarifada
-    const queryCost = eligibility.price;
     const queryRecord = await prisma.query.create({
       data: {
         companyId: company.id,
@@ -316,15 +270,19 @@ export const consultarVeicularApiV1 = async (req: any, res: Response) => {
       }
     });
 
-    // Débito financeiro
-    await billingService.chargeQuery(company.id, queryRecord.id, queryCost);
+    // Débito financeiro se houver custo
+    if (queryCost > 0) {
+      await billingService.chargeQuery(company.id, queryRecord.id, queryCost);
+    }
 
-    // Sincronização em tempo real para o banco da InfoSinistros (sem bloquear resposta)
-    setImmediate(() => {
-      syncVeicularToInfosinistros(cleanPlaca, result).catch(e =>
-        logger.error(`[SYNC INFOSINISTROS] Erro assíncrono API V1: ${e.message}`)
-      );
-    });
+    // Sincronização em tempo real para o banco da InfoSinistros se houver dados
+    if (hasData) {
+      setImmediate(() => {
+        syncVeicularToInfosinistros(cleanPlaca, result).catch(e =>
+          logger.error(`[SYNC INFOSINISTROS] Erro assíncrono API V1: ${e.message}`)
+        );
+      });
+    }
 
     // Gravação de apiLog assíncrona
     setImmediate(() => {
@@ -345,11 +303,12 @@ export const consultarVeicularApiV1 = async (req: any, res: Response) => {
     return res.status(200).json({
       success: true,
       placa: result.placa || cleanPlaca,
-      renavam: result.renavam,
-      consulta_em: result.consulta_em,
+      renavam: result.renavam || '',
+      consulta_em: result.consulta_em || new Date().toISOString(),
       total: totalRegistros,
-      proprietario_atual: result.proprietario_atual,
-      historico: result.historico,
+      proprietario_atual: result.proprietario_atual || null,
+      historico: result.historico || [],
+      mensagem: !hasData ? (result.message || 'Nenhum histórico de proprietários localizado para esta placa veicular.') : undefined,
       custo_debitado: queryCost,
       api_central: {
         api_utilizada: 'historico_proprietario',

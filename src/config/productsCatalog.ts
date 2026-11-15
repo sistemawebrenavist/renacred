@@ -509,7 +509,7 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
       'Tipo do veículo e ano de fabricação/modelo',
       'Consulta limpa e direta para despachantes'
     ],
-    defaultCost: 0.04,
+    defaultCost: 0.15,
     defaultPrice: 1.32,
     hasContingency: false,
     badgeColor: {

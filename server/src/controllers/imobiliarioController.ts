@@ -65,7 +65,11 @@ export const consultarWeb = async (req: any, res: Response) => {
 
     const totalDeclaracoes = result.total_declaracoes || (result.declaracoes ? result.declaracoes.length : 0);
     const hasData = totalDeclaracoes > 0 && Array.isArray(result.declaracoes) && result.declaracoes.length > 0;
-    const finalCost = (!isSuperAdmin && hasData) ? eligibility.price : 0;
+    const isMasterAdmin = isSuperAdmin ||
+                          company?.cnpjCpf === '00000000000191' ||
+                          company?.razaoSocial?.toLowerCase().includes('renacred') ||
+                          Number(company?.creditLimit) >= 999999;
+    const finalCost = isMasterAdmin ? 0 : eligibility.price;
 
     // 3. Registrar a consulta no banco de dados
     const queryRecord = await prisma.query.create({
@@ -228,61 +232,13 @@ export const consultarApiV1 = async (req: any, res: Response) => {
     const totalDeclaracoes = result.total_declaracoes || (Array.isArray(result.declaracoes) ? result.declaracoes.length : 0);
     const hasData = totalDeclaracoes > 0 && Array.isArray(result.declaracoes) && result.declaracoes.length > 0;
 
-    // 3. Regra de Negócio: Se NÃO houver dados, CUSTO ZERO (Não debitar do cliente)
-    if (!hasData) {
-      // Grava histórico e log em segundo plano para resposta ultra veloz
-      setImmediate(async () => {
-        try {
-          await Promise.all([
-            prisma.query.create({
-              data: {
-                companyId: company.id,
-                identifier: cleanDoc,
-                source: QuerySource.API,
-                status: QueryStatus.COMPLETED,
-                cost: 0,
-                totalDeclaracoes: 0,
-                processingTimeMs: responseTimeMs,
-                resultData: result as any,
-              }
-            }),
-            prisma.apiLog.create({
-              data: {
-                apiKeyId: apiKey.id,
-                companyId: company.id,
-                endpoint: req.originalUrl || '/v1/imobiliario/historico',
-                method: req.method,
-                statusCode: 200,
-                responseTimeMs,
-                ipAddress: clientIp,
-                creditsUsed: 0,
-              }
-            })
-          ]);
-        } catch (e: any) {
-          logger.error(`[API V1] Erro na gravação em background de query sem dados: ${e.message}`);
-        }
-      });
+    // 3. Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas,
+    // inclusive certidões com "nada consta", 0 registros ou sem bens localizados (houve busca e processamento).
+    const isMasterAdminCompany = company?.cnpjCpf === '00000000000191' ||
+                                 company?.razaoSocial?.toLowerCase().includes('renacred') ||
+                                 Number(company?.creditLimit) >= 999999;
+    const queryCost = isMasterAdminCompany ? 0 : eligibility.price;
 
-      return res.status(200).json({
-        success: true,
-        periodo: result.periodo || '',
-        total_declaracoes: 0,
-        declaracoes: [],
-        mensagem: result.mensagem || 'Nenhum histórico imobiliário ou declaração cartorária encontrada para este documento.',
-        custo_debitado: 0.00,
-        api_central: {
-          api_utilizada: 'historico_imobiliario',
-          parametro_utilizado: 'query',
-          query_fornecida: cleanDoc,
-          timestamp: new Date().toISOString(),
-          tempo_resposta_ms: responseTimeMs,
-        }
-      });
-    }
-
-    // 4. Caso TENHA DADOS: Efetuar cobrança e registrar query tarifada
-    const queryCost = eligibility.price;
     const queryRecord = await prisma.query.create({
       data: {
         companyId: company.id,
@@ -296,8 +252,10 @@ export const consultarApiV1 = async (req: any, res: Response) => {
       }
     });
 
-    // Débito financeiro
-    await billingService.chargeQuery(company.id, queryRecord.id, queryCost);
+    // Débito financeiro se houver custo
+    if (queryCost > 0) {
+      await billingService.chargeQuery(company.id, queryRecord.id, queryCost);
+    }
 
     // Gravação de apiLog assíncrona (não bloqueia resposta ao cliente)
     setImmediate(() => {
@@ -329,6 +287,7 @@ export const consultarApiV1 = async (req: any, res: Response) => {
       periodo: result.periodo,
       total_declaracoes: totalDeclaracoes,
       declaracoes: declaracoesFormatadas,
+      mensagem: !hasData ? (result.mensagem || 'Nenhum histórico imobiliário ou declaração cartorária encontrada para este documento.') : undefined,
       custo_debitado: queryCost,
       api_central: {
         api_utilizada: 'historico_imobiliario',
