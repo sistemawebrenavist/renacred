@@ -225,14 +225,35 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       custoInternoCalculado = e20Data.custoInternoTotal;
     } else {
       result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
-      if ((result as any).providerUsed === 'base_interna_renacred' || result.raw?.api_central?.cache_interno) {
+      const providerUsed = (result as any).providerUsed;
+      if (providerUsed === 'base_interna_renacred' || result.raw?.api_central?.cache_interno) {
         custoInternoCalculado = 0;
+      } else if (providerUsed === 'placa_serpro') {
+        custoInternoCalculado = 0.07;
+      } else {
+        custoInternoCalculado = product.defaultCost;
       }
     }
 
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
     const isNotFound = !!result.raw?.isNotFound;
+    const providerUsedFinal = (result as any).providerUsed || product.apiPrimary;
+
+    // Se a consulta não encontrou registros (veículo/pessoa inexistente ou sem ocorrências),
+    // geramos uma Certidão Negativa / Laudo estruturado para não gravar `{}` ou `null`.
+    const resultDataToSave = result.normalized.dados || {
+      status: 'REGISTRO_NAO_ENCONTRADO',
+      mensagem: isNotFound
+        ? (result.raw?.mensagem || result.raw?.message || 'Não foi possível encontrar informações para este parâmetro nas bases oficiais de trânsito.')
+        : 'Nenhum registro localizado nas bases oficiais de trânsito.',
+      parametro_pesquisado: cleanQuery,
+      total_registros: totalRegistros,
+      laudo_pericial: 'Certidão Negativa: Registro inexistente ou sem ocorrências registradas nas bases oficiais de trânsito.',
+      certidao_negativa: true,
+      provedor_consultado: providerUsedFinal,
+      consultado_em: new Date().toISOString()
+    };
 
     // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas,
     // inclusive certidões com "nada consta", 0 registros ou sem ocorrências (houve busca e processamento).
@@ -264,12 +285,13 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
           query: cleanQuery,
           tipo: product.code === 'E18' ? tipoParam : undefined,
           hash: hashAutenticacao,
+          providerUsed: providerUsedFinal,
           custoInterno: custoInternoCalculado,
           clientIp: networkInfo.ip,
           location: networkInfo.locationLabel,
           isInternalTest: networkInfo.isInternalTest
         },
-        resultData: result.normalized.dados as any
+        resultData: resultDataToSave as any
       }
     });
 
@@ -304,8 +326,9 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       custo_debitado: finalCost,
       tempo_resposta_ms: processingTimeMs,
       hash_autenticacao: hashAutenticacao,
+      provedor_utilizado: providerUsedFinal,
       consultado_em: new Date().toISOString(),
-      dados: result.normalized.dados
+      dados: result.normalized.dados || resultDataToSave
     };
 
     if (mensagemRetorno) {
@@ -508,14 +531,35 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       custoInternoCalculado = e20Data.custoInternoTotal;
     } else {
       result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
-      if ((result as any).providerUsed === 'base_interna_renacred' || result.raw?.api_central?.cache_interno) {
+      const providerUsed = (result as any).providerUsed;
+      if (providerUsed === 'base_interna_renacred' || result.raw?.api_central?.cache_interno) {
         custoInternoCalculado = 0;
+      } else if (providerUsed === 'placa_serpro') {
+        custoInternoCalculado = 0.07;
+      } else {
+        custoInternoCalculado = product.defaultCost;
       }
     }
 
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
     const isNotFound = !!result.raw?.isNotFound;
+    const providerUsedFinal = (result as any).providerUsed || product.apiPrimary;
+
+    // Se a consulta não encontrou registros (veículo/pessoa inexistente ou sem ocorrências),
+    // geramos uma Certidão Negativa / Laudo estruturado para não gravar `{}` ou `null`.
+    const resultDataToSave = result.normalized.dados || {
+      status: 'REGISTRO_NAO_ENCONTRADO',
+      mensagem: isNotFound
+        ? (result.raw?.mensagem || result.raw?.message || 'Não foi possível encontrar informações para este parâmetro nas bases oficiais de trânsito.')
+        : 'Nenhum registro localizado nas bases oficiais de trânsito.',
+      parametro_pesquisado: cleanQuery,
+      total_registros: totalRegistros,
+      laudo_pericial: 'Certidão Negativa: Registro inexistente ou sem ocorrências registradas nas bases oficiais de trânsito.',
+      certidao_negativa: true,
+      provedor_consultado: providerUsedFinal,
+      consultado_em: new Date().toISOString()
+    };
 
     // Regra Comercial Oficial Renacred: Consultas com retorno válido das bases oficiais são tarifadas,
     // inclusive certidões com "nada consta", 0 registros ou sem ocorrências (houve busca e processamento).
@@ -547,12 +591,13 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
           tipo: product.code === 'E18' ? tipoParam : undefined,
           apiKeyId: apiKey?.id,
           hash: hashAutenticacao,
+          providerUsed: providerUsedFinal,
           custoInterno: custoInternoCalculado,
           clientIp: networkInfo.ip,
           location: networkInfo.locationLabel,
           isInternalTest: networkInfo.isInternalTest
         },
-        resultData: result.normalized.dados as any
+        resultData: resultDataToSave as any
       }
     });
 
@@ -607,8 +652,9 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       custo_debitado: finalCost,
       tempo_resposta_ms: processingTimeMs,
       hash_autenticacao: hashAutenticacao,
+      provedor_utilizado: providerUsedFinal,
       consultado_em: new Date().toISOString(),
-      dados: result.normalized.dados
+      dados: result.normalized.dados || resultDataToSave
     };
 
     if (mensagemRetorno) {

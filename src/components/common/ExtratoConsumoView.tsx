@@ -15,7 +15,9 @@ import {
   FileSpreadsheet,
   FileText,
   Download,
-  ChevronDown
+  ChevronDown,
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -750,7 +752,22 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
 
                           <button
                             type="button"
-                            onClick={() => setSelectedJson(row.resultData || row.requestData)}
+                            onClick={() => {
+                              const hasData = row.resultData && Object.keys(row.resultData).length > 0;
+                              if (hasData) {
+                                setSelectedJson(row.resultData);
+                              } else {
+                                setSelectedJson({
+                                  status: 'REGISTRO_NAO_ENCONTRADO',
+                                  mensagem: 'Registro inexistente ou não localizado nas bases oficiais de trânsito.',
+                                  parametro_pesquisado: row.identifier,
+                                  total_registros: row.totalDeclaracoes || 0,
+                                  certidao_negativa: true,
+                                  provedor_consultado: row.requestData?.providerUsed || row.requestData?.product || 'Bases Oficiais',
+                                  consultado_em: row.createdAt
+                                });
+                              }
+                            }}
                             className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition cursor-pointer"
                             title="Ver payload JSON puro retornado pela API"
                           >
@@ -888,6 +905,85 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
                         <p className="text-slate-600 text-[10.5px]">Cartório: {dec.serventia_nome || dec.cartorio || 'Serventia Notarial'}</p>
                       </div>
                     ))}
+                  </div>
+                </div>
+              ) : selectedLaudo.resultData?.renavam ? (
+                <div className="space-y-3">
+                  <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-blue-950 space-y-3">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h5 className="font-bold text-xs text-blue-900 uppercase tracking-wide">
+                          Dados de RENAVAM Localizados com Sucesso
+                        </h5>
+                        <p className="text-[11px] text-blue-700">
+                          Identificação veicular confirmada nas bases oficiais do SENATRAN / SERPRO.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-white p-3.5 rounded-xl border border-blue-100 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Código RENAVAM</span>
+                        <span className="font-bold text-blue-800 font-mono text-sm">{selectedLaudo.resultData.renavam}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Placa</span>
+                        <span className="font-bold text-slate-900 font-mono text-sm">{selectedLaudo.resultData.plate || selectedLaudo.identifier}</span>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Ano Fab / Modelo</span>
+                        <span className="font-bold text-slate-800">{selectedLaudo.resultData.yearManufacture || '-'} / {selectedLaudo.resultData.year || '-'}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Marca / Modelo</span>
+                        <span className="font-bold text-slate-900">{selectedLaudo.resultData.name || 'NÃO INFORMADO'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Tipo / Espécie</span>
+                        <span className="font-bold text-slate-700">{selectedLaudo.resultData.type || 'AUTOMOVEL'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (selectedLaudo.totalDeclaracoes === 0 || selectedLaudo.resultData?.certidao_negativa || selectedLaudo.resultData?.status === 'REGISTRO_NAO_ENCONTRADO' || !selectedLaudo.resultData || Object.keys(selectedLaudo.resultData).length === 0) ? (
+                <div className="space-y-3">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-950 space-y-3">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h5 className="font-bold text-xs text-emerald-900 uppercase tracking-wide">
+                          Certidão Negativa Oficial Emitida
+                        </h5>
+                        <p className="text-[11px] text-emerald-700">
+                          Processamento concluído com sucesso nas bases oficiais conveniadas.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/90 backdrop-blur-xs p-3.5 rounded-xl border border-emerald-100 space-y-2 text-[11px]">
+                      <p className="text-slate-700 leading-relaxed">
+                        A pesquisa foi realizada com sucesso nas bases governamentais e de trânsito. Atesta-se que <strong>não foram localizados registros ativos</strong> ou que a identificação <strong>{selectedLaudo.identifier}</strong> é inexistente no cadastro oficial.
+                      </p>
+                      <p className="text-slate-500 text-[10.5px] italic">
+                        {selectedLaudo.resultData?.mensagem || 'Não foi possível encontrar informações para esta placa/parâmetro nas bases oficiais de trânsito (SERPRO/DETRAN).'}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[10.5px] text-emerald-900 font-mono bg-emerald-100/60 p-2.5 rounded-xl">
+                      <div>
+                        <span className="text-emerald-700 block text-[9.5px] uppercase">Parâmetro Consultado:</span>
+                        <span className="font-bold">{selectedLaudo.identifier}</span>
+                      </div>
+                      <div>
+                        <span className="text-emerald-700 block text-[9.5px] uppercase">Resultado Pericial:</span>
+                        <span className="font-bold">0 registros (Nada Consta)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (

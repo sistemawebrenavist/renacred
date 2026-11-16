@@ -502,16 +502,16 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
     inputType: 'placa',
     inputLabel: 'Placa do Veículo',
     placeholder: 'ABC-1234 ou ABC1D23',
-    description: 'Localização direta e precisa do código RENAVAM do veículo a partir de sua placa de identificação.',
+    description: 'Localização direta e precisa do código RENAVAM do veículo a partir de sua placa de identificação com contingência SERPRO.',
     highlights: [
       'Código RENAVAM oficial isolado',
       'Modelo/marca do veículo',
       'Tipo do veículo e ano de fabricação/modelo',
-      'Consulta limpa e direta para despachantes'
+      'Contingência automática via SERPRO'
     ],
     defaultCost: 0.15,
     defaultPrice: 1.32,
-    hasContingency: false,
+    hasContingency: true,
     badgeColor: {
       bg: 'bg-emerald-50',
       text: 'text-emerald-800',

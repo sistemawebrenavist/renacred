@@ -500,7 +500,22 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
     // Formatar itens para exibição
     const items = queries.map((q) => {
       const reqData = (q.requestData as any) || {};
-      const resData = (q.resultData as any) || {};
+      let resData = (q.resultData as any) || null;
+
+      // Se resultData estiver nulo ou vazio (comum em consultas históricas com 0 registros / não localizadas),
+      // fornecemos uma Certidão Negativa estruturada em vez de objeto vazio {}
+      if (!resData || (typeof resData === 'object' && Object.keys(resData).length === 0)) {
+        resData = {
+          status: 'REGISTRO_NAO_ENCONTRADO',
+          mensagem: reqData.mensagem || 'Não foi possível encontrar informações para esta placa/parâmetro nas bases oficiais de trânsito.',
+          parametro_pesquisado: q.identifier,
+          total_registros: q.totalDeclaracoes || 0,
+          laudo_pericial: 'Certidão Negativa: Registro inexistente ou sem ocorrências registradas nas bases oficiais de trânsito.',
+          certidao_negativa: true,
+          provedor_consultado: reqData.providerUsed || reqData.product || 'Bases Oficiais',
+          consultado_em: q.createdAt
+        };
+      }
 
       let productCode = reqData.product || reqData.productCode || '';
       let productName = reqData.productName || '';

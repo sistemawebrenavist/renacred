@@ -1377,7 +1377,7 @@ export function normalizeE18(raw: any, query?: string, extraParams?: any): Norma
 export function normalizeE19(raw: any, query?: string): NormalizedResult {
   const v = raw?.vehicle || raw?.veiculo || {};
   const m = v?.model || v?.modelo || {};
-  const renavamRaw = v?.renavam || raw?.renavam;
+  const renavamRaw = v?.renavam || raw?.renavam || raw?.codigoRenavam || v?.codigoRenavam || raw?.veiculo?.codigoRenavam;
   const renavam = renavamRaw ? String(renavamRaw).trim() : null;
 
   if (!renavam) {
@@ -1387,15 +1387,21 @@ export function normalizeE19(raw: any, query?: string): NormalizedResult {
     };
   }
 
+  const name = m.name || v.name || raw?.descricaoMarcaModelo || raw?.marcaModelo || raw?.modelo || 'NÃO INFORMADO';
+  const type = m.type || v.type || raw?.descricaoTipoVeiculo || raw?.tipoVeiculo || raw?.especie || 'AUTOMOVEL';
+  const year = m.year || v.year || raw?.anoModelo || raw?.ano;
+  const yearManufacture = m.yearManufacture || v.yearManufacture || raw?.anoFabricacao;
+  const plate = v.plate || raw?.placa || (query ? String(query).toUpperCase().trim() : null);
+
   return {
     totalRegistros: 1,
     dados: cleanObject({
-      name: m.name ? String(m.name).trim() : (v.name ? String(v.name).trim() : 'NÃO INFORMADO'),
-      type: m.type ? String(m.type).trim() : (v.type ? String(v.type).trim() : 'AUTOMOVEL'),
-      year: m.year ? String(m.year).trim() : (v.year ? String(v.year).trim() : null),
-      yearManufacture: m.yearManufacture ? String(m.yearManufacture).trim() : (v.yearManufacture ? String(v.yearManufacture).trim() : null),
+      name: String(name).trim(),
+      type: String(type).trim(),
+      year: year ? String(year).trim() : null,
+      yearManufacture: yearManufacture ? String(yearManufacture).trim() : null,
       renavam: renavam,
-      plate: v.plate ? String(v.plate).toUpperCase().trim() : (query ? String(query).toUpperCase().trim() : null)
+      plate: plate ? String(plate).toUpperCase().trim() : null
     }) || null
   };
 }
