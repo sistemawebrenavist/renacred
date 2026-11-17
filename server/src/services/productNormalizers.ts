@@ -12,6 +12,53 @@ export interface NormalizedResult {
 }
 
 /**
+ * Expurga metadados técnicos de provedores externos, URLs e tokens,
+ * garantindo conformidade 100% Whitelabel com fé pública Renacred.
+ */
+export function sanitizeWhitelabel(obj: any): any {
+  if (obj === null || obj === undefined) return undefined;
+  if (typeof obj === 'string') {
+    let text = obj.trim();
+    if (text === '' || text.toLowerCase() === 'null' || text.toLowerCase() === 'n/a') {
+      return undefined;
+    }
+    // Higienização de termos e URLs de fornecedores terceiros
+    text = text.replace(/https?:\/\/[^\s]*fetchbrasil[^\s]*/gi, '');
+    text = text.replace(/fetchbrasil(\.pro)?/gi, 'Bases Oficiais');
+    text = text.replace(/FB-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}/gi, '');
+    return text.trim() || undefined;
+  }
+  if (typeof obj !== 'object') return obj;
+
+  if (Array.isArray(obj)) {
+    const arr = obj
+      .map(sanitizeWhitelabel)
+      .filter((item) => item !== undefined && item !== null);
+    return arr.length > 0 ? arr : [];
+  }
+
+  const result: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    // Ignorar chaves técnicas de fornecedores externos
+    if (
+      key === 'api_central' ||
+      key === 'fornecedor' ||
+      key === 'provedor' ||
+      key === 'token' ||
+      key === 'tempo_resposta_ms' ||
+      (key === 'origem' && typeof val === 'string' && val.toLowerCase().includes('fetch'))
+    ) {
+      continue;
+    }
+    const sanitizedVal = sanitizeWhitelabel(val);
+    if (sanitizedVal !== undefined && sanitizedVal !== null) {
+      result[key] = sanitizedVal;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+/**
  * Remove recursivamente chaves nulas, vazias, strings "null", "N/A"
  * e descarta códigos duplicados redundantes.
  */
@@ -20,6 +67,10 @@ export function cleanObject(obj: any): any {
   if (typeof obj === 'string') {
     const trimmed = obj.trim();
     if (trimmed === '' || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'n/a') {
+      return undefined;
+    }
+    // Higienização preventiva de marcas de fornecedor
+    if (trimmed.toLowerCase().includes('fetchbrasil') || /^FB-[A-Z0-9-]{19}$/i.test(trimmed)) {
       return undefined;
     }
     return trimmed;
@@ -35,8 +86,16 @@ export function cleanObject(obj: any): any {
 
   const cleaned: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
-    // Ignorar chaves técnicas internas da API central
-    if (key === 'api_central') continue;
+    // Ignorar chaves técnicas internas da API central e marcas de fornecedores terceiros
+    if (
+      key === 'api_central' ||
+      key === 'fornecedor' ||
+      key === 'provedor' ||
+      key === 'token' ||
+      key === 'tempo_resposta_ms'
+    ) {
+      continue;
+    }
 
     // Regra Impeccable: Descartar códigos de município e outros IDs redundantes quando houver descrição
     if (
@@ -1439,7 +1498,291 @@ export function normalizeE20(raw: any, query?: string): NormalizedResult {
 }
 
 /**
- * Mapeador Central de Normalizadores por Código do Produto (E1 a E20)
+ * Normalizador E21: CNH Customizada (Código SER_JUS_2026) - Base SERPRO
+ * Preserva 100% dos dados nativos com organização lógica e expurgo de fornecedor.
+ */
+export function normalizeE21(raw: any, query?: string): NormalizedResult {
+  if (!raw || raw.isNotFound) {
+    return {
+      totalRegistros: 0,
+      dados: {
+        cpf: query,
+        status: 'REGISTRO_NAO_ENCONTRADO',
+        mensagem: raw?.mensagem || raw?.message || 'Nenhum registro de condutor localizado na base SERPRO para o CPF informado.'
+      }
+    };
+  }
+
+  const sanitized = sanitizeWhitelabel(raw) || {};
+
+  const formatDate = (val?: any) => {
+    if (!val) return undefined;
+    const str = String(val).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) return str;
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+      const parts = str.split('T')[0].split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return str;
+  };
+
+  // Cursos Especializados: compilar e filtrar inexistentes
+  const cursosEspecializados: any[] = [];
+  const mapeamentoCursos = [
+    { sigla: 'Tpp', nome: 'Transporte Coletivo de Passageiros', classif: sanitized.classificacaoCursoTpp, desc: sanitized.descricaoClassificacaoCursoTpp, uf: sanitized.ufCursoTpp, data: sanitized.dataCursoTpp },
+    { sigla: 'Te', nome: 'Transporte de Escolares', classif: sanitized.classificacaoCursoTe, desc: sanitized.descricaoClassificacaoCursoTe, uf: sanitized.ufCursoTe, data: sanitized.dataCursoTe },
+    { sigla: 'Tcp', nome: 'Transporte de Produtos Perigosos (MOPP)', classif: sanitized.classificacaoCursoTcp, desc: sanitized.descricaoClassificacaoCursoTcp, uf: sanitized.ufCursoTcp, data: sanitized.dataCursoTcp },
+    { sigla: 'Tve', nome: 'Veículos de Emergência', classif: sanitized.classificacaoCursoTve, desc: sanitized.descricaoClassificacaoCursoTve, uf: sanitized.ufCursoTve, data: sanitized.dataCursoTve },
+    { sigla: 'Tci', nome: 'Transporte de Carga Indivisível', classif: sanitized.classificacaoCursoTci, desc: sanitized.descricaoClassificacaoCursoTci, uf: sanitized.ufCursoTci, data: sanitized.dataCursoTci },
+    { sigla: 'Tmt', nome: 'Mototaxista', classif: sanitized.classificacaoCursoTmt, desc: sanitized.descricaoClassificacaoCursoTmt, uf: sanitized.ufCursoTmt, data: sanitized.dataCursoTmt },
+    { sigla: 'Tmf', nome: 'Motofretista', classif: sanitized.classificacaoCursoTmf, desc: sanitized.descricaoClassificacaoCursoTmf, uf: sanitized.ufCursoTmf, data: sanitized.dataCursoTmf },
+  ];
+
+  for (const c of mapeamentoCursos) {
+    const isAtivo = c.classif && String(c.classif).trim() !== '' && c.desc !== 'INEXISTENTE';
+    if (isAtivo) {
+      cursosEspecializados.push({
+        sigla: c.sigla,
+        nome: c.nome,
+        classificacao: c.classif,
+        descricao: c.desc || c.classif,
+        uf: c.uf || undefined,
+        data: formatDate(c.data)
+      });
+    }
+  }
+
+  // Motivos de Requerimento
+  const motivosRequerimento: string[] = [];
+  [
+    sanitized.descricaoMotivoRequerimento1 || sanitized.motivoRequerimento1,
+    sanitized.descricaoMotivoRequerimento2 || sanitized.motivoRequerimento2,
+    sanitized.descricaoMotivoRequerimento3 || sanitized.motivoRequerimento3,
+    sanitized.descricaoMotivoRequerimento4 || sanitized.motivoRequerimento4
+  ].forEach(m => {
+    if (m && String(m).trim() !== '' && String(m).toUpperCase() !== 'INEXISTENTE') {
+      motivosRequerimento.push(String(m).trim());
+    }
+  });
+
+  const hasCondutor = !!(sanitized.nome || sanitized.numeroRegistro || sanitized.cpf);
+
+  const dados = {
+    // 1. Identificação Civil & Dados Pessoais
+    nome: sanitized.nome,
+    cpf: sanitized.cpf || query,
+    dataNascimento: formatDate(sanitized.dataNascimento),
+    sexo: sanitized.sexo,
+    descricaoSexo: sanitized.descricaoSexo || (sanitized.sexo === 1 ? 'MASCULINO' : sanitized.sexo === 2 ? 'FEMININO' : undefined),
+    nomeMae: sanitized.nomeMae,
+    nomePai: sanitized.nomePai,
+    nacionalidade: sanitized.nacionalidade,
+    descricaoNacionalidade: sanitized.descricaoNacionalidade,
+    localidadeNascimento: sanitized.localidadeNascimento,
+    descricaoLocalidadeNascimento: sanitized.descricaoLocalidadeNascimento,
+    documentoIdentidade: {
+      numero: sanitized.numeroDocumento,
+      tipo: sanitized.tipoDocumento,
+      descricao: sanitized.descricaoDocumento,
+      orgaoExpedidor: sanitized.orgaoExpedidorDocumento,
+      uf: sanitized.ufExpedidorDocumento
+    },
+
+    // 2. Prontuário de Habilitação & CNH
+    numeroRegistro: sanitized.numeroRegistro,
+    numeroFormularioRenach: sanitized.numeroFormularioRenach,
+    numeroFormularioCnh: sanitized.numeroFormularioCnh,
+    numeroPgu: sanitized.numeroPgu,
+    categoriaAtual: sanitized.categoriaAtual,
+    categoriaAutorizada: sanitized.categoriaAutorizada,
+    categoriaRebaixada: sanitized.categoriaRebaixada || undefined,
+    ufDominio: sanitized.ufDominio,
+    ufHabilitacaoAtual: sanitized.ufHabilitacaoAtual,
+    dataPrimeiraHabilitacao: formatDate(sanitized.dataPrimeiraHabilitacao),
+    ufPrimeiraHabilitacao: sanitized.ufPrimeiraHabilitacao,
+    dataValidadeCnh: formatDate(sanitized.dataValidadeCnh),
+    isValidadeVencida: sanitized.dataValidadeCnh ? new Date(sanitized.dataValidadeCnh).getTime() < Date.now() : false,
+    situacaoCnh: sanitized.situacaoCnh,
+    descricaoSituacaoCnh: sanitized.descricaoSituacaoCnh,
+    situacaoCnhAnterior: sanitized.situacaoCnhAnterior,
+    descricaoSituacaoCnhAnterior: sanitized.descricaoSituacaoCnhAnterior,
+    permissionario: sanitized.permissionario === 1 ? 'SIM (Permissionário)' : sanitized.permissionario === 2 ? 'NÃO (Definitiva)' : sanitized.permissionario,
+    cancelamento: sanitized.cancelamento || undefined,
+    dataUltimaEmissaoHistorico: formatDate(sanitized.dataUltimaEmissaoHistorico),
+    dataTransacaoUltimaAtualizacao: formatDate(sanitized.dataTransacaoUltimaAtualizacao),
+    codigoTransacaoUltimaAtualizacao: sanitized.codigoTransacaoUltimaAtualizacao,
+    quadroObservacoesCnh: sanitized.quadroObservacoesCnh,
+    ufSolicitanteTransferencia: sanitized.ufSolicitanteTransferencia || undefined,
+    motivosRequerimento,
+
+    // 3. Endereço Cadastral Oficial
+    endereco: {
+      logradouro: sanitized.enderecoLogradouro,
+      numero: sanitized.enderecoNumero,
+      complemento: sanitized.enderecoComplemento,
+      bairro: sanitized.enderecoBairro,
+      cep: sanitized.enderecoCep,
+      municipio: sanitized.descricaoEnderecoMunicipio || sanitized.enderecoMunicipio,
+      uf: sanitized.enderecoUf
+    },
+
+    // 4. Permissão Internacional para Dirigir (PID)
+    pid: {
+      possuiPid: !!(sanitized.numeroFormularioPid && sanitized.numeroFormularioPid !== '000000000'),
+      numeroFormularioPid: sanitized.numeroFormularioPid,
+      dataValidadePid: formatDate(sanitized.dataValidadePid),
+      ufExpedicaoPid: sanitized.ufExpedicaoPid,
+      numeroFormularioCnhBasePid: sanitized.numeroFormularioCnhBasePid,
+      motivoRequerimentoPid: sanitized.descricaoMotivoRequerimentoPid1 || sanitized.motivoRequerimentoPid1,
+      situacaoPid: sanitized.situacaoPid
+    },
+
+    // 5. Cursos de Capacitação & Renovação
+    cursos: {
+      atualizacaoRenovacao: {
+        uf: sanitized.ufCursoAtualizacaoRenovacaoCnh,
+        data: formatDate(sanitized.dataCursoAtualizacaoRenovacaoCnh),
+        modalidade: sanitized.descricaoModalidadeCursoAtualizacaoRenovacaoCnh || sanitized.modalidadeCursoAtualizacaoRenovacaoCnh
+      },
+      reciclagemInfrator: {
+        uf: sanitized.ufCursoReciclagemInfrator || undefined,
+        data: formatDate(sanitized.dataCursoReciclagemInfrator),
+        modalidade: (sanitized.descricaoModalidadeCursoReciclagemInfrator && sanitized.descricaoModalidadeCursoReciclagemInfrator !== 'INEXISTENTE') 
+          ? sanitized.descricaoModalidadeCursoReciclagemInfrator 
+          : (sanitized.modalidadeCursoReciclagemInfrator && sanitized.modalidadeCursoReciclagemInfrator !== 'INEXISTENTE' ? sanitized.modalidadeCursoReciclagemInfrator : undefined)
+      },
+      cursosEspecializados
+    },
+
+    // 6. Impedimentos, Ocorrências & Restrições
+    impedimentos: {
+      numeroListaImpedimento: sanitized.numeroListaImpedimento,
+      quantidadeOcorrenciasImpedimentos: sanitized.quantidadeOcorrenciasImpedimentos || 0,
+      restricoesMedicas: sanitized.restricoesMedicas || undefined,
+      ocorrencias: Array.isArray(sanitized.ocorrencias) ? sanitized.ocorrencias : []
+    },
+
+    // 7. Habilitação Estrangeira
+    habilitacaoEstrangeira: {
+      paisOrigem: sanitized.descricaoPaisOrigemHabilitacaoEstrangeira !== 'INEXISTENTE' ? sanitized.descricaoPaisOrigemHabilitacaoEstrangeira : undefined,
+      registroNacionalEstrangeiro: sanitized.registroNacionalEstrangeiro || undefined,
+      identificacao: sanitized.identificacaoHabilitacaoEstrangeira || undefined,
+      dataValidade: formatDate(sanitized.dataValidadeHabilitacaoEstrangeira)
+    },
+
+    // Aliases para compatibilidade direta com integrações de desenvolvedores
+    dados_condutor: cleanObject(sanitized),
+    _dadosCompletos: cleanObject(sanitized)
+  };
+
+  return {
+    totalRegistros: hasCondutor ? 1 : 0,
+    dados: cleanObject(dados)
+  };
+}
+
+/**
+ * Normalizador E22: CNH Customizada (Código SEN_JUS_2026) - Base SENATRAN
+ * Preserva o espelho biométrico fotográfico em alta resolução e o exame toxicológico.
+ */
+export function normalizeE22(raw: any, query?: string): NormalizedResult {
+  if (!raw || raw.isNotFound) {
+    return {
+      totalRegistros: 0,
+      dados: {
+        cpf: query,
+        status: 'REGISTRO_NAO_ENCONTRADO',
+        mensagem: raw?.mensagem || raw?.message || 'Nenhum registro de condutor localizado na base SENATRAN para o CPF informado.'
+      }
+    };
+  }
+
+  const sanitized = sanitizeWhitelabel(raw) || {};
+  const cond = sanitized.condutor || sanitized;
+
+  const formatDate = (val?: any) => {
+    if (!val) return undefined;
+    const str = String(val).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) return str;
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+      const parts = str.split('T')[0].split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return str;
+  };
+
+  // Extração segura do retrato em Base64
+  let fotoBase64: string | undefined = cond.retrato || cond.foto || cond.imagem || cond.foto_base64;
+  if (fotoBase64 && typeof fotoBase64 === 'string') {
+    fotoBase64 = fotoBase64.trim();
+    if (!fotoBase64.startsWith('data:image')) {
+      fotoBase64 = `data:image/jpeg;base64,${fotoBase64}`;
+    }
+  } else {
+    fotoBase64 = undefined;
+  }
+
+  const hasCondutor = !!(cond.nome || cond.numeroRegistro || cond.cpf);
+
+  const dados = {
+    // 1. Biometria & Identificação Civil
+    biometria: {
+      fotoBase64,
+      possuiFoto: !!fotoBase64
+    },
+    nome: cond.nome,
+    cpf: cond.cpf || query,
+    cpfDesformatado: cond.cpfDesformatado || (cond.cpf ? String(cond.cpf).replace(/\D/g, '') : query),
+    uf: cond.uf,
+    nomeMae: cond.nomeMae,
+    ehabilitado: cond.ehabilitado !== undefined ? cond.ehabilitado : true,
+
+    // 2. Habilitação & Validade
+    numeroRegistro: cond.numeroRegistro,
+    formCnh: cond.formCnh,
+    categoria: cond.categoria,
+    dataEmissao: formatDate(cond.dataEmissao),
+    dataValidade: formatDate(cond.dataValidade),
+    dataValidadeVencida: !!cond.dataValidadeVencida,
+
+    // 3. Exame Toxicológico & Avaliação Médica
+    exameToxicologico: {
+      valido: cond.exameToxicologicoValido !== undefined ? cond.exameToxicologicoValido : true,
+      mostrarAlerta: !!cond.mostrarAlertaExameToxicologico,
+      mensagem: cond.mensagemExameToxicologico,
+      fraseRegulamentar: cond.fraseToxicologicoValido
+    },
+
+    // 4. Situação Administrativa, Retenções e Bloqueios
+    possuiRetencaoAdministrativa: !!cond.possuiRetencaoAdministrativa,
+    observacoes: cond.observacoes || undefined,
+    bloqueios: Array.isArray(cond.bloqueios) && cond.bloqueios.length > 0 ? cond.bloqueios : [],
+    multas: Array.isArray(cond.multas) && cond.multas.length > 0 ? cond.multas : [],
+    ocorrencias: Array.isArray(cond.ocorrencias) && cond.ocorrencias.length > 0 ? cond.ocorrencias : [],
+
+    // 5. Cursos Especializados
+    cursosEspeciais: {
+      mensagem: cond.mensagemCursosEspeciais,
+      lista: Array.isArray(cond.cursosEspeciais) && cond.cursosEspeciais.length > 0 ? cond.cursosEspeciais : []
+    },
+
+    // Aliases para compatibilidade direta com integrações B2B de desenvolvedores
+    condutor: cleanObject({
+      ...cond,
+      retrato: fotoBase64 || cond.retrato
+    }),
+    retrato: fotoBase64,
+    _dadosCompletos: cleanObject(sanitized)
+  };
+
+  return {
+    totalRegistros: hasCondutor ? 1 : 0,
+    dados: cleanObject(dados)
+  };
+}
+
+/**
+ * Mapeador Central de Normalizadores por Código do Produto (E1 a E22)
  */
 export function normalizeProductResult(code: string, raw: any, query?: string, extraParams?: any): NormalizedResult {
   const upper = code.trim().toUpperCase();
@@ -1464,6 +1807,8 @@ export function normalizeProductResult(code: string, raw: any, query?: string, e
     case 'E18': return normalizeE18(raw, query, extraParams);
     case 'E19': return normalizeE19(raw, query);
     case 'E20': return normalizeE20(raw, query);
+    case 'E21': return normalizeE21(raw, query);
+    case 'E22': return normalizeE22(raw, query);
     default:
       return { totalRegistros: raw ? 1 : 0, dados: cleanObject(raw) };
   }

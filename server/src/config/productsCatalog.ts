@@ -252,6 +252,30 @@ export const SERVER_PRODUCTS: ServerProductConfig[] = [
     defaultCost: 0.69,
     defaultPrice: 1.90,
     slugAliases: ['pre-vistoria-completa', 'vistoria', 'pre-vistoria-veicular']
+  },
+  {
+    code: 'E21',
+    slug: 'cnh-customizada-serpro',
+    name: 'CNH Customizada (Código SER_JUS_2026)',
+    category: 'cadastral',
+    inputType: 'cpf',
+    apiPrimary: 'cnh_serpro',
+    apiContingencies: [],
+    defaultCost: 0.07,
+    defaultPrice: 1.32,
+    slugAliases: ['ser_jus_2026', 'ser-jus-2026', 'cnh-serpro', 'cnh-ser-jus', 'serpro-2026', 'cnh-serpro-2026']
+  },
+  {
+    code: 'E22',
+    slug: 'cnh-customizada-senatran',
+    name: 'CNH Customizada (Código SEN_JUS_2026)',
+    category: 'cadastral',
+    inputType: 'cpf',
+    apiPrimary: 'cnh_senatran',
+    apiContingencies: [],
+    defaultCost: 0.10,
+    defaultPrice: 1.32,
+    slugAliases: ['sen_jus_2026', 'sen-jus-2026', 'cnh-senatran', 'cnh-sen-jus', 'senatran-2026', 'cnh-senatran-2026']
   }
 ];
 

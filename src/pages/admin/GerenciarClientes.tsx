@@ -335,7 +335,7 @@ export default function GerenciarClientes() {
     if (c.customPrices && typeof c.customPrices === 'object') {
       for (const [k, v] of Object.entries(c.customPrices)) {
         if (k !== 'isUnlimited' && k !== 'monthlyRequestLimit') {
-          initialPrices[k] = String(v);
+          initialPrices[k.toUpperCase()] = String(v);
         }
       }
     }
@@ -1614,7 +1614,7 @@ export default function GerenciarClientes() {
                       );
                     }).map((p) => {
                       const isEnabled = selectedProducts.includes(p.code);
-                      const customPriceVal = productPrices[p.code] || '';
+                      const customPriceVal = productPrices[p.code] || productPrices[p.code.toUpperCase()] || productPrices[p.code.toLowerCase()] || '';
                       const effectivePrice = customPriceVal !== '' && !isNaN(Number(customPriceVal))
                         ? Number(customPriceVal)
                         : p.defaultPrice;

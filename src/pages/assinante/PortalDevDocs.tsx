@@ -489,7 +489,7 @@ class Program {
       {/* Matriz Completa dos 16 Endpoints Oficiais */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
         <h3 className="text-sm font-bold text-slate-900 mb-1">
-          Matriz Completa de Endpoints REST (E1 a E16)
+          Matriz Completa de Endpoints REST (E1 a E22)
         </h3>
         <p className="text-xs text-slate-500 mb-4">
           Todos os endpoints respondem tanto via GET quanto POST no caminho <code className="font-mono text-slate-700">/v1/:codigo</code>

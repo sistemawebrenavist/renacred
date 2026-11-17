@@ -543,13 +543,65 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
       text: 'text-emerald-800',
       border: 'border-emerald-300'
     }
+  },
+  {
+    code: 'E21',
+    slug: 'cnh-customizada-serpro',
+    name: 'CNH Customizada (Código SER_JUS_2026)',
+    shortName: 'CNH SERPRO (SER_JUS)',
+    category: 'cadastral',
+    categoryLabel: 'Cadastral',
+    inputType: 'cpf',
+    inputLabel: 'CPF do Condutor',
+    placeholder: '000.000.000-00',
+    description: 'Varredura exaustiva oficial SERPRO da CNH: dados civis, filiação completa, RG detalhado, formulários Renach/CNH, histórico de emissões, PID (Permissão Internacional) e histórico de cursos de renovação e especializações.',
+    highlights: [
+      'Dados civis exaustivos e filiação paterna e materna',
+      'Formulário Renach, CNH e Registro PGU oficial',
+      'Permissão Internacional para Dirigir (PID)',
+      'Histórico de cursos especializados e de reciclagem'
+    ],
+    defaultCost: 0.07,
+    defaultPrice: 1.32,
+    hasContingency: false,
+    badgeColor: {
+      bg: 'bg-blue-50',
+      text: 'text-blue-800',
+      border: 'border-blue-200'
+    }
+  },
+  {
+    code: 'E22',
+    slug: 'cnh-customizada-senatran',
+    name: 'CNH Customizada (Código SEN_JUS_2026)',
+    shortName: 'CNH SENATRAN (SEN_JUS)',
+    category: 'cadastral',
+    categoryLabel: 'Cadastral',
+    inputType: 'cpf',
+    inputLabel: 'CPF do Condutor',
+    placeholder: '000.000.000-00',
+    description: 'Espelho biométrico oficial da CNH com fotografia em alta resolução via SENATRAN, dados do condutor, situação de validade, enquadramento regulatório de exame toxicológico, retenções administrativas, infrações e bloqueios.',
+    highlights: [
+      'Espelho fotográfico biométrico oficial em alta resolução',
+      'Avaliação regulatória de exame toxicológico oficial Senatran',
+      'Retenções administrativas, multas e bloqueios ativos',
+      'Prontuário completo de condutor e situação cadastral'
+    ],
+    defaultCost: 0.10,
+    defaultPrice: 1.32,
+    hasContingency: false,
+    badgeColor: {
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-800',
+      border: 'border-emerald-200'
+    }
   }
 ];
 
 export const CATEGORIES_CONFIG = [
-  { id: 'todos', label: 'Todos os Produtos', count: 20 },
+  { id: 'todos', label: 'Todos os Produtos', count: 22 },
   { id: 'veicular', label: 'Veicular', count: 10 },
-  { id: 'cadastral', label: 'Cadastral', count: 7 },
+  { id: 'cadastral', label: 'Cadastral', count: 9 },
   { id: 'juridico', label: 'Jurídico', count: 2 },
   { id: 'imobiliario', label: 'Imobiliário', count: 1 },
 ];

@@ -155,6 +155,18 @@ export default function HubConsulta() {
       return;
     }
 
+    // Validação estrita de CPF
+    if (currentProduct.inputType === 'cpf' && clean.length !== 11) {
+      toast.error('CPF incompleto. Digite os 11 dígitos numéricos do documento.');
+      return;
+    }
+
+    // Validação estrita de CPF
+    if (currentProduct.inputType === 'cpf' && clean.length !== 11) {
+      toast.error('CPF incompleto. Digite os 11 dígitos numéricos do documento.');
+      return;
+    }
+
     // Validação de produto contratado
     if (!isProductContracted) {
       toast.error(`O produto ${currentProduct.code} (${currentProduct.name}) não está habilitado no plano da sua organização.`);
@@ -349,8 +361,13 @@ export default function HubConsulta() {
   // Cálculo de Preço do Produto
   const unitPrice = useMemo(() => {
     const customPrices = (user?.company?.customPrices as Record<string, number>) || {};
-    if (typeof customPrices[currentProduct.code] === 'number') {
-      return customPrices[currentProduct.code];
+    const codeUpper = currentProduct.code.toUpperCase();
+    const codeLower = currentProduct.code.toLowerCase();
+    if (typeof customPrices[codeUpper] === 'number') {
+      return customPrices[codeUpper];
+    }
+    if (typeof customPrices[codeLower] === 'number') {
+      return customPrices[codeLower];
     }
     if (currentProduct.code === 'E1' && user?.company?.customQueryPrice) {
       return Number(user.company.customQueryPrice);
@@ -464,22 +481,20 @@ export default function HubConsulta() {
                       <button
                         type="button"
                         onClick={() => setFiliacaoTipo('mae')}
-                        className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition ${
-                          filiacaoTipo === 'mae'
-                            ? 'bg-purple-600 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
+                        className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition ${filiacaoTipo === 'mae'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                          }`}
                       >
                         Mãe
                       </button>
                       <button
                         type="button"
                         onClick={() => setFiliacaoTipo('pai')}
-                        className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition ${
-                          filiacaoTipo === 'pai'
-                            ? 'bg-purple-600 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
+                        className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition ${filiacaoTipo === 'pai'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                          }`}
                       >
                         Pai
                       </button>
@@ -678,11 +693,10 @@ export default function HubConsulta() {
                       </td>
                       <td className="py-2.5 text-right font-sans">
                         <span
-                          className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
-                            (q.totalRegistros ?? q.totalDeclaracoes ?? 0) > 0
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-slate-100 text-slate-500'
-                          }`}
+                          className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${(q.totalRegistros ?? q.totalDeclaracoes ?? 0) > 0
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'bg-slate-100 text-slate-500'
+                            }`}
                         >
                           {q.totalRegistros ?? q.totalDeclaracoes ?? 0}
                         </span>

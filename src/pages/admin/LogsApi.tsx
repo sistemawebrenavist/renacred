@@ -103,6 +103,10 @@ function parseApiEndpoint(endpoint: string): ParsedEndpoint {
         matchedProduct = getProductByCode('E5');
       } else if (p.includes('/gravame')) {
         matchedProduct = getProductByCode('E14');
+      } else if (p.includes('/ser_jus') || p.includes('/ser-jus') || p.includes('/cnh_serpro') || p.includes('/cnh-serpro')) {
+        matchedProduct = getProductByCode('E21');
+      } else if (p.includes('/sen_jus') || p.includes('/sen-jus') || p.includes('/cnh-senatran')) {
+        matchedProduct = getProductByCode('E22');
       }
     }
 

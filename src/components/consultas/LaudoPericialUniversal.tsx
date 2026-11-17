@@ -118,6 +118,61 @@ const formatDateBR = (val?: string | number | null): string => {
   return trimmed;
 };
 
+const CnhRawDataAccordion: React.FC<{ dados: any; title?: string }> = ({ dados, title = 'Auditoria Técnica Avançada (Dados Brutos das Bases Oficiais)' }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+
+  const cleanData = dados?._dadosCompletos || dados;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(JSON.stringify(cleanData, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="border border-slate-200 rounded-xl bg-white shadow-xs overflow-hidden print:hidden">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-slate-50 transition cursor-pointer"
+      >
+        <div className="flex items-center space-x-2">
+          <FileText className="w-4 h-4 text-slate-500" />
+          <span className="text-xs font-bold text-slate-700">{title}</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="text-[11px] text-slate-400 font-medium">
+            {isOpen ? 'Ocultar JSON técnico' : 'Expandir JSON completo'}
+          </span>
+          <span className="text-slate-400 text-xs">{isOpen ? '▲' : '▼'}</span>
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="p-4 border-t border-slate-100 bg-slate-900 rounded-b-xl">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
+              Payload Sanitizado Oficial • Renacred Bureau
+            </span>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="text-[11px] font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded transition flex items-center gap-1 cursor-pointer"
+            >
+              <Copy className="w-3 h-3" />
+              {copied ? 'Copiado!' : 'Copiar JSON'}
+            </button>
+          </div>
+          <pre className="text-[11.5px] font-mono text-emerald-400 whitespace-pre-wrap overflow-x-auto max-h-96">
+            {JSON.stringify(cleanData, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface LaudoPericialUniversalProps {
   produto: ProductDefinition;
   identifier: string;
@@ -4483,6 +4538,571 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
           dados={dados}
           identifier={identifier}
         />
+      );
+    }
+
+    // E21: CNH Customizada (Código SER_JUS_2026) - Base SERPRO
+    case 'E21': {
+      const isVencida = !!dados.isValidadeVencida;
+      const temImpedimento = Number(dados.impedimentos?.quantidadeOcorrenciasImpedimentos || 0) > 0 || (Array.isArray(dados.impedimentos?.ocorrencias) && dados.impedimentos.ocorrencias.length > 0);
+      const docId = dados.documentoIdentidade || {};
+      const end = dados.endereco || {};
+      const hasEndereco = !!(end.logradouro || end.bairro || end.municipio || end.cep || end.uf);
+      const pid = dados.pid || {};
+      const cursos = dados.cursos || {};
+      const cursosEspeciais = Array.isArray(cursos.cursosEspecializados) ? cursos.cursosEspecializados : [];
+      const motivosReq = Array.isArray(dados.motivosRequerimento) ? dados.motivosRequerimento : [];
+
+      return (
+        <div className="space-y-4">
+          {/* Bloco 1: Identificação Civil & Pessoal do Condutor */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <User className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Identificação Civil & Dados Pessoais
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                Base Federal SERPRO
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nome Completo:</span>
+                <span className="font-bold text-slate-900 text-sm block mt-0.5">{String(dados.nome || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">CPF:</span>
+                <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatDocumento(String(dados.cpf || identifier || ''))}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Data de Nascimento:</span>
+                <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatDateBR(dados.dataNascimento)}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Sexo:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{String(dados.descricaoSexo || (dados.sexo === 1 ? 'MASCULINO' : dados.sexo === 2 ? 'FEMININO' : '-'))}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nacionalidade:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{String(dados.descricaoNacionalidade || 'BRASILEIRO(A)')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Naturalidade:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">
+                  {dados.descricaoLocalidadeNascimento ? `${dados.descricaoLocalidadeNascimento}${dados.ufDominio ? ` - ${dados.ufDominio}` : ''}` : '-'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Filiação Materna:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{String(dados.nomeMae || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Filiação Paterna:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{String(dados.nomePai || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Documento de Identidade (RG):</span>
+                <span className="font-mono text-slate-900 font-semibold block mt-0.5">
+                  {docId.numero ? `${docId.numero} ${docId.orgaoExpedidor ? `(${docId.orgaoExpedidor}/${docId.uf || ''})` : ''}` : '-'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 2: Prontuário de Habilitação & CNH */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <FileText className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Prontuário de Habilitação & CNH
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${isVencida ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                  {isVencida ? 'Validade Vencida' : 'Validade Regular'}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nº de Registro da CNH:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">{String(dados.numeroRegistro || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Formulário Renach:</span>
+                <span className="font-mono font-bold text-slate-800 block mt-0.5">{String(dados.numeroFormularioRenach || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Formulário CNH:</span>
+                <span className="font-mono text-slate-800 block mt-0.5">{String(dados.numeroFormularioCnh || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nº de Registro PGU:</span>
+                <span className="font-mono text-slate-700 block mt-0.5">{String(dados.numeroPgu || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Categoria Atual:</span>
+                <span className="font-mono font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded inline-block mt-0.5">
+                  {String(dados.categoriaAtual || '-')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Categoria Autorizada:</span>
+                <span className="font-mono font-semibold text-slate-800 block mt-0.5">{String(dados.categoriaAutorizada || dados.categoriaAtual || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">UF de Domínio:</span>
+                <span className="font-mono font-bold text-slate-800 block mt-0.5">{String(dados.ufDominio || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">UF de Habilitação Atual:</span>
+                <span className="font-mono font-bold text-slate-800 block mt-0.5">{String(dados.ufHabilitacaoAtual || dados.ufDominio || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Data da 1ª Habilitação:</span>
+                <span className="font-mono text-slate-800 block mt-0.5">
+                  {formatDateBR(dados.dataPrimeiraHabilitacao)} {dados.ufPrimeiraHabilitacao ? `(${dados.ufPrimeiraHabilitacao})` : ''}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Data de Validade CNH:</span>
+                <span className="font-mono font-bold text-slate-900 block mt-0.5">{formatDateBR(dados.dataValidadeCnh)}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Situação da CNH:</span>
+                <span className="font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded inline-block mt-0.5">
+                  {String(dados.descricaoSituacaoCnh || dados.situacaoCnh || 'CONFIRMADA')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Tipo / Permissionário:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{String(dados.permissionario || 'Definitiva')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Última Emissão Física:</span>
+                <span className="font-mono text-slate-700 block mt-0.5">{formatDateBR(dados.dataUltimaEmissaoHistorico)}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Última Atualização no Sistema:</span>
+                <span className="font-mono text-slate-700 block mt-0.5">
+                  {formatDateBR(dados.dataTransacaoUltimaAtualizacao)} {dados.codigoTransacaoUltimaAtualizacao ? `(Cod. ${dados.codigoTransacaoUltimaAtualizacao})` : ''}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Observações CNH:</span>
+                <span className="font-mono text-slate-800 block mt-0.5">{String(dados.quadroObservacoesCnh || 'Nenhuma')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Situação Anterior:</span>
+                <span className="text-slate-600 block mt-0.5">{String(dados.descricaoSituacaoCnhAnterior || dados.situacaoCnhAnterior || '-')}</span>
+              </div>
+            </div>
+
+            {motivosReq.length > 0 && (
+              <div className="pt-3 border-t border-slate-100 text-xs">
+                <span className="text-[11px] text-slate-400 font-medium block">Motivo(s) de Requerimento Cadastrado(s):</span>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {motivosReq.map((motivo: string, idx: number) => (
+                    <span key={idx} className="bg-slate-100 text-slate-800 font-medium px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                      {motivo}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bloco 3: Endereço Cadastral (se retornado pela base) */}
+          {hasEndereco && (
+            <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+              <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
+                <MapPin className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Endereço Cadastral do Condutor
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div className="lg:col-span-2">
+                  <span className="text-[11px] text-slate-400 font-medium block">Logradouro:</span>
+                  <span className="text-slate-800 font-medium block mt-0.5">
+                    {end.logradouro ? `${end.logradouro}${end.numero ? `, ${end.numero}` : ''}${end.complemento ? ` - ${end.complemento}` : ''}` : '-'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Bairro:</span>
+                  <span className="text-slate-800 font-medium block mt-0.5">{String(end.bairro || '-')}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Município / UF:</span>
+                  <span className="text-slate-800 font-medium block mt-0.5">{end.municipio ? `${end.municipio}${end.uf ? ` - ${end.uf}` : ''}` : String(end.uf || '-')}</span>
+                </div>
+                {end.cep && (
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">CEP:</span>
+                    <span className="font-mono text-slate-800 block mt-0.5">{formatCEP(end.cep)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Bloco 4: Permissão Internacional para Dirigir (PID) */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <Award className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Permissão Internacional para Dirigir (PID)
+                </span>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${pid.possuiPid ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                {pid.possuiPid ? 'PID Emitida / Cadastrada' : 'Não Consta Emissão de PID'}
+              </span>
+            </div>
+            {pid.possuiPid ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Nº Formulário PID:</span>
+                  <span className="font-mono font-bold text-slate-900 block mt-0.5">{String(pid.numeroFormularioPid)}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Data de Validade da PID:</span>
+                  <span className="font-mono font-bold text-slate-900 block mt-0.5">{formatDateBR(pid.dataValidadePid)}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">CNH Base da PID:</span>
+                  <span className="font-mono text-slate-800 block mt-0.5">{String(pid.numeroFormularioCnhBasePid || '-')}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Motivo / Requerimento PID:</span>
+                  <span className="text-slate-800 block mt-0.5">{String(pid.motivoRequerimentoPid || '-')}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">Nenhuma Permissão Internacional para Dirigir (PID) vinculada a este prontuário.</p>
+            )}
+          </div>
+
+          {/* Bloco 5: Cursos de Capacitação & Especializações */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
+              <Building className="w-4 h-4 text-blue-600" />
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Cursos de Capacitação, Renovação & Especializados
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <span className="font-semibold text-slate-900 block mb-1">Curso de Atualização para Renovação da CNH</span>
+                {cursos.atualizacaoRenovacao?.data ? (
+                  <div className="space-y-1 text-slate-700">
+                    <p><strong>Data Realização:</strong> {formatDateBR(cursos.atualizacaoRenovacao.data)}</p>
+                    <p><strong>UF Realização:</strong> {String(cursos.atualizacaoRenovacao.uf || '-')}</p>
+                    <p><strong>Modalidade:</strong> {String(cursos.atualizacaoRenovacao.modalidade || '-')}</p>
+                  </div>
+                ) : (
+                  <p className="text-slate-500">Não consta curso de atualização específico.</p>
+                )}
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <span className="font-semibold text-slate-900 block mb-1">Curso de Reciclagem para Infrator</span>
+                {cursos.reciclagemInfrator?.data ? (
+                  <div className="space-y-1 text-slate-700">
+                    <p><strong>Data Realização:</strong> {formatDateBR(cursos.reciclagemInfrator.data)}</p>
+                    <p><strong>UF Realização:</strong> {String(cursos.reciclagemInfrator.uf || '-')}</p>
+                    <p><strong>Modalidade:</strong> {String(cursos.reciclagemInfrator.modalidade || '-')}</p>
+                  </div>
+                ) : (
+                  <p className="text-emerald-700 font-medium">Nenhum curso de reciclagem exigido / cadastrado.</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[11px] text-slate-400 font-medium block mb-1.5">Cursos Especializados Ativos:</span>
+              {cursosEspeciais.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {cursosEspeciais.map((c: any, idx: number) => (
+                    <div key={idx} className="border border-blue-200 bg-blue-50/50 p-2.5 rounded-lg text-xs">
+                      <span className="font-bold text-blue-900 block">{c.nome} ({c.sigla})</span>
+                      <span className="text-slate-600 block text-[11px] mt-0.5">Classificação: {c.descricao}</span>
+                      {c.data && <span className="font-mono text-slate-500 text-[10px] block mt-0.5">Data: {formatDateBR(c.data)} {c.uf ? `(${c.uf})` : ''}</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 bg-slate-50 p-2.5 rounded border border-slate-200">
+                  Não constam registros de cursos especializados (MOPP, Coletivo, Emergência, Escolar, Carga Indivisível, etc.) ativos.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Bloco 6: Impedimentos, Restrições & Ocorrências */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <ShieldCheck className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Impedimentos, Bloqueios & Restrições Médicas
+                </span>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${temImpedimento ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                {temImpedimento ? 'Consta Apontamento' : 'Nada Consta'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nº Lista de Impedimentos:</span>
+                <span className="font-mono text-slate-800 block mt-0.5">{String(dados.impedimentos?.numeroListaImpedimento || '00000000000')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Ocorrências de Impedimento:</span>
+                <span className="font-bold text-slate-800 block mt-0.5">{Number(dados.impedimentos?.quantidadeOcorrenciasImpedimentos || 0)} ocorrência(s)</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Restrições Médicas:</span>
+                <span className="text-slate-800 block mt-0.5">{String(dados.impedimentos?.restricoesMedicas || 'Sem restrições cadastradas')}</span>
+              </div>
+            </div>
+
+            {Array.isArray(dados.impedimentos?.ocorrencias) && dados.impedimentos.ocorrencias.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-100">
+                <span className="text-[11px] text-slate-400 font-medium block mb-1">Relação de Ocorrências:</span>
+                <div className="space-y-1.5">
+                  {dados.impedimentos.ocorrencias.map((oc: any, idx: number) => (
+                    <div key={idx} className="bg-rose-50 border border-rose-200 p-2 rounded text-xs text-rose-900">
+                      {typeof oc === 'string' ? oc : JSON.stringify(oc)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bloco 7: Auditoria Técnica Avançada (Payload Completo das Bases Oficiais) */}
+          <CnhRawDataAccordion
+            dados={dados}
+            title="Auditoria Técnica Avançada SERPRO (Payload Oficial Completo Sem Edições)"
+          />
+        </div>
+      );
+    }
+
+    // E22: CNH Customizada (Código SEN_JUS_2026) - Base SENATRAN
+    case 'E22': {
+      const isVencida = !!dados.dataValidadeVencida;
+      const temRetencao = !!dados.possuiRetencaoAdministrativa;
+      const tox = dados.exameToxicologico || {};
+      const foto = dados.biometria?.fotoBase64 || dados.retrato || dados.condutor?.retrato || dados.foto_base64 || dados.foto;
+      const bloqueios = Array.isArray(dados.bloqueios) ? dados.bloqueios : [];
+      const multas = Array.isArray(dados.multas) ? dados.multas : [];
+      const cursosEspeciais = Array.isArray(dados.cursosEspeciais?.lista) ? dados.cursosEspeciais.lista : [];
+
+      return (
+        <div className="space-y-4">
+          {/* Card Principal: Biometria Fotográfica + Dados do Condutor */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex flex-col md:flex-row items-start gap-6">
+              {/* Espelho Biométrico Fotográfico da CNH */}
+              {foto ? (
+                <div className="shrink-0 flex flex-col items-center mx-auto md:mx-0">
+                  <div className="w-36 h-48 bg-white border-2 border-slate-300 rounded-xl overflow-hidden shadow-xs flex items-center justify-center p-1">
+                    <img
+                      src={foto.startsWith('data:') ? foto : `data:image/jpeg;base64,${foto}`}
+                      alt="Espelho Fotográfico CNH"
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full mt-2.5 shadow-xs">
+                    Biometria Oficial Senatran
+                  </span>
+                </div>
+              ) : (
+                <div className="w-36 h-48 bg-slate-100 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center p-3 text-center shrink-0">
+                  <User className="w-10 h-10 text-slate-300 mb-1" />
+                  <span className="text-[10px] text-slate-400 font-medium">Foto biométrica não disponível</span>
+                </div>
+              )}
+
+              {/* Grid de Identificação e Prontuário */}
+              <div className="flex-1 space-y-4 w-full">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center space-x-2">
+                    <User className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Prontuário do Condutor Habilitado
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${dados.ehabilitado ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
+                    {dados.ehabilitado ? 'Condutor Habilitado' : 'Não Habilitado'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">Nome do Condutor:</span>
+                    <span className="font-bold text-slate-900 text-sm block mt-0.5">{String(dados.nome || '-')}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">CPF:</span>
+                    <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatDocumento(String(dados.cpf || identifier || ''))}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">Nº de Registro da CNH:</span>
+                    <span className="font-mono font-bold text-slate-900 block mt-0.5">{String(dados.numeroRegistro || '-')}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">Formulário CNH:</span>
+                    <span className="font-mono font-semibold text-slate-800 block mt-0.5">{String(dados.formCnh || '-')}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">Categoria:</span>
+                    <span className="font-mono font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded inline-block mt-0.5">
+                      {String(dados.categoria || '-')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">UF de Registro:</span>
+                    <span className="font-mono font-bold text-slate-800 block mt-0.5">{String(dados.uf || '-')}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">Data de Emissão:</span>
+                    <span className="font-mono text-slate-800 block mt-0.5">{formatDateBR(dados.dataEmissao)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">Data de Validade:</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-mono font-bold text-slate-900">{formatDateBR(dados.dataValidade)}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border ${isVencida ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                        {isVencida ? 'Vencida' : 'Regular'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">Filiação Materna:</span>
+                    <span className="text-slate-800 font-medium block mt-0.5">{String(dados.nomeMae || '-')}</span>
+                  </div>
+                </div>
+
+                {dados.observacoes && (
+                  <div className="pt-2 text-xs">
+                    <span className="text-[11px] text-slate-400 font-medium block">Observações do Condutor:</span>
+                    <p className="text-slate-700 bg-slate-50 p-2 rounded border border-slate-200 mt-1">{String(dados.observacoes)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 2: Painel Regulatório de Exame Toxicológico */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Avaliação Regulatória de Exame Toxicológico
+                </span>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${tox.valido ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
+                {tox.valido ? 'Situação Regular / Conforme' : 'Exame Pendente ou Exigível'}
+              </span>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-2">
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Parecer Oficial do Órgão:</span>
+                <span className="font-semibold text-slate-900 block mt-0.5">{String(tox.mensagem || 'Informação processada nas bases oficiais')}</span>
+              </div>
+              {tox.fraseRegulamentar && (
+                <div className="pt-1.5 border-t border-slate-200/60 text-slate-600">
+                  <span className="text-[11px] text-slate-400 font-medium block">Enquadramento Normativo Senatran:</span>
+                  <p className="mt-0.5 italic">{tox.fraseRegulamentar}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bloco 3: Situação Administrativa, Retenções e Ocorrências */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <ShieldAlert className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Situação Administrativa, Retenções & Bloqueios
+                </span>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${temRetencao || bloqueios.length > 0 ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                {temRetencao || bloqueios.length > 0 ? 'Consta Restrição' : 'Livre de Retenções'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <span className="text-[11px] text-slate-400 font-medium block">Retenção Administrativa:</span>
+                <span className={`font-bold block mt-0.5 ${temRetencao ? 'text-rose-700' : 'text-emerald-700'}`}>
+                  {temRetencao ? 'Consta Retenção Administrativa Ativa' : 'Não consta retenção administrativa'}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <span className="text-[11px] text-slate-400 font-medium block">Bloqueios & Restrições:</span>
+                <span className="font-semibold text-slate-800 block mt-0.5">
+                  {bloqueios.length > 0 ? `${bloqueios.length} bloqueio(s) registrado(s)` : 'Nenhum bloqueio cadastrado'}
+                </span>
+              </div>
+            </div>
+
+            {multas.length > 0 && (
+              <div className="pt-2 text-xs">
+                <span className="text-[11px] text-slate-400 font-medium block mb-1">Infrações / Multas Registradas:</span>
+                <div className="space-y-1">
+                  {multas.map((m: any, idx: number) => (
+                    <div key={idx} className="bg-amber-50 border border-amber-200 p-2 rounded text-xs text-amber-900">
+                      {typeof m === 'string' ? m : JSON.stringify(m)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bloco 4: Cursos Especializados */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
+              <Building className="w-4 h-4 text-emerald-600" />
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Cursos Especializados de Trânsito
+              </span>
+            </div>
+            <p className="text-xs text-slate-600">
+              {dados.cursosEspeciais?.mensagem || 'Informação oficial de cursos especializados do condutor.'}
+            </p>
+            {cursosEspeciais.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+                {cursosEspeciais.map((c: any, idx: number) => (
+                  <div key={idx} className="bg-emerald-50 border border-emerald-200 p-2 rounded text-xs text-emerald-900">
+                    {typeof c === 'string' ? c : JSON.stringify(c)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Bloco 5: Auditoria Técnica Avançada (Payload Completo das Bases Oficiais) */}
+          <CnhRawDataAccordion
+            dados={dados}
+            title="Auditoria Técnica Avançada SENATRAN (Payload Oficial Completo Sem Edições)"
+          />
+        </div>
       );
     }
 
