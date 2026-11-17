@@ -161,12 +161,6 @@ export default function HubConsulta() {
       return;
     }
 
-    // Validação estrita de CPF
-    if (currentProduct.inputType === 'cpf' && clean.length !== 11) {
-      toast.error('CPF incompleto. Digite os 11 dígitos numéricos do documento.');
-      return;
-    }
-
     // Validação de produto contratado
     if (!isProductContracted) {
       toast.error(`O produto ${currentProduct.code} (${currentProduct.name}) não está habilitado no plano da sua organização.`);

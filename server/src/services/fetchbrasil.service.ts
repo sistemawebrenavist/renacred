@@ -190,7 +190,7 @@ export class FetchBrasilService {
 
     this.client = axios.create({
       baseURL: this.apiURL,
-      timeout: 45000,
+      timeout: 90000,
       httpsAgent: new https.Agent({
         keepAlive: false, // Desativado para evitar sockets ociosos mantidos pelo Node que o Cloudflare fecha silenciosamente
         family: 4 // Força IPv4 indispensável para liberação no WAF da FetchBrasil
@@ -722,16 +722,16 @@ export class FetchBrasilService {
         const isContingency = i > 0;
         logger.info(`[FETCHBRASIL] ${isContingency ? 'CONTINGÊNCIA' : 'PRIMÁRIO'}: Tentando endpoint '${endpoint}' para produto ${product.code}...`);
 
-        try {
-          const queryParams: any = {
-            token: this.token,
-            api: endpoint,
-            query: cleanQuery
-          };
-          if (extraParams?.tipo) {
-            queryParams.tipo = extraParams.tipo;
-          }
+        const queryParams: any = {
+          token: this.token,
+          api: endpoint,
+          query: cleanQuery
+        };
+        if (extraParams?.tipo) {
+          queryParams.tipo = extraParams.tipo;
+        }
 
+        try {
           const response = await this.client.get('/', {
             params: queryParams
           });
@@ -777,6 +777,32 @@ export class FetchBrasilService {
           lastError = err;
           const msg = extractFetchBrasilMessage(respData) || err.message;
           logger.warn(`[FETCHBRASIL] Falha no endpoint '${endpoint}' (${status || 'timeout'}): ${msg}`);
+
+          // Resiliência contra oscilações de bases governamentais federais (ex: E21 SERPRO / E22 SENATRAN)
+          const isTimeoutOrNetwork =
+            err.code === 'ECONNABORTED' ||
+            err.code === 'ETIMEDOUT' ||
+            (err.message && err.message.toLowerCase().includes('timeout'));
+
+          if (isTimeoutOrNetwork && !isContingency && endpointsToTry.length === 1) {
+            logger.warn(`[FETCHBRASIL] Timeout no endpoint '${endpoint}' para ${product.code} (${Date.now() - startTime}ms). Realizando retry automático...`);
+            try {
+              const retryResponse = await this.client.get('/', {
+                params: queryParams,
+                timeout: 60000
+              });
+              const retryData = retryResponse.data;
+              if (retryData && !retryData.erro && !isFetchBrasilNotFound(retryData, retryResponse.status)) {
+                rawData = retryData;
+                successfulEndpoint = endpoint;
+                lastError = null;
+                logger.info(`[FETCHBRASIL] Sucesso no retry do endpoint '${endpoint}' para ${product.code} em ${Date.now() - startTime}ms`);
+                break;
+              }
+            } catch (retryErr: any) {
+              logger.warn(`[FETCHBRASIL] Retry do endpoint '${endpoint}' também falhou: ${retryErr.message}`);
+            }
+          }
 
           // Se for erro de cliente (400, 401, 403), não adianta tentar contingências
           if (status && [400, 401, 403].includes(status)) {
