@@ -179,7 +179,11 @@ export default function GerenciarApi() {
     } catch (err: any) {
       const errData = err.response?.data || { message: err.message };
       setTestApiResult(errData);
-      toast.error(errData.message || errData.detail || 'Erro ao executar teste de API.');
+      let msg = errData.message || errData.detail || 'Erro ao executar teste de API.';
+      if (/manuten[çc][ãa]o|service unavailable|503/i.test(msg)) {
+        msg = 'Estamos em manutenção, tente mais tarde';
+      }
+      toast.error(msg);
     } finally {
       setTestingApi(false);
     }

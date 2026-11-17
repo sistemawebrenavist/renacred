@@ -826,6 +826,10 @@ export class FetchBrasilService {
 
       if (!rawData && lastError) {
         const errorDetail = extractFetchBrasilMessage(lastError.response?.data) || lastError.message;
+        const isMaintenance = /manuten[çc][ãa]o|service unavailable|503/i.test(errorDetail || '');
+        if (isMaintenance) {
+          throw new Error('Estamos em manutenção, tente mais tarde');
+        }
         throw new Error(`Falha na consulta oficial para o produto ${product.code}: ${errorDetail}`);
       }
 

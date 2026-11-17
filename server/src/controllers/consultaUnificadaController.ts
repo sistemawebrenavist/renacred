@@ -369,9 +369,14 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       }
     });
 
-    return res.status(500).json({
+    const isMaintenance = /manuten[çc][ãa]o|service unavailable|503/i.test(error.message || '');
+    const cleanMessage = isMaintenance
+      ? 'Estamos em manutenção, tente mais tarde'
+      : (error.message || 'Não foi possível obter dados junto às bases oficiais. Tente novamente em alguns instantes.');
+
+    return res.status(isMaintenance ? 503 : 500).json({
       success: false,
-      message: error.message || 'Não foi possível obter dados junto às bases oficiais. Tente novamente em alguns instantes.'
+      message: cleanMessage
     });
   }
 };
@@ -718,9 +723,14 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       } catch {}
     });
 
-    return res.status(500).json({
+    const isMaintenance = /manuten[çc][ãa]o|service unavailable|503/i.test(error.message || '');
+    const cleanMessage = isMaintenance
+      ? 'Estamos em manutenção, tente mais tarde'
+      : (error.message || 'Erro ao processar consulta junto às bases oficiais. Tente novamente em alguns instantes.');
+
+    return res.status(isMaintenance ? 503 : 500).json({
       success: false,
-      message: error.message || 'Erro ao processar consulta junto às bases oficiais. Tente novamente em alguns instantes.'
+      message: cleanMessage
     });
   }
 };
