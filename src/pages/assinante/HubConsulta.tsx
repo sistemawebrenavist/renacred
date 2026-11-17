@@ -222,8 +222,8 @@ export default function HubConsulta() {
         loadRecentQueries(currentProduct.code);
       }
     } catch (err: any) {
-      let msg = err.response?.data?.detail || err.response?.data?.message || 'Falha ao comunicar com os órgãos emissores.';
-      if (/manuten[çc][ãa]o|service unavailable|503/i.test(msg)) {
+      let msg = err.response?.data?.detail || err.response?.data?.message || err.message || 'Falha ao comunicar com os órgãos emissores.';
+      if (/manuten[çc][ãa]o|service unavailable|503|timeout|econnaborted|etimedout/i.test(msg)) {
         msg = 'Estamos em manutenção, tente mais tarde';
       }
       toast.error(msg);

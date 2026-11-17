@@ -4900,13 +4900,19 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
     // E22: CNH Customizada (Código SEN_JUS_2026) - Base SENATRAN
     case 'E22': {
-      const isVencida = !!dados.dataValidadeVencida;
-      const temRetencao = !!dados.possuiRetencaoAdministrativa;
-      const tox = dados.exameToxicologico || {};
-      const foto = dados.biometria?.fotoBase64 || dados.retrato || dados.condutor?.retrato || dados.foto_base64 || dados.foto;
-      const bloqueios = Array.isArray(dados.bloqueios) ? dados.bloqueios : [];
-      const multas = Array.isArray(dados.multas) ? dados.multas : [];
-      const cursosEspeciais = Array.isArray(dados.cursosEspeciais?.lista) ? dados.cursosEspeciais.lista : [];
+      const cond = dados.condutor || dados;
+      const isVencida = cond.dataValidadeVencida !== undefined ? !!cond.dataValidadeVencida : !!dados.dataValidadeVencida;
+      const temRetencao = cond.possuiRetencaoAdministrativa !== undefined ? !!cond.possuiRetencaoAdministrativa : !!dados.possuiRetencaoAdministrativa;
+      const tox = {
+        valido: cond.exameToxicologicoValido !== undefined ? cond.exameToxicologicoValido : (dados.exameToxicologico?.valido !== undefined ? dados.exameToxicologico.valido : true),
+        mensagem: cond.mensagemExameToxicologico || dados.exameToxicologico?.mensagem || 'Informação processada nas bases oficiais',
+        fraseRegulamentar: cond.fraseToxicologicoValido || dados.exameToxicologico?.fraseRegulamentar
+      };
+      const foto = cond.retrato || dados.biometria?.fotoBase64 || dados.retrato || dados.foto_base64 || dados.foto;
+      const bloqueios = Array.isArray(cond.bloqueios) ? cond.bloqueios : (Array.isArray(dados.bloqueios) ? dados.bloqueios : []);
+      const multas = Array.isArray(cond.multas) ? cond.multas : (Array.isArray(dados.multas) ? dados.multas : []);
+      const cursosEspeciaisMsg = cond.mensagemCursosEspeciais || dados.cursosEspeciais?.mensagem || 'Informação oficial de cursos especializados do condutor.';
+      const cursosEspeciais = Array.isArray(cond.cursosEspeciais) ? cond.cursosEspeciais : (Array.isArray(dados.cursosEspeciais?.lista) ? dados.cursosEspeciais.lista : (Array.isArray(dados.cursosEspeciais) ? dados.cursosEspeciais : []));
 
       return (
         <div className="space-y-4">
@@ -5084,7 +5090,7 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
               </span>
             </div>
             <p className="text-xs text-slate-600">
-              {dados.cursosEspeciais?.mensagem || 'Informação oficial de cursos especializados do condutor.'}
+              {cursosEspeciaisMsg}
             </p>
             {cursosEspeciais.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">

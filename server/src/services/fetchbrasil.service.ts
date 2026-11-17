@@ -826,7 +826,7 @@ export class FetchBrasilService {
 
       if (!rawData && lastError) {
         const errorDetail = extractFetchBrasilMessage(lastError.response?.data) || lastError.message;
-        const isMaintenance = /manuten[çc][ãa]o|service unavailable|503/i.test(errorDetail || '');
+        const isMaintenance = /manuten[çc][ãa]o|service unavailable|503|timeout|econnaborted|etimedout/i.test(errorDetail || '');
         if (isMaintenance) {
           throw new Error('Estamos em manutenção, tente mais tarde');
         }

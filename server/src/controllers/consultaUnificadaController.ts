@@ -331,6 +331,23 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       dados: result.normalized.dados || resultDataToSave
     };
 
+    // Para E22: expor 'condutor' diretamente na raiz do payload (compatibilidade 1:1 FetchBrasil)
+    if (product.code === 'E22') {
+      const cond = result.normalized.dados?.condutor || result.raw?.condutor;
+      if (cond) {
+        responsePayload.condutor = cond;
+      }
+    }
+
+    // Para E21: expor chaves nativas do SERPRO diretamente na raiz do payload (compatibilidade 1:1 FetchBrasil)
+    if (product.code === 'E21') {
+      const rawApi = result.normalized.dados?._rawApi || result.raw;
+      if (rawApi && typeof rawApi === 'object') {
+        const { api_central, token, provedor, fornecedor, ...cleanFlat } = rawApi;
+        Object.assign(responsePayload, cleanFlat);
+      }
+    }
+
     if (mensagemRetorno) {
       responsePayload.mensagem = mensagemRetorno;
     }
@@ -369,7 +386,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       }
     });
 
-    const isMaintenance = /manuten[çc][ãa]o|service unavailable|503/i.test(error.message || '');
+    const isMaintenance = /manuten[çc][ãa]o|service unavailable|503|timeout|econnaborted|etimedout/i.test(error.message || '');
     const cleanMessage = isMaintenance
       ? 'Estamos em manutenção, tente mais tarde'
       : (error.message || 'Não foi possível obter dados junto às bases oficiais. Tente novamente em alguns instantes.');
@@ -662,6 +679,23 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       dados: result.normalized.dados || resultDataToSave
     };
 
+    // Para E22: expor 'condutor' diretamente na raiz do payload (compatibilidade 1:1 FetchBrasil)
+    if (product.code === 'E22') {
+      const cond = result.normalized.dados?.condutor || result.raw?.condutor;
+      if (cond) {
+        responsePayload.condutor = cond;
+      }
+    }
+
+    // Para E21: expor chaves nativas do SERPRO diretamente na raiz do payload (compatibilidade 1:1 FetchBrasil)
+    if (product.code === 'E21') {
+      const rawApi = result.normalized.dados?._rawApi || result.raw;
+      if (rawApi && typeof rawApi === 'object') {
+        const { api_central, token, provedor, fornecedor, ...cleanFlat } = rawApi;
+        Object.assign(responsePayload, cleanFlat);
+      }
+    }
+
     if (mensagemRetorno) {
       responsePayload.mensagem = mensagemRetorno;
     }
@@ -723,7 +757,7 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       } catch {}
     });
 
-    const isMaintenance = /manuten[çc][ãa]o|service unavailable|503/i.test(error.message || '');
+    const isMaintenance = /manuten[çc][ãa]o|service unavailable|503|timeout|econnaborted|etimedout/i.test(error.message || '');
     const cleanMessage = isMaintenance
       ? 'Estamos em manutenção, tente mais tarde'
       : (error.message || 'Erro ao processar consulta junto às bases oficiais. Tente novamente em alguns instantes.');

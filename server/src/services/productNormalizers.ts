@@ -59,6 +59,42 @@ export function sanitizeWhitelabel(obj: any): any {
 }
 
 /**
+ * Higienização estrita Whitelabel que preserva 100% dos campos, strings vazias (""),
+ * booleanos e arrays nativos retornados pela API oficial sem descartar chaves.
+ */
+export function sanitizeProviderRawPreserve(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string') {
+    let text = obj;
+    text = text.replace(/https?:\/\/[^\s]*fetchbrasil[^\s]*/gi, '');
+    text = text.replace(/fetchbrasil(\.pro)?/gi, 'Bases Oficiais');
+    text = text.replace(/FB-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}/gi, '');
+    return text;
+  }
+  if (typeof obj !== 'object') return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeProviderRawPreserve);
+  }
+
+  const result: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (
+      key === 'api_central' ||
+      key === 'fornecedor' ||
+      key === 'provedor' ||
+      key === 'token' ||
+      key === 'tempo_resposta_ms' ||
+      (key === 'origem' && typeof val === 'string' && val.toLowerCase().includes('fetch'))
+    ) {
+      continue;
+    }
+    result[key] = sanitizeProviderRawPreserve(val);
+  }
+  return result;
+}
+
+/**
  * Remove recursivamente chaves nulas, vazias, strings "null", "N/A"
  * e descarta códigos duplicados redundantes.
  */
@@ -1513,7 +1549,8 @@ export function normalizeE21(raw: any, query?: string): NormalizedResult {
     };
   }
 
-  const sanitized = sanitizeWhitelabel(raw) || {};
+  // 100% dos dados brutos sanitizados Whitelabel sem perda de chaves, strings vazias ou arrays
+  const sanitized = sanitizeProviderRawPreserve(raw) || {};
 
   const formatDate = (val?: any) => {
     if (!val) return undefined;
@@ -1567,19 +1604,12 @@ export function normalizeE21(raw: any, query?: string): NormalizedResult {
 
   const hasCondutor = !!(sanitized.nome || sanitized.numeroRegistro || sanitized.cpf);
 
-  const dados = {
-    // 1. Identificação Civil & Dados Pessoais
-    nome: sanitized.nome,
-    cpf: sanitized.cpf || query,
-    dataNascimento: formatDate(sanitized.dataNascimento),
-    sexo: sanitized.sexo,
-    descricaoSexo: sanitized.descricaoSexo || (sanitized.sexo === 1 ? 'MASCULINO' : sanitized.sexo === 2 ? 'FEMININO' : undefined),
-    nomeMae: sanitized.nomeMae,
-    nomePai: sanitized.nomePai,
-    nacionalidade: sanitized.nacionalidade,
-    descricaoNacionalidade: sanitized.descricaoNacionalidade,
-    localidadeNascimento: sanitized.localidadeNascimento,
-    descricaoLocalidadeNascimento: sanitized.descricaoLocalidadeNascimento,
+  // 100% dos dados nativos brutos da FetchBrasil copiados sem nenhuma omissão
+  const dados: Record<string, any> = {
+    // Todos os campos originais da API do SERPRO preservados na raiz de dados
+    ...sanitized,
+
+    // Blocos estruturados para visualização gráfica no laudo web
     documentoIdentidade: {
       numero: sanitized.numeroDocumento,
       tipo: sanitized.tipoDocumento,
@@ -1587,35 +1617,6 @@ export function normalizeE21(raw: any, query?: string): NormalizedResult {
       orgaoExpedidor: sanitized.orgaoExpedidorDocumento,
       uf: sanitized.ufExpedidorDocumento
     },
-
-    // 2. Prontuário de Habilitação & CNH
-    numeroRegistro: sanitized.numeroRegistro,
-    numeroFormularioRenach: sanitized.numeroFormularioRenach,
-    numeroFormularioCnh: sanitized.numeroFormularioCnh,
-    numeroPgu: sanitized.numeroPgu,
-    categoriaAtual: sanitized.categoriaAtual,
-    categoriaAutorizada: sanitized.categoriaAutorizada,
-    categoriaRebaixada: sanitized.categoriaRebaixada || undefined,
-    ufDominio: sanitized.ufDominio,
-    ufHabilitacaoAtual: sanitized.ufHabilitacaoAtual,
-    dataPrimeiraHabilitacao: formatDate(sanitized.dataPrimeiraHabilitacao),
-    ufPrimeiraHabilitacao: sanitized.ufPrimeiraHabilitacao,
-    dataValidadeCnh: formatDate(sanitized.dataValidadeCnh),
-    isValidadeVencida: sanitized.dataValidadeCnh ? new Date(sanitized.dataValidadeCnh).getTime() < Date.now() : false,
-    situacaoCnh: sanitized.situacaoCnh,
-    descricaoSituacaoCnh: sanitized.descricaoSituacaoCnh,
-    situacaoCnhAnterior: sanitized.situacaoCnhAnterior,
-    descricaoSituacaoCnhAnterior: sanitized.descricaoSituacaoCnhAnterior,
-    permissionario: sanitized.permissionario === 1 ? 'SIM (Permissionário)' : sanitized.permissionario === 2 ? 'NÃO (Definitiva)' : sanitized.permissionario,
-    cancelamento: sanitized.cancelamento || undefined,
-    dataUltimaEmissaoHistorico: formatDate(sanitized.dataUltimaEmissaoHistorico),
-    dataTransacaoUltimaAtualizacao: formatDate(sanitized.dataTransacaoUltimaAtualizacao),
-    codigoTransacaoUltimaAtualizacao: sanitized.codigoTransacaoUltimaAtualizacao,
-    quadroObservacoesCnh: sanitized.quadroObservacoesCnh,
-    ufSolicitanteTransferencia: sanitized.ufSolicitanteTransferencia || undefined,
-    motivosRequerimento,
-
-    // 3. Endereço Cadastral Oficial
     endereco: {
       logradouro: sanitized.enderecoLogradouro,
       numero: sanitized.enderecoNumero,
@@ -1625,8 +1626,6 @@ export function normalizeE21(raw: any, query?: string): NormalizedResult {
       municipio: sanitized.descricaoEnderecoMunicipio || sanitized.enderecoMunicipio,
       uf: sanitized.enderecoUf
     },
-
-    // 4. Permissão Internacional para Dirigir (PID)
     pid: {
       possuiPid: !!(sanitized.numeroFormularioPid && sanitized.numeroFormularioPid !== '000000000'),
       numeroFormularioPid: sanitized.numeroFormularioPid,
@@ -1636,8 +1635,6 @@ export function normalizeE21(raw: any, query?: string): NormalizedResult {
       motivoRequerimentoPid: sanitized.descricaoMotivoRequerimentoPid1 || sanitized.motivoRequerimentoPid1,
       situacaoPid: sanitized.situacaoPid
     },
-
-    // 5. Cursos de Capacitação & Renovação
     cursos: {
       atualizacaoRenovacao: {
         uf: sanitized.ufCursoAtualizacaoRenovacaoCnh,
@@ -1653,37 +1650,36 @@ export function normalizeE21(raw: any, query?: string): NormalizedResult {
       },
       cursosEspecializados
     },
-
-    // 6. Impedimentos, Ocorrências & Restrições
     impedimentos: {
       numeroListaImpedimento: sanitized.numeroListaImpedimento,
       quantidadeOcorrenciasImpedimentos: sanitized.quantidadeOcorrenciasImpedimentos || 0,
       restricoesMedicas: sanitized.restricoesMedicas || undefined,
       ocorrencias: Array.isArray(sanitized.ocorrencias) ? sanitized.ocorrencias : []
     },
-
-    // 7. Habilitação Estrangeira
     habilitacaoEstrangeira: {
       paisOrigem: sanitized.descricaoPaisOrigemHabilitacaoEstrangeira !== 'INEXISTENTE' ? sanitized.descricaoPaisOrigemHabilitacaoEstrangeira : undefined,
       registroNacionalEstrangeiro: sanitized.registroNacionalEstrangeiro || undefined,
       identificacao: sanitized.identificacaoHabilitacaoEstrangeira || undefined,
       dataValidade: formatDate(sanitized.dataValidadeHabilitacaoEstrangeira)
     },
+    motivosRequerimento,
+    isValidadeVencida: sanitized.dataValidadeCnh ? new Date(sanitized.dataValidadeCnh).getTime() < Date.now() : false,
 
-    // Aliases para compatibilidade direta com integrações de desenvolvedores
-    dados_condutor: cleanObject(sanitized),
-    _dadosCompletos: cleanObject(sanitized)
+    // Aliases para compatibilidade total 1:1 com integrações e auditoria
+    dados_condutor: sanitized,
+    _dadosCompletos: sanitized,
+    _rawApi: sanitized
   };
 
   return {
     totalRegistros: hasCondutor ? 1 : 0,
-    dados: cleanObject(dados)
+    dados
   };
 }
 
 /**
  * Normalizador E22: CNH Customizada (Código SEN_JUS_2026) - Base SENATRAN
- * Preserva o espelho biométrico fotográfico em alta resolução e o exame toxicológico.
+ * Preserva 100% dos dados nativos da FetchBrasil (incluindo retrato, campos vazios e estruturas originais).
  */
 export function normalizeE22(raw: any, query?: string): NormalizedResult {
   if (!raw || raw.isNotFound) {
@@ -1697,22 +1693,12 @@ export function normalizeE22(raw: any, query?: string): NormalizedResult {
     };
   }
 
-  const sanitized = sanitizeWhitelabel(raw) || {};
-  const cond = sanitized.condutor || sanitized;
-
-  const formatDate = (val?: any) => {
-    if (!val) return undefined;
-    const str = String(val).trim();
-    if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) return str;
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-      const parts = str.split('T')[0].split('-');
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return str;
-  };
+  // Sanitização Whitelabel estrita preservando todos os campos, valores vazios e booleanos
+  const sanitized = sanitizeProviderRawPreserve(raw) || {};
+  const condRaw = sanitized.condutor || sanitized;
 
   // Extração segura do retrato em Base64
-  let fotoBase64: string | undefined = cond.retrato || cond.foto || cond.imagem || cond.foto_base64;
+  let fotoBase64: string | undefined = condRaw.retrato || condRaw.foto || condRaw.imagem || condRaw.foto_base64;
   if (fotoBase64 && typeof fotoBase64 === 'string') {
     fotoBase64 = fotoBase64.trim();
     if (!fotoBase64.startsWith('data:image')) {
@@ -1722,62 +1708,69 @@ export function normalizeE22(raw: any, query?: string): NormalizedResult {
     fotoBase64 = undefined;
   }
 
-  const hasCondutor = !!(cond.nome || cond.numeroRegistro || cond.cpf);
+  const hasCondutor = !!(condRaw.nome || condRaw.numeroRegistro || condRaw.cpf);
 
-  const dados = {
-    // 1. Biometria & Identificação Civil
+  // 100% dos dados nativos brutos do condutor copiados exatamente da FetchBrasil
+  const condutorExact: Record<string, any> = {
+    formCnh: condRaw.formCnh !== undefined ? condRaw.formCnh : '',
+    numeroRegistro: condRaw.numeroRegistro !== undefined ? condRaw.numeroRegistro : '',
+    nome: condRaw.nome !== undefined ? condRaw.nome : '',
+    cpf: condRaw.cpf !== undefined ? condRaw.cpf : (query || ''),
+    uf: condRaw.uf !== undefined ? condRaw.uf : '',
+    nomeMae: condRaw.nomeMae !== undefined ? condRaw.nomeMae : '',
+    dataEmissao: condRaw.dataEmissao !== undefined ? condRaw.dataEmissao : '',
+    dataValidade: condRaw.dataValidade !== undefined ? condRaw.dataValidade : '',
+    dataValidadeVencida: condRaw.dataValidadeVencida !== undefined ? condRaw.dataValidadeVencida : false,
+    categoria: condRaw.categoria !== undefined ? condRaw.categoria : '',
+    observacoes: condRaw.observacoes !== undefined ? condRaw.observacoes : '',
+    bloqueios: Array.isArray(condRaw.bloqueios) ? condRaw.bloqueios : [],
+    multas: Array.isArray(condRaw.multas) ? condRaw.multas : [],
+    ocorrencias: Array.isArray(condRaw.ocorrencias) ? condRaw.ocorrencias : [],
+    mensagemCursosEspeciais: condRaw.mensagemCursosEspeciais !== undefined ? condRaw.mensagemCursosEspeciais : '',
+    cursosEspeciais: Array.isArray(condRaw.cursosEspeciais) ? condRaw.cursosEspeciais : [],
+    possuiRetencaoAdministrativa: condRaw.possuiRetencaoAdministrativa !== undefined ? condRaw.possuiRetencaoAdministrativa : false,
+    retrato: condRaw.retrato !== undefined ? condRaw.retrato : '',
+    mensagemExameToxicologico: condRaw.mensagemExameToxicologico !== undefined ? condRaw.mensagemExameToxicologico : '',
+    exameToxicologicoValido: condRaw.exameToxicologicoValido !== undefined ? condRaw.exameToxicologicoValido : true,
+    mostrarAlertaExameToxicologico: condRaw.mostrarAlertaExameToxicologico !== undefined ? condRaw.mostrarAlertaExameToxicologico : false,
+    fraseToxicologicoValido: condRaw.fraseToxicologicoValido !== undefined ? condRaw.fraseToxicologicoValido : '',
+    cpfDesformatado: condRaw.cpfDesformatado !== undefined ? condRaw.cpfDesformatado : (condRaw.cpf ? String(condRaw.cpf).replace(/\D/g, '') : (query || '')),
+    ehabilitado: condRaw.ehabilitado !== undefined ? condRaw.ehabilitado : true,
+    ...condRaw // Preserva quaisquer outros campos extras que o fornecedor envie
+  };
+
+  const dados: Record<string, any> = {
+    // 1. Cópia exata 1:1 de todos os campos da FetchBrasil na raiz de dados
+    ...condutorExact,
+
+    // 2. Objeto 'condutor' idêntico ao retornado pela API da FetchBrasil
+    condutor: condutorExact,
+
+    // 3. Blocos auxiliares para componentes e cards de laudo pericial
     biometria: {
       fotoBase64,
       possuiFoto: !!fotoBase64
     },
-    nome: cond.nome,
-    cpf: cond.cpf || query,
-    cpfDesformatado: cond.cpfDesformatado || (cond.cpf ? String(cond.cpf).replace(/\D/g, '') : query),
-    uf: cond.uf,
-    nomeMae: cond.nomeMae,
-    ehabilitado: cond.ehabilitado !== undefined ? cond.ehabilitado : true,
-
-    // 2. Habilitação & Validade
-    numeroRegistro: cond.numeroRegistro,
-    formCnh: cond.formCnh,
-    categoria: cond.categoria,
-    dataEmissao: formatDate(cond.dataEmissao),
-    dataValidade: formatDate(cond.dataValidade),
-    dataValidadeVencida: !!cond.dataValidadeVencida,
-
-    // 3. Exame Toxicológico & Avaliação Médica
     exameToxicologico: {
-      valido: cond.exameToxicologicoValido !== undefined ? cond.exameToxicologicoValido : true,
-      mostrarAlerta: !!cond.mostrarAlertaExameToxicologico,
-      mensagem: cond.mensagemExameToxicologico,
-      fraseRegulamentar: cond.fraseToxicologicoValido
+      valido: condutorExact.exameToxicologicoValido,
+      mostrarAlerta: !!condutorExact.mostrarAlertaExameToxicologico,
+      mensagem: condutorExact.mensagemExameToxicologico,
+      fraseRegulamentar: condutorExact.fraseToxicologicoValido
     },
-
-    // 4. Situação Administrativa, Retenções e Bloqueios
-    possuiRetencaoAdministrativa: !!cond.possuiRetencaoAdministrativa,
-    observacoes: cond.observacoes || undefined,
-    bloqueios: Array.isArray(cond.bloqueios) && cond.bloqueios.length > 0 ? cond.bloqueios : [],
-    multas: Array.isArray(cond.multas) && cond.multas.length > 0 ? cond.multas : [],
-    ocorrencias: Array.isArray(cond.ocorrencias) && cond.ocorrencias.length > 0 ? cond.ocorrencias : [],
-
-    // 5. Cursos Especializados
-    cursosEspeciais: {
-      mensagem: cond.mensagemCursosEspeciais,
-      lista: Array.isArray(cond.cursosEspeciais) && cond.cursosEspeciais.length > 0 ? cond.cursosEspeciais : []
+    cursosEspeciaisPainel: {
+      mensagem: condutorExact.mensagemCursosEspeciais,
+      lista: condutorExact.cursosEspeciais
     },
-
-    // Aliases para compatibilidade direta com integrações B2B de desenvolvedores
-    condutor: cleanObject({
-      ...cond,
-      retrato: fotoBase64 || cond.retrato
-    }),
-    retrato: fotoBase64,
-    _dadosCompletos: cleanObject(sanitized)
+    _dadosCompletos: {
+      success: true,
+      condutor: condutorExact
+    },
+    _rawApi: condutorExact
   };
 
   return {
     totalRegistros: hasCondutor ? 1 : 0,
-    dados: cleanObject(dados)
+    dados
   };
 }
 
