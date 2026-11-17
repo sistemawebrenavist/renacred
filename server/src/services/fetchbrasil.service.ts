@@ -115,33 +115,47 @@ export function extractFetchBrasilMessage(data: any): string | null {
 }
 
 /**
- * Identifica se uma resposta ou erro da FetchBrasil representa "Registro não encontrado" legítimo
+ * Identifica se uma resposta ou erro da FetchBrasil representa "Registro não encontrado" legítimo.
+ * NUNCA trata erros de scraping, resolução ("resolve_failed"), instabilidade ou API fora do ar como "não encontrado".
  */
 export function isFetchBrasilNotFound(data: any, status?: number): boolean {
-  const isJsonObject = data && typeof data === 'object' && !Buffer.isBuffer(data);
+  if (!data || typeof data !== 'object' || Buffer.isBuffer(data)) return false;
 
-  if (status === 404) {
-    // 404 retornado com corpo JSON ou api_central da FetchBrasil é "Nada Consta" / "Registro não encontrado"
-    if (isJsonObject) return true;
+  // 1. Falha explícita de resolução no DETRAN/órgão ou API fora do ar NUNCA é "Registro não encontrado"
+  if (
+    data.error === 'resolve_failed' ||
+    data.erro === 'resolve_failed' ||
+    data.status === 'resolve_failed' ||
+    data.code === 'resolve_failed'
+  ) {
     return false;
-  }
-
-  if (!isJsonObject) return false;
-
-  if (data.error === 'Registro não encontrado' || data.erro === 'Registro não encontrado') {
-    return true;
   }
 
   const msg = extractFetchBrasilMessage(data);
   if (typeof msg === 'string') {
-    if (/não encontrado|nao encontrado|nenhum .* encontrado|não localizado|nao localizado|nada consta/i.test(msg)) {
-      return true;
+    // Frases técnicas de robô/scraper que NÃO representam "nada consta" oficial
+    if (/obter renavam\/chassi|resolve_failed|falha ao consultar|erro ao comunicar|instabilidade|fora do ar|manuten|timeout|service unavailable|indispon[íi]vel|tente novamente/i.test(msg)) {
+      return false;
     }
   }
 
-  if (data.success === false && (data.error || data.message || data.mensagem)) {
-    const errorText = String(data.error || data.message || data.mensagem);
-    if (/não encontrado|nao encontrado|nenhum|localizado|inexistente/i.test(errorText)) {
+  // 2. Se a mensagem ou erro for explicitamente "Registro não encontrado" ou "Nada Consta"
+  if (data.error === 'Registro não encontrado' || data.erro === 'Registro não encontrado') {
+    return true;
+  }
+
+  if (typeof msg === 'string') {
+    const cleanMsg = msg.trim().toLowerCase();
+    if (
+      cleanMsg === 'registro não encontrado' ||
+      cleanMsg === 'registro nao encontrado' ||
+      cleanMsg === 'nada consta' ||
+      cleanMsg === 'veículo não encontrado' ||
+      cleanMsg === 'veiculo nao encontrado' ||
+      cleanMsg === 'nenhum registro encontrado' ||
+      cleanMsg === 'documento não localizado' ||
+      cleanMsg === 'documento nao localizado'
+    ) {
       return true;
     }
   }
@@ -287,7 +301,8 @@ export class FetchBrasilService {
                 timestamp: new Date().toISOString(),
               }
             };
-          } else if (data && Array.isArray(data.declaracoes)) {
+            return result;
+          } else if (data && data.success !== false && !data.error && Array.isArray(data.declaracoes)) {
             result = {
               periodo: data.periodo || '',
               total_declaracoes: data.total_declaracoes !== undefined ? data.total_declaracoes : data.declaracoes.length,
@@ -299,21 +314,17 @@ export class FetchBrasilService {
                 timestamp: new Date().toISOString(),
               }
             };
+            // Armazena no cache se teve sucesso com registros reais
+            if (result.total_declaracoes > 0) {
+              this.cache.set(cleanDoc, { data: result, timestamp: Date.now() });
+              this.cleanExpiredCache();
+            }
+            return result;
           } else {
-            result = {
-              periodo: data?.periodo || '',
-              total_declaracoes: 0,
-              declaracoes: [],
-              mensagem: extractFetchBrasilMessage(data) || undefined,
-              api_central: data?.api_central
-            };
+            // Se a API retornou erro ou success: false, é falha técnica de upstream
+            const errMsg = extractFetchBrasilMessage(data) || 'Estamos em manutenção, tente mais tarde';
+            throw new Error(errMsg);
           }
-
-          // Armazena no cache se teve sucesso
-          this.cache.set(cleanDoc, { data: result, timestamp: Date.now() });
-          this.cleanExpiredCache();
-
-          return result;
         } catch (error: any) {
           const status = error.response?.status;
           const respData = error.response?.data;
@@ -333,8 +344,6 @@ export class FetchBrasilService {
                 timestamp: new Date().toISOString(),
               }
             };
-            this.cache.set(cleanDoc, { data: notFoundResult, timestamp: Date.now() });
-            this.cleanExpiredCache();
             return notFoundResult;
           }
 
@@ -351,9 +360,9 @@ export class FetchBrasilService {
       }
 
       const totalProcessingTime = Date.now() - startTime;
-      const finalMsg = extractFetchBrasilMessage(lastError?.response?.data) || lastError?.message;
+      const finalMsg = extractFetchBrasilMessage(lastError?.response?.data) || lastError?.message || 'Estamos em manutenção, tente mais tarde';
       logger.error(`[FETCHBRASIL] Erro na consulta após ${totalProcessingTime}ms para ${cleanDoc}: ${finalMsg}`);
-      throw new Error(`Falha ao consultar histórico imobiliário no provedor: ${finalMsg}`);
+      throw new Error('Estamos em manutenção, tente mais tarde');
     })();
 
     this.inFlight.set(cleanDoc, fetchPromise);
@@ -535,9 +544,19 @@ export class FetchBrasilService {
                 timestamp: new Date().toISOString(),
               }
             };
-            this.veicularCache.set(cleanPlaca, { data: notFoundResult, timestamp: Date.now() });
-            this.cleanExpiredCache();
             return notFoundResult;
+          }
+
+          // Se a API retornou erro ou falha explícita de resolução ("resolve_failed" ou success: false), aborta com manutenção
+          if (
+            rawData &&
+            (rawData.success === false ||
+             rawData.error === 'resolve_failed' ||
+             rawData.erro === 'resolve_failed' ||
+             (rawData.error && !isFetchBrasilNotFound(rawData, response.status)))
+          ) {
+            logger.warn(`[FETCHBRASIL] Endpoint historico_proprietario retornou erro/resolve_failed: ${extractFetchBrasilMessage(rawData)}`);
+            throw new Error('Estamos em manutenção, tente mais tarde');
           }
 
           let historicoOrdenado: HistoricoProprietarioItem[] = [];
@@ -583,9 +602,11 @@ export class FetchBrasilService {
             }
           };
 
-          // Armazenar no cache em memória
-          this.veicularCache.set(cleanPlaca, { data: result, timestamp: Date.now() });
-          this.cleanExpiredCache();
+          // Armazenar no cache em memória SOMENTE quando há dados reais positivos
+          if (result.total > 0 && Array.isArray(result.historico) && result.historico.length > 0) {
+            this.veicularCache.set(cleanPlaca, { data: result, timestamp: Date.now() });
+            this.cleanExpiredCache();
+          }
 
           return result;
         } catch (error: any) {
@@ -610,8 +631,6 @@ export class FetchBrasilService {
                 timestamp: new Date().toISOString(),
               }
             };
-            this.veicularCache.set(cleanPlaca, { data: notFoundResult, timestamp: Date.now() });
-            this.cleanExpiredCache();
             return notFoundResult;
           }
 
@@ -627,9 +646,9 @@ export class FetchBrasilService {
       }
 
       const totalProcessingTime = Date.now() - startTime;
-      const finalMsg = extractFetchBrasilMessage(lastError?.response?.data) || lastError?.message;
+      const finalMsg = extractFetchBrasilMessage(lastError?.response?.data) || lastError?.message || 'Estamos em manutenção, tente mais tarde';
       logger.error(`[FETCHBRASIL] Erro na consulta após ${totalProcessingTime}ms para placa ${cleanPlaca}: ${finalMsg}`);
-      throw new Error(`Falha ao consultar histórico de proprietários no provedor: ${finalMsg}`);
+      throw new Error('Estamos em manutenção, tente mais tarde');
     })();
 
     this.veicularInFlight.set(cleanPlaca, fetchPromise);
@@ -744,14 +763,23 @@ export class FetchBrasilService {
             continue;
           }
 
-          // Verificar se resposta é válida (não é erro de negócio)
-          if (data && !data.erro) {
+          // Verificar se resposta é válida (não é erro de negócio nem falha de resolução)
+          const isSuccess = data &&
+            typeof data === 'object' &&
+            !Buffer.isBuffer(data) &&
+            data.success !== false &&
+            !data.erro &&
+            (!data.error || data.error === '0' || data.error === false);
+
+          if (isSuccess) {
             rawData = data;
             successfulEndpoint = endpoint;
             logger.info(`[FETCHBRASIL] Sucesso no endpoint '${endpoint}' para ${product.code} em ${Date.now() - startTime}ms`);
             break;
           } else {
-            logger.warn(`[FETCHBRASIL] Endpoint '${endpoint}' retornou aviso/erro: ${extractFetchBrasilMessage(data) || 'Sem dados'}`);
+            const warnMsg = extractFetchBrasilMessage(data) || 'Sem dados';
+            logger.warn(`[FETCHBRASIL] Endpoint '${endpoint}' retornou aviso/erro: ${warnMsg}`);
+            lastError = new Error(warnMsg);
           }
         } catch (err: any) {
           const status = err.response?.status;
@@ -792,7 +820,15 @@ export class FetchBrasilService {
                 timeout: 60000
               });
               const retryData = retryResponse.data;
-              if (retryData && !retryData.erro && !isFetchBrasilNotFound(retryData, retryResponse.status)) {
+              const isRetrySuccess = retryData &&
+                typeof retryData === 'object' &&
+                !Buffer.isBuffer(retryData) &&
+                retryData.success !== false &&
+                !retryData.erro &&
+                (!retryData.error || retryData.error === '0' || retryData.error === false) &&
+                !isFetchBrasilNotFound(retryData, retryResponse.status);
+
+              if (isRetrySuccess) {
                 rawData = retryData;
                 successfulEndpoint = endpoint;
                 lastError = null;
@@ -824,13 +860,12 @@ export class FetchBrasilService {
         lastError = null;
       }
 
+      if (!rawData && !notFoundData) {
+        throw new Error('Estamos em manutenção, tente mais tarde');
+      }
+
       if (!rawData && lastError) {
-        const errorDetail = extractFetchBrasilMessage(lastError.response?.data) || lastError.message;
-        const isMaintenance = /manuten[çc][ãa]o|service unavailable|503|timeout|econnaborted|etimedout/i.test(errorDetail || '');
-        if (isMaintenance) {
-          throw new Error('Estamos em manutenção, tente mais tarde');
-        }
-        throw new Error(`Falha na consulta oficial para o produto ${product.code}: ${errorDetail}`);
+        throw new Error('Estamos em manutenção, tente mais tarde');
       }
 
       // Enriquecimento inteligente para E10 (Comunicação de Venda)
@@ -947,13 +982,15 @@ export class FetchBrasilService {
       const normalized = normalizeProductResult(product.code, rawData || {}, cleanQuery, extraParams);
       const processingTimeMs = Date.now() - startTime;
 
-      // Gravar no cache de curto prazo
-      this.genericCache.set(cacheKey, {
-        data: normalized,
-        timestamp: Date.now(),
-        providerUsed: successfulEndpoint || product.apiPrimary
-      });
-      this.cleanExpiredCache();
+      // Gravar no cache de curto prazo SOMENTE quando houver dados positivos legítimos
+      if (normalized.totalRegistros > 0 && !rawData?.isNotFound) {
+        this.genericCache.set(cacheKey, {
+          data: normalized,
+          timestamp: Date.now(),
+          providerUsed: successfulEndpoint || product.apiPrimary
+        });
+        this.cleanExpiredCache();
+      }
 
       return {
         normalized,

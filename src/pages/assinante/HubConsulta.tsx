@@ -222,8 +222,14 @@ export default function HubConsulta() {
         loadRecentQueries(currentProduct.code);
       }
     } catch (err: any) {
-      let msg = err.response?.data?.detail || err.response?.data?.message || err.message || 'Falha ao comunicar com os órgãos emissores.';
-      if (/manuten[çc][ãa]o|service unavailable|503|timeout|econnaborted|etimedout/i.test(msg)) {
+      const respData = err.response?.data;
+      let msg = respData?.detail || respData?.message || err.message || 'Falha ao comunicar com os órgãos emissores.';
+      if (
+        err.response?.status === 503 ||
+        err.response?.status === 504 ||
+        err.response?.status === 500 ||
+        /manuten|timeout|exceeded|service unavailable|indispon|503|econnaborted|etimedout|falha na consulta oficial/i.test(msg)
+      ) {
         msg = 'Estamos em manutenção, tente mais tarde';
       }
       toast.error(msg);

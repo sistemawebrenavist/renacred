@@ -4030,16 +4030,16 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
       const renavam = v.renavam || dados.renavam || '-';
       const chassi = v.chassi || dados.chassi || '-';
       const remarcacao = v.remarcacao_descricao || v.remarcacao || dados.remarcacao || 'Normal';
-      const anoFab = v.ano_fab || v.ano_fabricacao || dados.ano_fabricacao || '-';
-      const anoMod = v.ano_modelo || v.ano_mod || dados.ano_modelo || '-';
-      const ufPlaca = v.uf_placa || v.uf || dados.uf || '-';
-      const ufLicenc = v.uf_licenciamento || dados.uf_licenciamento || ufPlaca;
-      const statusVeic = v.status_veiculo_descricao || dados.status_veiculo || dados.situacao_geral || 'Consulta realizada no Sistema Nacional de Gravames';
+      const anoFab = v.ano_fab || v.ano_fabricacao || dados.ano_fabricacao || dados.ano_fab || '-';
+      const anoMod = v.ano_modelo || v.ano_mod || dados.ano_modelo || dados.ano_mod || '-';
+      const ufPlaca = v.uf_placa || v.uf || dados.uf_placa || dados.uf || '-';
+      const ufLicenc = v.uf_licenciamento || dados.uf_licenciamento || v.uf || ufPlaca;
+      const statusVeic = v.status_veiculo_descricao || dados.status_veiculo || dados.status_veiculo_descricao || dados.situacao_geral || 'Consulta realizada no Sistema Nacional de Gravames';
 
       // Avaliação de Gravame Ativo vs Baixado
       const temGravameAtivo = rawGravames.some((g: any) => {
         const desc = (g.status_veiculo_descricao || g.status_descricao || g.status || '').toLowerCase();
-        const isBaixado = desc.includes('baixad') || desc.includes('desalienad') || desc.includes('cancelad') || desc.includes('liberad');
+        const isBaixado = desc.includes('baixad') || desc.includes('desalienad') || desc.includes('cancelad') || desc.includes('liberad') || g.situacao === 'BAIXADO';
         return !isBaixado && (g.ativo !== false || g.situacao === 'ATIVO');
       });
 

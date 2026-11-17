@@ -235,6 +235,17 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       }
     }
 
+    // Se o provedor upstream retornou falha, success: false ou erro explícito sem ser registro não encontrado
+    if (
+      result.raw &&
+      (result.raw.success === false ||
+       result.raw.error === 'resolve_failed' ||
+       result.raw.erro === 'resolve_failed' ||
+       (result.raw.error && !result.raw.isNotFound))
+    ) {
+      throw new Error('Estamos em manutenção, tente mais tarde');
+    }
+
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
     const isNotFound = !!result.raw?.isNotFound;
@@ -348,6 +359,19 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       }
     }
 
+    // Para E14: expor chaves nativas do SNG na raiz do payload (compatibilidade 1:1 FetchBrasil)
+    if (product.code === 'E14') {
+      const rawE14 = result.raw;
+      if (rawE14 && typeof rawE14 === 'object' && !rawE14.isNotFound) {
+        if (rawE14.chassi && !responsePayload.chassi) responsePayload.chassi = rawE14.chassi;
+        if (rawE14.veiculo && !responsePayload.veiculo) responsePayload.veiculo = rawE14.veiculo;
+        if (rawE14.gravames && !responsePayload.gravames) responsePayload.gravames = rawE14.gravames;
+        if (rawE14.qtd_gravames !== undefined && responsePayload.qtd_gravames === undefined) responsePayload.qtd_gravames = rawE14.qtd_gravames;
+        if (rawE14.remarcacao && !responsePayload.remarcacao) responsePayload.remarcacao = rawE14.remarcacao;
+        if (rawE14.remarcacao_descricao && !responsePayload.remarcacao_descricao) responsePayload.remarcacao_descricao = rawE14.remarcacao_descricao;
+      }
+    }
+
     if (mensagemRetorno) {
       responsePayload.mensagem = mensagemRetorno;
     }
@@ -386,12 +410,12 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       }
     });
 
-    const isMaintenance = /manuten[çc][ãa]o|service unavailable|503|timeout|econnaborted|etimedout/i.test(error.message || '');
-    const cleanMessage = isMaintenance
+    const isMaintenance = /manuten|service unavailable|503|timeout|econnaborted|etimedout|falha na consulta oficial/i.test(error.message || '');
+    const cleanMessage = isMaintenance || !error.message
       ? 'Estamos em manutenção, tente mais tarde'
-      : (error.message || 'Não foi possível obter dados junto às bases oficiais. Tente novamente em alguns instantes.');
+      : (error.message.includes('Estamos em manutenção') ? error.message : 'Estamos em manutenção, tente mais tarde');
 
-    return res.status(isMaintenance ? 503 : 500).json({
+    return res.status(503).json({
       success: false,
       message: cleanMessage
     });
@@ -563,6 +587,17 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       }
     }
 
+    // Se o provedor upstream retornou falha, success: false ou erro explícito sem ser registro não encontrado
+    if (
+      result.raw &&
+      (result.raw.success === false ||
+       result.raw.error === 'resolve_failed' ||
+       result.raw.erro === 'resolve_failed' ||
+       (result.raw.error && !result.raw.isNotFound))
+    ) {
+      throw new Error('Estamos em manutenção, tente mais tarde');
+    }
+
     const processingTimeMs = Date.now() - startTime;
     const totalRegistros = result.normalized.totalRegistros;
     const isNotFound = !!result.raw?.isNotFound;
@@ -696,6 +731,19 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       }
     }
 
+    // Para E14: expor chaves nativas do SNG na raiz do payload (compatibilidade 1:1 FetchBrasil)
+    if (product.code === 'E14') {
+      const rawE14 = result.raw;
+      if (rawE14 && typeof rawE14 === 'object' && !rawE14.isNotFound) {
+        if (rawE14.chassi && !responsePayload.chassi) responsePayload.chassi = rawE14.chassi;
+        if (rawE14.veiculo && !responsePayload.veiculo) responsePayload.veiculo = rawE14.veiculo;
+        if (rawE14.gravames && !responsePayload.gravames) responsePayload.gravames = rawE14.gravames;
+        if (rawE14.qtd_gravames !== undefined && responsePayload.qtd_gravames === undefined) responsePayload.qtd_gravames = rawE14.qtd_gravames;
+        if (rawE14.remarcacao && !responsePayload.remarcacao) responsePayload.remarcacao = rawE14.remarcacao;
+        if (rawE14.remarcacao_descricao && !responsePayload.remarcacao_descricao) responsePayload.remarcacao_descricao = rawE14.remarcacao_descricao;
+      }
+    }
+
     if (mensagemRetorno) {
       responsePayload.mensagem = mensagemRetorno;
     }
@@ -757,12 +805,12 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       } catch {}
     });
 
-    const isMaintenance = /manuten[çc][ãa]o|service unavailable|503|timeout|econnaborted|etimedout/i.test(error.message || '');
-    const cleanMessage = isMaintenance
+    const isMaintenance = /manuten|service unavailable|503|timeout|econnaborted|etimedout|falha na consulta oficial/i.test(error.message || '');
+    const cleanMessage = isMaintenance || !error.message
       ? 'Estamos em manutenção, tente mais tarde'
-      : (error.message || 'Erro ao processar consulta junto às bases oficiais. Tente novamente em alguns instantes.');
+      : (error.message.includes('Estamos em manutenção') ? error.message : 'Estamos em manutenção, tente mais tarde');
 
-    return res.status(isMaintenance ? 503 : 500).json({
+    return res.status(503).json({
       success: false,
       message: cleanMessage
     });

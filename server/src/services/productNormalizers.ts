@@ -1051,9 +1051,10 @@ export function normalizeE13(raw: any): NormalizedResult {
  */
 export function normalizeE14(raw: any): NormalizedResult {
   const v = raw?.veiculo || raw || {};
-  const hasData = !!(v.chassi || raw.chassi || v.placa || raw.placa);
-  const gravamesList = Array.isArray(raw?.gravames) ? raw.gravames : (raw?.gravame ? [raw.gravame] : []);
+  const gravamesList = Array.isArray(raw?.gravames) ? raw.gravames : (raw?.gravame ? [raw.gravame] : (Array.isArray(v?.gravames) ? v.gravames : []));
   const qtdGravames = typeof raw?.qtd_gravames === 'number' ? raw.qtd_gravames : gravamesList.length;
+  const hasRealVehicle = !!(v.chassi || raw.chassi || v.renavam || raw.renavam);
+  const hasData = hasRealVehicle || gravamesList.length > 0;
 
   // Processamento da lista de gravames
   const gravamesFormatados = gravamesList.map((g: any) => {
@@ -1074,9 +1075,9 @@ export function normalizeE14(raw: any): NormalizedResult {
       }
     }
 
-    const statusDesc = g.status_veiculo_descricao || g.status || g.situacao;
+    const statusDesc = g.status_veiculo_descricao || g.status_descricao || g.status || g.situacao;
     const isBaixado = statusDesc && /baixad|desalienad|cancelad|liberad/i.test(statusDesc);
-    const isAtivo = !isBaixado && (g.ativo !== false);
+    const isAtivo = !isBaixado && (g.ativo !== false && g.situacao !== 'BAIXADO');
 
     // Desacolchoar CPF caso venha com padding de 14 dígitos (padrão SNG B3: 000 + 11 dígitos do CPF)
     let docFinanciado = g.documento_financiado || g.documento || g.cpf_cnpj || g.cpf;
@@ -1099,7 +1100,7 @@ export function normalizeE14(raw: any): NormalizedResult {
       numero_restricao: g.numero_restricao,
       nome_financiado: g.nome_financiado,
       documento_financiado: docFinanciado,
-      uf_licenciamento: g.uf_licenciamento,
+      uf_licenciamento: g.uf_licenciamento || v.uf_licenciamento,
       informante_restricao: g.informante_restricao_descricao || g.informante,
       assinatura_eletronica: g.assinatura_eletronica,
       registro_contrato: g.indicativo_registro_contrato_descricao,
@@ -1121,18 +1122,22 @@ export function normalizeE14(raw: any): NormalizedResult {
       placa: v.placa || raw.placa,
       renavam: v.renavam || raw.renavam,
       chassi: v.chassi || raw.chassi,
-      remarcacao: v.remarcacao_descricao || raw.remarcacao_descricao || 'Normal',
-      ano_fabricacao: v.ano_fab || v.ano_fabricacao,
-      ano_modelo: v.ano_modelo || v.ano_mod,
-      uf_placa: v.uf_placa || v.uf || raw.uf,
-      uf_licenciamento: v.uf_licenciamento || raw.uf_licenciamento,
-      status_veiculo: statusVeiculoDesc,
+      remarcacao: v.remarcacao_descricao || raw.remarcacao_descricao || v.remarcacao || 'Normal',
+      remarcacao_descricao: v.remarcacao_descricao || raw.remarcacao_descricao || 'Normal',
+      ano_fabricacao: v.ano_fab || v.ano_fabricacao || raw.ano_fab,
+      ano_modelo: v.ano_modelo || v.ano_mod || raw.ano_modelo,
+      uf_placa: v.uf_placa || v.uf || raw.uf_placa || raw.uf,
+      uf_licenciamento: v.uf_licenciamento || raw.uf_licenciamento || v.uf_placa,
+      status_veiculo: statusVeiculoDesc || situacaoGeral,
+      status_veiculo_descricao: statusVeiculoDesc || situacaoGeral,
       situacao_geral: situacaoGeral,
       tem_gravame_ativo: temGravameAtivo,
       qtd_gravames: qtdGravames,
       gravames: gravamesFormatados,
       // Retrocompatibilidade caso algum componente acesse dados.gravame diretamente
-      gravame: gravamesFormatados[0] || undefined
+      gravame: gravamesFormatados[0] || undefined,
+      veiculo: v,
+      _dadosCompletos: raw
     }) || null
   };
 }

@@ -79,6 +79,9 @@ export const consultarVeicularWeb = async (req: any, res: Response) => {
   try {
     // 2. Chamar o serviço com ordenação cronológica ascendente da mais antiga para a mais recente
     const result = await fetchbrasilService.consultarHistoricoProprietario(cleanPlaca);
+    if (!result || result.success === false || (result as any).error) {
+      throw new Error('Estamos em manutenção, tente mais tarde');
+    }
     const processingTimeMs = Date.now() - startTime;
 
     const totalRegistros = result.total !== undefined ? result.total : (result.historico ? result.historico.length : 0);
@@ -245,6 +248,9 @@ export const consultarVeicularApiV1 = async (req: any, res: Response) => {
   try {
     // 2. Chamar o serviço com ordenação cronológica ascendente da mais antiga para a mais recente
     const result = await fetchbrasilService.consultarHistoricoProprietario(cleanPlaca);
+    if (!result || result.success === false || (result as any).error) {
+      throw new Error('Estamos em manutenção, tente mais tarde');
+    }
     const responseTimeMs = Date.now() - startTime;
     const totalRegistros = result.total !== undefined ? result.total : (result.historico ? result.historico.length : 0);
     const hasData = totalRegistros > 0 && Array.isArray(result.historico) && result.historico.length > 0;
