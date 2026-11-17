@@ -1,42 +1,38 @@
-# ==============================================================================
-# Renacred - Script de Deploy Automático na VPS (PowerShell)
-# Execução: ./deploy-vps.ps1 ou npm run deploy:vps
-# ==============================================================================
+﻿# Script de Automação de Deploy VPS Renacred
+# Executa git push e aciona o script de build/restart na VPS via SSH
 
-$ErrorActionPreference = "Stop"
-
-Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host "       RENACRED - DISPARADOR DE DEPLOY NA VPS         " -ForegroundColor Cyan
-Write-Host "======================================================" -ForegroundColor Cyan
-
-$VPS_HOST = "209.50.245.165"
 $VPS_USER = "root"
+$VPS_HOST = "209.50.245.165"
 
-# 1. Verificar status do Git local
-Write-Host "`n[1/4] Verificando alterações locais no Git..." -ForegroundColor Yellow
+Write-Host "======================================================" -ForegroundColor Cyan
+Write-Host "      INICIANDO DEPLOY EM PRODUÇÃO - RENACRED VPS     " -ForegroundColor Cyan
+Write-Host "======================================================" -ForegroundColor Cyan
+
+# 1. Verificar se há alterações não comitadas
 $gitStatus = git status --porcelain
-
 if ($gitStatus) {
-    Write-Host "Detectadas alterações locais não comitadas:" -ForegroundColor DarkYellow
+    Write-Host "`n! Atenção: Você possui alterações locais pendentes de commit:" -ForegroundColor Yellow
     git status -s
-    $confirm = Read-Host "Deseja comitar e enviar tudo para o branch main agora? (S/n)"
+    $confirm = Read-Host "`nDeseja continuar o deploy apenas com o que já foi comitado? (s/n)"
     if ($confirm -ne 'n' -and $confirm -ne 'N') {
-        $msg = Read-Host "Mensagem do commit (pressione Enter para mensagem padrão)"
-        if (-not $msg) { $msg = "chore: atualizações antes do deploy na vps" }
-        git add .
-        git commit -m $msg
-        Write-Host "✓ Commit realizado com sucesso." -ForegroundColor Green
+        Write-Host "Prosseguindo com o commit atual..." -ForegroundColor Gray
+    } else {
+        Write-Host "Deploy cancelado pelo usuário." -ForegroundColor Red
+        exit 1
     }
 }
 
-# 2. Enviar alterações para o GitHub
-Write-Host "`n[2/4] Enviando código para o GitHub (origin main)..." -ForegroundColor Yellow
+# 2. Garantir push para a branch main
+Write-Host "`n[1/3] Enviando alterações para o repositório remoto (git push origin main)..." -ForegroundColor Yellow
 git push origin main
-Write-Host "✓ Código sincronizado com o GitHub." -ForegroundColor Green
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "✗ Falha ao enviar alterações para o Git." -ForegroundColor Red
+    exit 1
+}
+Write-Host "✓ Código sincronizado com sucesso no GitHub!" -ForegroundColor Green
 
-# 3. Disparar script de deploy na VPS via SSH
-Write-Host "`n[3/4] Conectando à VPS ($VPS_USER@$VPS_HOST) e executando deploy.sh..." -ForegroundColor Yellow
-
+# 3. Executar o script remoto na VPS
+Write-Host "`n[2/3] Conectando via SSH à VPS ($VPS_HOST) e executando deploy..." -ForegroundColor Yellow
 $remoteCommand = "chmod +x /opt/renacred/deploy.sh && /opt/renacred/deploy.sh"
 ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" $remoteCommand
 
@@ -46,7 +42,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # 4. Verificação Externa da API em Produção
-Write-Host "`n[4/4] Realizando validação externa de produção (https://api.renacred.com.br)..." -ForegroundColor Yellow
+Write-Host "`n[3/3] Realizando validação externa de produção (https://api.renacred.com.br)..." -ForegroundColor Yellow
 
 try {
     $health = Invoke-RestMethod -Uri "https://api.renacred.com.br/health" -Method Get -TimeoutSec 10
