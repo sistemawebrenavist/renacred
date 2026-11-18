@@ -17,7 +17,9 @@ import {
   Download,
   ChevronDown,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Car,
+  ShieldAlert
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -35,7 +37,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'API' | 'WEB'>('ALL');
-  const [billingTypeFilter, setBillingTypeFilter] = useState<'BILLED' | 'ALL' | 'FREE'>('BILLED');
+  const [billingTypeFilter, setBillingTypeFilter] = useState<'BILLED' | 'ALL' | 'FREE' | 'ERROR'>('BILLED');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [page, setPage] = useState<number>(1);
   const [limit] = useState<number>(50);
@@ -256,6 +258,8 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
         ? 'Relatório: Apenas Consultas Faturadas (Cobrança)'
         : billingTypeFilter === 'FREE'
         ? 'Relatório: Consultas Isentas / Custo Zero'
+        : billingTypeFilter === 'ERROR'
+        ? 'Relatório: Falhas Técnicas'
         : 'Relatório: Todas as Requisições (Bruto)';
 
       if (exportFormat === 'xlsx') {
@@ -485,6 +489,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
               <option value="BILLED">Apenas Faturadas</option>
               <option value="ALL">Todas (Incluir Custo Zero)</option>
               <option value="FREE">Apenas Isentas (R$ 0,00)</option>
+              <option value="ERROR">Apenas Falhas Técnicas</option>
             </select>
           </div>
 
@@ -581,7 +586,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
         {/* TOTAL DE CONSULTAS NO EXTRATO */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
           <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">
-            {billingTypeFilter === 'BILLED' ? 'CONSULTAS FATURADAS' : billingTypeFilter === 'FREE' ? 'CONSULTAS ISENTAS' : 'TOTAL DE REQUISIÇÕES'}
+            {billingTypeFilter === 'BILLED' ? 'CONSULTAS FATURADAS' : billingTypeFilter === 'FREE' ? 'CONSULTAS ISENTAS' : billingTypeFilter === 'ERROR' ? 'FALHAS TÉCNICAS' : 'TOTAL DE REQUISIÇÕES'}
           </span>
           <div className="text-2xl font-extrabold text-blue-700 font-mono mt-1">
             {kpis.totalQueries.toLocaleString('pt-BR')}
@@ -855,7 +860,7 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block uppercase">Status</span>
-                  <span className="font-bold text-emerald-700">{selectedLaudo.status}</span>
+                  <span className={`font-bold ${selectedLaudo.status === 'COMPLETED' ? 'text-emerald-700' : 'text-rose-700'}`}>{selectedLaudo.status}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block uppercase">Tempo Resp.</span>
@@ -867,133 +872,320 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
                 </div>
               </div>
 
-              {/* Renderização Inteligente de Multas / Veículo ou Declarações */}
-              {selectedLaudo.resultData?.multas && Array.isArray(selectedLaudo.resultData.multas) ? (
-                <div className="space-y-2">
-                  <h5 className="font-bold text-slate-800 text-xs">
-                    Infrações e Multas Encontradas ({selectedLaudo.resultData.multas.length})
-                  </h5>
-                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
-                    {selectedLaudo.resultData.multas.map((m: any, idx: number) => (
-                      <div key={idx} className="p-3 bg-white hover:bg-slate-50/80 text-[11px] space-y-1">
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-slate-900">{m.auto_infracao || `Infração #${idx + 1}`}</span>
-                          <span className="font-mono font-bold text-red-600">R$ {m.valor || '0,00'}</span>
-                        </div>
-                        <p className="text-slate-600 text-[10.5px]">{m.descricao_infracao || 'Sem descrição'}</p>
-                        <div className="flex gap-2 text-[10px] text-slate-400">
-                          <span>Órgão: {m.orgao_autuador || 'N/A'}</span>
-                          <span>• Data: {m.data_infracao || 'N/A'}</span>
-                          <span>• Gravidade: {m.gravidade || 'N/A'}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : selectedLaudo.resultData?.declaracoes && Array.isArray(selectedLaudo.resultData.declaracoes) ? (
-                <div className="space-y-2">
-                  <h5 className="font-bold text-slate-800 text-xs">
-                    Declarações Cartorárias / DOI ({selectedLaudo.resultData.declaracoes.length})
-                  </h5>
-                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
-                    {selectedLaudo.resultData.declaracoes.map((dec: any, idx: number) => (
-                      <div key={idx} className="p-3 bg-white text-[11px] space-y-1">
-                        <div className="flex justify-between font-bold text-slate-900">
-                          <span>{dec.natureza_operacao || 'Operação Imobiliária'}</span>
-                          <span className="text-blue-700 font-mono">R$ {dec.valor_alienacao || '0,00'}</span>
-                        </div>
-                        <p className="text-slate-600 text-[10.5px]">Cartório: {dec.serventia_nome || dec.cartorio || 'Serventia Notarial'}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : selectedLaudo.resultData?.renavam ? (
-                <div className="space-y-3">
-                  <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-blue-950 space-y-3">
-                    <div className="flex items-center space-x-2.5">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
-                        <Check className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h5 className="font-bold text-xs text-blue-900 uppercase tracking-wide">
-                          Dados de RENAVAM Localizados com Sucesso
-                        </h5>
-                        <p className="text-[11px] text-blue-700">
-                          Identificação veicular confirmada nas bases oficiais do SENATRAN / SERPRO.
-                        </p>
-                      </div>
-                    </div>
+              {/* Renderização Pericial Inteligente por Domínio */}
+              {(() => {
+                const resData = selectedLaudo.resultData || {};
+                const isFalhaTecnica = selectedLaudo.status === 'ERROR' || 
+                  resData.success === false || 
+                  Boolean(resData.error) || 
+                  (typeof resData.mensagem === 'string' && resData.mensagem.toLowerCase().includes('nao foi possivel')) ||
+                  (typeof resData.message === 'string' && resData.message.toLowerCase().includes('nao foi possivel'));
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-white p-3.5 rounded-xl border border-blue-100 text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Código RENAVAM</span>
-                        <span className="font-bold text-blue-800 font-mono text-sm">{selectedLaudo.resultData.renavam}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Placa</span>
-                        <span className="font-bold text-slate-900 font-mono text-sm">{selectedLaudo.resultData.plate || selectedLaudo.identifier}</span>
-                      </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Ano Fab / Modelo</span>
-                        <span className="font-bold text-slate-800">{selectedLaudo.resultData.yearManufacture || '-'} / {selectedLaudo.resultData.year || '-'}</span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Marca / Modelo</span>
-                        <span className="font-bold text-slate-900">{selectedLaudo.resultData.name || 'NÃO INFORMADO'}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Tipo / Espécie</span>
-                        <span className="font-bold text-slate-700">{selectedLaudo.resultData.type || 'AUTOMOVEL'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (selectedLaudo.totalDeclaracoes === 0 || selectedLaudo.resultData?.certidao_negativa || selectedLaudo.resultData?.status === 'REGISTRO_NAO_ENCONTRADO' || !selectedLaudo.resultData || Object.keys(selectedLaudo.resultData).length === 0) ? (
-                <div className="space-y-3">
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-950 space-y-3">
-                    <div className="flex items-center space-x-2.5">
-                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
-                        <ShieldCheck className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h5 className="font-bold text-xs text-emerald-900 uppercase tracking-wide">
-                          Certidão Negativa Oficial Emitida
-                        </h5>
-                        <p className="text-[11px] text-emerald-700">
-                          Processamento concluído com sucesso nas bases oficiais conveniadas.
-                        </p>
-                      </div>
-                    </div>
+                if (isFalhaTecnica) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-rose-950 space-y-3 shadow-2xs">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 shrink-0">
+                            <AlertCircle className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h5 className="font-bold text-xs text-rose-900 uppercase tracking-wide">
+                              Consulta Não Concluída / Falha Técnica Oficial
+                            </h5>
+                            <p className="text-[11px] text-rose-700">
+                              A base oficial governamental não retornou dados para este alvo. Nenhuma tarifa foi debitada.
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="bg-white/90 backdrop-blur-xs p-3.5 rounded-xl border border-emerald-100 space-y-2 text-[11px]">
-                      <p className="text-slate-700 leading-relaxed">
-                        A pesquisa foi realizada com sucesso nas bases governamentais e de trânsito. Atesta-se que <strong>não foram localizados registros ativos</strong> ou que a identificação <strong>{selectedLaudo.identifier}</strong> é inexistente no cadastro oficial.
-                      </p>
-                      <p className="text-slate-500 text-[10.5px] italic">
-                        {selectedLaudo.resultData?.mensagem || 'Não foi possível encontrar informações para esta placa/parâmetro nas bases oficiais de trânsito (SERPRO/DETRAN).'}
-                      </p>
-                    </div>
+                        <div className="bg-white/90 backdrop-blur-xs p-3.5 rounded-xl border border-rose-100 space-y-1.5 text-[11px]">
+                          <p className="text-slate-700 leading-relaxed font-semibold">
+                            Parecer Técnico do Provedor Oficial:
+                          </p>
+                          <p className="text-rose-900 font-mono text-xs bg-rose-100/60 p-2.5 rounded-lg border border-rose-200">
+                            {String(resData.message || resData.mensagem || resData.error || 'Não foi possível encontrar informações para esta placa/parâmetro nas bases de trânsito.')}
+                          </p>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-[10.5px] text-emerald-900 font-mono bg-emerald-100/60 p-2.5 rounded-xl">
-                      <div>
-                        <span className="text-emerald-700 block text-[9.5px] uppercase">Parâmetro Consultado:</span>
-                        <span className="font-bold">{selectedLaudo.identifier}</span>
-                      </div>
-                      <div>
-                        <span className="text-emerald-700 block text-[9.5px] uppercase">Resultado Pericial:</span>
-                        <span className="font-bold">0 registros (Nada Consta)</span>
+                        <div className="grid grid-cols-2 gap-2 text-[10.5px] text-rose-900 font-mono bg-rose-100/60 p-2.5 rounded-xl">
+                          <div>
+                            <span className="text-rose-700 block text-[9.5px] uppercase">Alvo Consultado:</span>
+                            <span className="font-bold">{selectedLaudo.identifier}</span>
+                          </div>
+                          <div>
+                            <span className="text-rose-700 block text-[9.5px] uppercase">Tarifação:</span>
+                            <span className="font-bold text-emerald-800">Isento / Não Tarifado (R$ 0,00)</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  );
+                }
+
+                // 1. Histórico de Proprietários Veiculares (E2)
+                if (Array.isArray(resData.historico) && resData.historico.length > 0) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Car className="w-4 h-4 text-blue-600" />
+                          <h5 className="font-bold text-slate-800 text-xs uppercase tracking-wide">
+                            Histórico Cronológico de Proprietários ({resData.historico.length})
+                          </h5>
+                        </div>
+                        {resData.renavam && (
+                          <span className="text-[10.5px] font-mono font-bold bg-blue-50 text-blue-900 border border-blue-200 px-2 py-0.5 rounded">
+                            RENAVAM: {resData.renavam}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                        {resData.historico.map((prop: any, idx: number) => {
+                          const isAtual = prop.atual || idx === 0 || prop.ordem === 1;
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-3.5 rounded-xl border text-xs space-y-1.5 transition ${
+                                isAtual ? 'bg-blue-50/70 border-blue-200 shadow-2xs' : 'bg-white border-slate-200'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                  {prop.nome || 'Proprietário Não Identificado'}
+                                  {isAtual && (
+                                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
+                                      Proprietário Atual
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="text-[11px] font-mono text-slate-500 font-semibold">
+                                  {prop.ordem ? `${prop.ordem}º Registro` : `#${idx + 1}`}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-slate-600 pt-1 border-t border-slate-100">
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">Documento:</span>
+                                  <span className="font-mono font-semibold text-slate-800">{prop.documento || '-'}</span>
+                                  {prop.tipo && <span className="text-[9.5px] text-slate-400 block">({prop.tipo})</span>}
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">Data Aquisição:</span>
+                                  <span className="font-mono font-semibold text-slate-800">
+                                    {prop.data || '-'}{prop.hora ? ` às ${prop.hora}` : ''}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">Município / UF:</span>
+                                  <span className="font-semibold text-slate-800">
+                                    {prop.municipio || '-'}{prop.uf ? ` - ${prop.uf}` : ''}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 2. Gravames SNG (E14)
+                if (Array.isArray(resData.gravames) && resData.gravames.length > 0) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <ShieldAlert className="w-4 h-4 text-emerald-600" />
+                          <h5 className="font-bold text-slate-800 text-xs uppercase tracking-wide">
+                            Gravames e Restrições Financeiras ({resData.gravames.length})
+                          </h5>
+                        </div>
+                        {resData.chassi && (
+                          <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
+                            Chassi: {resData.chassi}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                        {resData.gravames.map((g: any, idx: number) => (
+                          <div key={idx} className="p-3.5 bg-white border border-slate-200 rounded-xl text-xs space-y-2 shadow-2xs">
+                            <div className="flex justify-between items-center pb-1 border-b border-slate-100">
+                              <span className="font-bold text-slate-900">{g.nome_agente || 'Agente Financeiro'}</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                {g.status_veiculo_descricao || 'Gravame Registrado'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                              <div>
+                                <span className="text-slate-400 block text-[10px]">Financiado:</span>
+                                <span className="font-semibold text-slate-800">{g.nome_financiado || '-'}</span>
+                                {g.documento_financiado && <span className="font-mono text-[10px] block text-slate-500">{g.documento_financiado}</span>}
+                              </div>
+                              <div>
+                                <span className="text-slate-400 block text-[10px]">Contrato / Restrição:</span>
+                                <span className="font-mono font-semibold text-slate-800">{g.numero_contrato || g.numero_restricao || '-'}</span>
+                                {g.data_contrato_iso && <span className="font-mono text-[10px] block text-slate-500">Data: {g.data_contrato_iso}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 3. Infrações e Multas
+                if (Array.isArray(resData.multas) && resData.multas.length > 0) {
+                  return (
+                    <div className="space-y-2">
+                      <h5 className="font-bold text-slate-800 text-xs">
+                        Infrações e Multas Encontradas ({resData.multas.length})
+                      </h5>
+                      <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
+                        {resData.multas.map((m: any, idx: number) => (
+                          <div key={idx} className="p-3 bg-white hover:bg-slate-50/80 text-[11px] space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-slate-900">{m.auto_infracao || m.codigo || `Infração #${idx + 1}`}</span>
+                              {m.valor && <span className="font-mono font-bold text-red-600">R$ {m.valor}</span>}
+                            </div>
+                            <p className="text-slate-600 text-[10.5px]">{m.descricao_infracao || m.descricao || 'Sem descrição'}</p>
+                            <div className="flex gap-2 text-[10px] text-slate-400">
+                              {m.orgao_autuador && <span>Órgão: {m.orgao_autuador}</span>}
+                              {m.data_infracao && <span>• Data: {m.data_infracao}</span>}
+                              {m.quantidade && <span>• Quantidade: {m.quantidade}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 4. Declarações Cartorárias / DOI
+                if (Array.isArray(resData.declaracoes) && resData.declaracoes.length > 0) {
+                  return (
+                    <div className="space-y-2">
+                      <h5 className="font-bold text-slate-800 text-xs">
+                        Declarações Cartorárias / DOI ({resData.declaracoes.length})
+                      </h5>
+                      <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
+                        {resData.declaracoes.map((dec: any, idx: number) => (
+                          <div key={idx} className="p-3 bg-white text-[11px] space-y-1">
+                            <div className="flex justify-between font-bold text-slate-900">
+                              <span>{dec.natureza_operacao || 'Operação Imobiliária'}</span>
+                              <span className="text-blue-700 font-mono">R$ {dec.valor_alienacao || '0,00'}</span>
+                            </div>
+                            <p className="text-slate-600 text-[10.5px]">Cartório: {dec.serventia_nome || dec.cartorio || 'Serventia Notarial'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 5. Consulta E19 ou RENAVAM Puro
+                if ((selectedLaudo.productCode === 'E19' || !resData.historico) && resData.renavam) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-blue-950 space-y-3">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+                            <Check className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h5 className="font-bold text-xs text-blue-900 uppercase tracking-wide">
+                              Dados de RENAVAM Localizados com Sucesso
+                            </h5>
+                            <p className="text-[11px] text-blue-700">
+                              Identificação veicular confirmada nas bases oficiais do SENATRAN / SERPRO.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-white p-3.5 rounded-xl border border-blue-100 text-xs">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block uppercase font-mono">Código RENAVAM</span>
+                            <span className="font-bold text-blue-800 font-mono text-sm">{resData.renavam}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block uppercase font-mono">Placa</span>
+                            <span className="font-bold text-slate-900 font-mono text-sm">{resData.plate || selectedLaudo.identifier}</span>
+                          </div>
+                          <div className="col-span-2 sm:col-span-1">
+                            <span className="text-[10px] text-slate-400 block uppercase font-mono">Ano Fab / Modelo</span>
+                            <span className="font-bold text-slate-800">{resData.yearManufacture || '-'} / {resData.year || '-'}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-[10px] text-slate-400 block uppercase font-mono">Marca / Modelo</span>
+                            <span className="font-bold text-slate-900">{resData.name || 'NÃO INFORMADO'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block uppercase font-mono">Tipo / Espécie</span>
+                            <span className="font-bold text-slate-700">{resData.type || 'AUTOMOVEL'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 6. Certidão Negativa Oficial (Nada Consta)
+                if (selectedLaudo.totalDeclaracoes === 0 || resData.certidao_negativa || resData.status === 'REGISTRO_NAO_ENCONTRADO' || !selectedLaudo.resultData || Object.keys(selectedLaudo.resultData).length === 0) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-950 space-y-3">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+                            <ShieldCheck className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h5 className="font-bold text-xs text-emerald-900 uppercase tracking-wide">
+                              Certidão Negativa Oficial Emitida
+                            </h5>
+                            <p className="text-[11px] text-emerald-700">
+                              Processamento concluído com sucesso nas bases oficiais conveniadas.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="bg-white/90 backdrop-blur-xs p-3.5 rounded-xl border border-emerald-100 space-y-2 text-[11px]">
+                          <p className="text-slate-700 leading-relaxed">
+                            A pesquisa foi realizada com sucesso nas bases governamentais e de trânsito. Atesta-se que <strong>não foram localizados registros ativos</strong> ou que a identificação <strong>{selectedLaudo.identifier}</strong> é inexistente no cadastro oficial.
+                          </p>
+                          <p className="text-slate-500 text-[10.5px] italic">
+                            {resData.mensagem || 'Não foram localizados apontamentos ou pendências cadastrais para este parâmetro.'}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[10.5px] text-emerald-900 font-mono bg-emerald-100/60 p-2.5 rounded-xl">
+                          <div>
+                            <span className="text-emerald-700 block text-[9.5px] uppercase">Parâmetro Consultado:</span>
+                            <span className="font-bold">{selectedLaudo.identifier}</span>
+                          </div>
+                          <div>
+                            <span className="text-emerald-700 block text-[9.5px] uppercase">Resultado Pericial:</span>
+                            <span className="font-bold">0 registros (Nada Consta)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Fallback: visualização dos dados puros
+                return (
+                  <div className="space-y-2">
+                    <h5 className="font-bold text-slate-800 text-xs">Dados Retornados da Consulta:</h5>
+                    <pre className="bg-slate-900 text-emerald-400 p-3 rounded-xl text-[11px] font-mono overflow-x-auto max-h-60">
+                      {JSON.stringify(selectedLaudo.resultData, null, 2)}
+                    </pre>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <h5 className="font-bold text-slate-800 text-xs">Dados Retornados da Consulta:</h5>
-                  <pre className="bg-slate-900 text-emerald-400 p-3 rounded-xl text-[11px] font-mono overflow-x-auto max-h-60">
-                    {JSON.stringify(selectedLaudo.resultData, null, 2)}
-                  </pre>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">

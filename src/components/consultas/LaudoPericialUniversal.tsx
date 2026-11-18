@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProductDefinition } from '../../config/productsCatalog';
-import { Clock, User, MapPin, Building, Calendar, FileText, CheckCircle2, ShieldCheck, AlertCircle, Phone, Mail, Award, CreditCard, Briefcase, Users, Scale, ShieldAlert, Shield, CheckCircle, Car, Copy, AlertTriangle, Check, Layers } from 'lucide-react';
+import { Clock, User, MapPin, Building, Calendar, FileText, CheckCircle2, ShieldCheck, AlertCircle, Phone, Mail, Award, CreditCard, Briefcase, Users, Scale, ShieldAlert, Shield, CheckCircle, Car, Copy, AlertTriangle, Check, Layers, GraduationCap } from 'lucide-react';
 import { ProprietarioTimelineCard } from '../veicular/ProprietarioTimelineCard';
 import { processarHistoricoProprietarios } from '../../utils/veicularUtils';
 import { ExportPdfVeicularButton } from '../veicular/ExportPdfVeicularButton';
@@ -116,6 +116,23 @@ const formatDateBR = (val?: string | number | null): string => {
     return `${dia}/${mes}/${ano}`;
   }
   return trimmed;
+};
+
+// Utilitário de deserialização segura para itens que podem vir como string/JSON das APIs
+const safeParseItem = (item: any): any => {
+  if (!item) return {};
+  if (typeof item === 'string') {
+    const trimmed = item.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return { descricao: item };
+      }
+    }
+    return { descricao: item };
+  }
+  return item;
 };
 
 const CnhRawDataAccordion: React.FC<{ dados: any; title?: string }> = ({ dados, title = 'Auditoria Técnica Avançada (Dados Brutos das Bases Oficiais)' }) => {
@@ -4829,17 +4846,44 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
             <div>
               <span className="text-[11px] text-slate-400 font-medium block mb-1.5">Cursos Especializados Ativos:</span>
               {cursosEspeciais.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {cursosEspeciais.map((c: any, idx: number) => (
-                    <div key={idx} className="border border-blue-200 bg-blue-50/50 p-2.5 rounded-lg text-xs">
-                      <span className="font-bold text-blue-900 block">{c.nome} ({c.sigla})</span>
-                      <span className="text-slate-600 block text-[11px] mt-0.5">Classificação: {c.descricao}</span>
-                      {c.data && <span className="font-mono text-slate-500 text-[10px] block mt-0.5">Data: {formatDateBR(c.data)} {c.uf ? `(${c.uf})` : ''}</span>}
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {cursosEspeciais.map((rawC: any, idx: number) => {
+                    const c = safeParseItem(rawC);
+                    const cod = c.codigo || c.code || c.cod;
+                    const abrev = c.abreviacao || c.sigla || c.abbreviation;
+                    const desc = c.descricao || c.nome || c.description || (typeof rawC === 'string' && !rawC.trim().startsWith('{') ? rawC : 'Curso Especializado');
+                    const validade = c.dataValidade || c.validade || c.dataFim;
+                    const dataInicio = c.dataEmissao || c.dataInicio || c.data;
+                    const orgao = c.instituicao || c.entidade || c.orgao;
+
+                    return (
+                      <div key={idx} className="border border-blue-200 bg-blue-50/60 p-3 rounded-xl text-xs space-y-1.5 hover:bg-blue-50 transition shadow-2xs">
+                        <div className="flex items-center justify-between pb-1 border-b border-blue-200/60">
+                          <span className="font-mono text-xs font-bold text-blue-950 bg-blue-100 border border-blue-300 px-2 py-0.5 rounded">
+                            {abrev || (cod ? `Cód. ${cod}` : `Curso #${idx + 1}`)}
+                            {abrev && cod ? ` • Cód. ${cod}` : ''}
+                          </span>
+                          {validade && (
+                            <span className="text-[10px] font-semibold text-blue-800 bg-white px-2 py-0.5 rounded-full border border-blue-200">
+                              Val: {formatDateBR(validade)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-bold text-slate-900 text-xs leading-snug">
+                          {desc}
+                        </p>
+                        {(dataInicio || orgao || c.uf) && (
+                          <div className="text-[10.5px] text-slate-500 pt-0.5 space-y-0.5">
+                            {dataInicio && <div>Data: <strong className="text-slate-700 font-mono">{formatDateBR(dataInicio)}</strong>{c.uf ? ` (${c.uf})` : ''}</div>}
+                            {orgao && <div>Entidade: <strong className="text-slate-700">{orgao}</strong></div>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
-                <p className="text-xs text-slate-500 bg-slate-50 p-2.5 rounded border border-slate-200">
+                <p className="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                   Não constam registros de cursos especializados (MOPP, Coletivo, Emergência, Escolar, Carga Indivisível, etc.) ativos.
                 </p>
               )}
@@ -4957,38 +5001,38 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">Nome do Condutor:</span>
-                    <span className="font-bold text-slate-900 text-sm block mt-0.5">{String(dados.nome || '-')}</span>
+                    <span className="font-bold text-slate-900 text-sm block mt-0.5">{String(cond.nome || dados.nome || '-')}</span>
                   </div>
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">CPF:</span>
-                    <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatDocumento(String(dados.cpf || identifier || ''))}</span>
+                    <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatDocumento(String(cond.cpf || dados.cpf || identifier || ''))}</span>
                   </div>
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">Nº de Registro da CNH:</span>
-                    <span className="font-mono font-bold text-slate-900 block mt-0.5">{String(dados.numeroRegistro || '-')}</span>
+                    <span className="font-mono font-bold text-slate-900 block mt-0.5">{String(cond.numeroRegistro || dados.numeroRegistro || '-')}</span>
                   </div>
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">Formulário CNH:</span>
-                    <span className="font-mono font-semibold text-slate-800 block mt-0.5">{String(dados.formCnh || '-')}</span>
+                    <span className="font-mono font-semibold text-slate-800 block mt-0.5">{String(cond.formCnh || dados.formCnh || '-')}</span>
                   </div>
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">Categoria:</span>
                     <span className="font-mono font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded inline-block mt-0.5">
-                      {String(dados.categoria || '-')}
+                      {String(cond.categoria || dados.categoria || '-')}
                     </span>
                   </div>
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">UF de Registro:</span>
-                    <span className="font-mono font-bold text-slate-800 block mt-0.5">{String(dados.uf || '-')}</span>
+                    <span className="font-mono font-bold text-slate-800 block mt-0.5">{String(cond.uf || dados.uf || '-')}</span>
                   </div>
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">Data de Emissão:</span>
-                    <span className="font-mono text-slate-800 block mt-0.5">{formatDateBR(dados.dataEmissao)}</span>
+                    <span className="font-mono text-slate-800 block mt-0.5">{formatDateBR(cond.dataEmissao || dados.dataEmissao)}</span>
                   </div>
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">Data de Validade:</span>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="font-mono font-bold text-slate-900">{formatDateBR(dados.dataValidade)}</span>
+                      <span className="font-mono font-bold text-slate-900">{formatDateBR(cond.dataValidade || dados.dataValidade)}</span>
                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border ${isVencida ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
                         {isVencida ? 'Vencida' : 'Regular'}
                       </span>
@@ -4996,14 +5040,14 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
                   </div>
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">Filiação Materna:</span>
-                    <span className="text-slate-800 font-medium block mt-0.5">{String(dados.nomeMae || '-')}</span>
+                    <span className="text-slate-800 font-medium block mt-0.5">{String(cond.nomeMae || dados.nomeMae || '-')}</span>
                   </div>
                 </div>
 
-                {dados.observacoes && (
+                {(cond.observacoes || dados.observacoes) && (
                   <div className="pt-2 text-xs">
                     <span className="text-[11px] text-slate-400 font-medium block">Observações do Condutor:</span>
-                    <p className="text-slate-700 bg-slate-50 p-2 rounded border border-slate-200 mt-1">{String(dados.observacoes)}</p>
+                    <p className="text-slate-700 bg-slate-50 p-2 rounded border border-slate-200 mt-1">{String(cond.observacoes || dados.observacoes)}</p>
                   </div>
                 )}
               </div>
@@ -5067,15 +5111,90 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
               </div>
             </div>
 
-            {multas.length > 0 && (
+            {bloqueios.length > 0 && (
               <div className="pt-2 text-xs">
-                <span className="text-[11px] text-slate-400 font-medium block mb-1">Infrações / Multas Registradas:</span>
-                <div className="space-y-1">
-                  {multas.map((m: any, idx: number) => (
-                    <div key={idx} className="bg-amber-50 border border-amber-200 p-2 rounded text-xs text-amber-900">
-                      {typeof m === 'string' ? m : JSON.stringify(m)}
-                    </div>
-                  ))}
+                <span className="text-[11px] text-slate-400 font-medium block mb-1">Detalhamento dos Bloqueios & Restrições:</span>
+                <div className="space-y-1.5">
+                  {bloqueios.map((rawB: any, idx: number) => {
+                    const b = safeParseItem(rawB);
+                    const desc = b.descricao || b.tipo || b.motivo || (typeof rawB === 'string' && !rawB.trim().startsWith('{') ? rawB : 'Bloqueio Registrado');
+                    const orgao = b.orgao || b.orgaoJudicial || b.uf;
+                    const data = b.data || b.dataBloqueio;
+
+                    return (
+                      <div key={idx} className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-xs text-rose-950 flex items-start gap-2 shadow-2xs">
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                        <div className="flex-1 space-y-0.5">
+                          <span className="font-bold block">{desc}</span>
+                          {(orgao || data) && (
+                            <div className="flex gap-3 text-[10.5px] text-rose-700 font-mono">
+                              {orgao && <span>Origem: {orgao}</span>}
+                              {data && <span>Data: {formatDateBR(data)}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {multas.length > 0 && (
+              <div className="pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                      Infrações / Multas Registradas ({multas.length})
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                    Apontamentos de Trânsito
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {multas.map((rawM: any, idx: number) => {
+                    const m = safeParseItem(rawM);
+                    const cod = m.codigo || m.code || m.infracao || m.cod;
+                    const desc = m.descricao || m.description || m.nome || (typeof rawM === 'string' && !rawM.trim().startsWith('{') ? rawM : 'Infração de Trânsito');
+                    const qtd = m.quantidade || m.qtd || m.count || 1;
+                    const dataInf = m.data || m.dataInfracao || m.data_infracao;
+                    const orgao = m.orgao || m.orgaoAutuador || m.orgao_autuador;
+                    const valor = m.valor || m.valorInfracao || m.valor_infracao;
+
+                    return (
+                      <div key={idx} className="bg-amber-50/70 border border-amber-200/90 rounded-xl p-3 text-xs space-y-1.5 hover:bg-amber-50 transition shadow-2xs">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1 border-b border-amber-200/50">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-amber-200/70 text-amber-950 border border-amber-300">
+                              {cod ? `Cód. CTB: ${cod}` : `Infração #${idx + 1}`}
+                            </span>
+                            {orgao && (
+                              <span className="text-[10px] text-amber-800 font-medium">
+                                Órgão: {orgao}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-bold text-[10.5px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                            <span>{qtd}x</span> {Number(qtd) > 1 ? 'autuações' : 'autuação'}
+                          </span>
+                        </div>
+
+                        <p className="text-slate-900 font-semibold text-xs leading-relaxed">
+                          {desc}
+                        </p>
+
+                        {(dataInf || valor) && (
+                          <div className="flex items-center gap-3 text-[10.5px] text-slate-500 pt-0.5">
+                            {dataInf && <span>Data: <strong className="text-slate-700 font-mono">{formatDateBR(dataInf)}</strong></span>}
+                            {valor && <span>Valor: <strong className="text-rose-700 font-mono">R$ {valor}</strong></span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -5083,22 +5202,63 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
           {/* Bloco 4: Cursos Especializados */}
           <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
-            <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
-              <Building className="w-4 h-4 text-emerald-600" />
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Cursos Especializados de Trânsito
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <GraduationCap className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Cursos Especializados de Trânsito
+                </span>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${cursosEspeciais.length > 0 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                {cursosEspeciais.length > 0 ? `${cursosEspeciais.length} Curso(s) Registrado(s)` : 'Sem Cursos Registrados'}
               </span>
             </div>
-            <p className="text-xs text-slate-600">
-              {cursosEspeciaisMsg}
-            </p>
-            {cursosEspeciais.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
-                {cursosEspeciais.map((c: any, idx: number) => (
-                  <div key={idx} className="bg-emerald-50 border border-emerald-200 p-2 rounded text-xs text-emerald-900">
-                    {typeof c === 'string' ? c : JSON.stringify(c)}
-                  </div>
-                ))}
+
+            {cursosEspeciais.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+                {cursosEspeciais.map((rawC: any, idx: number) => {
+                  const c = safeParseItem(rawC);
+                  const cod = c.codigo || c.code || c.cod;
+                  const abrev = c.abreviacao || c.sigla || c.abbreviation;
+                  const desc = c.descricao || c.nome || c.description || (typeof rawC === 'string' && !rawC.trim().startsWith('{') ? rawC : 'Curso Especializado');
+                  const validade = c.dataValidade || c.validade || c.dataFim;
+                  const dataInicio = c.dataEmissao || c.dataInicio || c.data;
+                  const orgao = c.instituicao || c.entidade || c.orgao;
+
+                  return (
+                    <div key={idx} className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-2 hover:bg-emerald-50 transition shadow-2xs">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-emerald-200/60">
+                        <span className="font-mono text-xs font-bold text-emerald-950 bg-emerald-200/70 border border-emerald-300 px-2 py-0.5 rounded">
+                          {abrev ? `${abrev}` : (cod ? `Cód. ${cod}` : `Curso #${idx + 1}`)}
+                          {abrev && cod ? ` • Cód. ${cod}` : ''}
+                        </span>
+                        {validade && (
+                          <span className="text-[10px] font-semibold text-emerald-800 bg-white px-2 py-0.5 rounded-full border border-emerald-200">
+                            Val: {formatDateBR(validade)}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="font-bold text-slate-900 text-xs leading-snug">
+                        {desc}
+                      </p>
+
+                      {(dataInicio || orgao) && (
+                        <div className="text-[10.5px] text-slate-500 pt-1 space-y-0.5">
+                          {dataInicio && <div>Emissão: <strong className="text-slate-700 font-mono">{formatDateBR(dataInicio)}</strong></div>}
+                          {orgao && <div>Entidade: <strong className="text-slate-700">{orgao}</strong></div>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-600 flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="leading-relaxed">
+                  {cursosEspeciaisMsg || 'O condutor não possui registro de informações sobre a realização de cursos especializados.'}
+                </span>
               </div>
             )}
           </div>

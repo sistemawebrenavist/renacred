@@ -1,4 +1,4 @@
-﻿# Script de Automação de Deploy VPS Renacred
+# Script de Automação de Deploy VPS Renacred
 # Executa git push e aciona o script de build/restart na VPS via SSH
 
 $VPS_USER = "root"

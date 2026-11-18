@@ -402,15 +402,18 @@ export const getConsumptionStatement = async (req: any, res: Response) => {
       companyId: targetCompanyId,
     };
 
-    // Por padrão (BILLED), exibe consultas faturadas (custo > 0) e falhas técnicas (status ERROR) para auditoria completa
+    // Filtro de Faturamento:
+    // BILLED: estritamente consultas faturadas (custo > 0 e status COMPLETED)
+    // FREE: consultas isentas com custo R$ 0,00 (status COMPLETED)
+    // ERROR: consultas que resultaram em falha técnica (status ERROR, custo 0)
     if (billingType === 'BILLED') {
-      where.OR = [
-        { cost: { gt: 0 } },
-        { status: 'ERROR' }
-      ];
+      where.cost = { gt: 0 };
+      where.status = 'COMPLETED';
     } else if (billingType === 'FREE') {
       where.cost = 0;
-      where.status = { not: 'ERROR' };
+      where.status = 'COMPLETED';
+    } else if (billingType === 'ERROR') {
+      where.status = 'ERROR';
     }
 
     if (status) {
@@ -649,15 +652,18 @@ export const exportConsumptionStatement = async (req: any, res: Response) => {
       companyId: targetCompanyId,
     };
 
-    // Por padrão (BILLED), exporta consultas faturadas (custo > 0) e falhas técnicas (status ERROR) para auditoria completa
+    // Filtro de Faturamento:
+    // BILLED: estritamente consultas faturadas (custo > 0 e status COMPLETED)
+    // FREE: consultas isentas com custo R$ 0,00 (status COMPLETED)
+    // ERROR: consultas que resultaram em falha técnica (status ERROR, custo 0)
     if (billingType === 'BILLED') {
-      where.OR = [
-        { cost: { gt: 0 } },
-        { status: 'ERROR' }
-      ];
+      where.cost = { gt: 0 };
+      where.status = 'COMPLETED';
     } else if (billingType === 'FREE') {
       where.cost = 0;
-      where.status = { not: 'ERROR' };
+      where.status = 'COMPLETED';
+    } else if (billingType === 'ERROR') {
+      where.status = 'ERROR';
     }
 
     if (status) {
