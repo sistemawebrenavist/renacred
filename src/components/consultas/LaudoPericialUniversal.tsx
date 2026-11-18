@@ -5083,122 +5083,154 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
           </div>
 
           {/* Bloco 3: Situação Administrativa, Retenções e Ocorrências */}
-          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center space-x-2">
-                <ShieldAlert className="w-4 h-4 text-emerald-600" />
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Situação Administrativa, Retenções & Bloqueios
-                </span>
-              </div>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${temRetencao || bloqueios.length > 0 ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
-                {temRetencao || bloqueios.length > 0 ? 'Consta Restrição' : 'Livre de Retenções'}
-              </span>
-            </div>
+          {(() => {
+            const temBloqueioOuRetencao = temRetencao || bloqueios.length > 0;
+            const temInfracoes = multas.length > 0;
+            const totalAutuacoes = multas.reduce((acc: number, mItem: any) => {
+              const p = safeParseItem(mItem);
+              return acc + (Number(p.quantidade || p.qtd || 1) || 1);
+            }, 0);
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                <span className="text-[11px] text-slate-400 font-medium block">Retenção Administrativa:</span>
-                <span className={`font-bold block mt-0.5 ${temRetencao ? 'text-rose-700' : 'text-emerald-700'}`}>
-                  {temRetencao ? 'Consta Retenção Administrativa Ativa' : 'Não consta retenção administrativa'}
-                </span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                <span className="text-[11px] text-slate-400 font-medium block">Bloqueios & Restrições:</span>
-                <span className="font-semibold text-slate-800 block mt-0.5">
-                  {bloqueios.length > 0 ? `${bloqueios.length} bloqueio(s) registrado(s)` : 'Nenhum bloqueio cadastrado'}
-                </span>
-              </div>
-            </div>
-
-            {bloqueios.length > 0 && (
-              <div className="pt-2 text-xs">
-                <span className="text-[11px] text-slate-400 font-medium block mb-1">Detalhamento dos Bloqueios & Restrições:</span>
-                <div className="space-y-1.5">
-                  {bloqueios.map((rawB: any, idx: number) => {
-                    const b = safeParseItem(rawB);
-                    const desc = b.descricao || b.tipo || b.motivo || (typeof rawB === 'string' && !rawB.trim().startsWith('{') ? rawB : 'Bloqueio Registrado');
-                    const orgao = b.orgao || b.orgaoJudicial || b.uf;
-                    const data = b.data || b.dataBloqueio;
-
-                    return (
-                      <div key={idx} className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-xs text-rose-950 flex items-start gap-2 shadow-2xs">
-                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                        <div className="flex-1 space-y-0.5">
-                          <span className="font-bold block">{desc}</span>
-                          {(orgao || data) && (
-                            <div className="flex gap-3 text-[10.5px] text-rose-700 font-mono">
-                              {orgao && <span>Origem: {orgao}</span>}
-                              {data && <span>Data: {formatDateBR(data)}</span>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {multas.length > 0 && (
-              <div className="pt-3 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-1.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-600" />
-                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                      Infrações / Multas Registradas ({multas.length})
+            return (
+              <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center space-x-2">
+                    {temBloqueioOuRetencao ? (
+                      <ShieldAlert className="w-4 h-4 text-rose-600" />
+                    ) : temInfracoes ? (
+                      <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    ) : (
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    )}
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Situação Administrativa, Retenções & Bloqueios
                     </span>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
-                    Apontamentos de Trânsito
+                  <span
+                    className={`px-2.5 py-0.5 rounded text-[10px] font-bold border ${
+                      temBloqueioOuRetencao
+                        ? 'bg-rose-50 text-rose-800 border-rose-200'
+                        : temInfracoes
+                        ? 'bg-amber-50 text-amber-900 border-amber-300'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    }`}
+                  >
+                    {temBloqueioOuRetencao
+                      ? 'Consta Bloqueio / Retenção'
+                      : temInfracoes
+                      ? `Constam ${multas.length} Infração(ões) (${totalAutuacoes}x)`
+                      : 'Livre de Retenções'}
                   </span>
                 </div>
 
-                <div className="space-y-2">
-                  {multas.map((rawM: any, idx: number) => {
-                    const m = safeParseItem(rawM);
-                    const cod = m.codigo || m.code || m.infracao || m.cod;
-                    const desc = m.descricao || m.description || m.nome || (typeof rawM === 'string' && !rawM.trim().startsWith('{') ? rawM : 'Infração de Trânsito');
-                    const qtd = m.quantidade || m.qtd || m.count || 1;
-                    const dataInf = m.data || m.dataInfracao || m.data_infracao;
-                    const orgao = m.orgao || m.orgaoAutuador || m.orgao_autuador;
-                    const valor = m.valor || m.valorInfracao || m.valor_infracao;
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <span className="text-[11px] text-slate-400 font-medium block">Retenção Administrativa:</span>
+                    <span className={`font-bold block mt-0.5 ${temRetencao ? 'text-rose-700' : 'text-emerald-700'}`}>
+                      {temRetencao ? 'Consta Retenção Administrativa Ativa' : 'Não consta retenção administrativa'}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <span className="text-[11px] text-slate-400 font-medium block">Bloqueios & Restrições:</span>
+                    <span className="font-semibold text-slate-800 block mt-0.5">
+                      {bloqueios.length > 0 ? `${bloqueios.length} bloqueio(s) registrado(s)` : 'Nenhum bloqueio cadastrado'}
+                    </span>
+                  </div>
+                </div>
 
-                    return (
-                      <div key={idx} className="bg-amber-50/70 border border-amber-200/90 rounded-xl p-3 text-xs space-y-1.5 hover:bg-amber-50 transition shadow-2xs">
-                        <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1 border-b border-amber-200/50">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-amber-200/70 text-amber-950 border border-amber-300">
-                              {cod ? `Cód. CTB: ${cod}` : `Infração #${idx + 1}`}
-                            </span>
-                            {orgao && (
-                              <span className="text-[10px] text-amber-800 font-medium">
-                                Órgão: {orgao}
+                {bloqueios.length > 0 && (
+                  <div className="pt-2 text-xs">
+                    <span className="text-[11px] text-slate-400 font-medium block mb-1">Detalhamento dos Bloqueios & Restrições:</span>
+                    <div className="space-y-1.5">
+                      {bloqueios.map((rawB: any, idx: number) => {
+                        const b = safeParseItem(rawB);
+                        const desc = b.descricao || b.tipo || b.motivo || (typeof rawB === 'string' && !rawB.trim().startsWith('{') ? rawB : 'Bloqueio Registrado');
+                        const orgao = b.orgao || b.orgaoJudicial || b.uf;
+                        const data = b.data || b.dataBloqueio;
+
+                        return (
+                          <div key={idx} className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-xs text-rose-950 flex items-start gap-2 shadow-2xs">
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 space-y-0.5">
+                              <span className="font-bold block">{desc}</span>
+                              {(orgao || data) && (
+                                <div className="flex gap-3 text-[10.5px] text-rose-700 font-mono">
+                                  {orgao && <span>Origem: {orgao}</span>}
+                                  {data && <span>Data: {formatDateBR(data)}</span>}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {multas.length > 0 && (
+                  <div className="pt-3 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-amber-200/60">
+                      <div className="flex items-center space-x-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                          Infrações e Multas Registradas ({multas.length} tipos • {totalAutuacoes} autuações no total)
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                        {totalAutuacoes} autuação(ões)
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {multas.map((rawM: any, idx: number) => {
+                        const m = safeParseItem(rawM);
+                        const cod = m.codigo || m.code || m.infracao || m.cod;
+                        const desc = m.descricao || m.description || m.nome || (typeof rawM === 'string' && !rawM.trim().startsWith('{') ? rawM : 'Infração de Trânsito');
+                        const qtd = m.quantidade || m.qtd || m.count || 1;
+                        const dataInf = m.data || m.dataInfracao || m.data_infracao;
+                        const orgao = m.orgao || m.orgaoAutuador || m.orgao_autuador;
+                        const valor = m.valor || m.valorInfracao || m.valor_infracao;
+
+                        return (
+                          <div
+                            key={idx}
+                            className="bg-gradient-to-r from-amber-50/80 to-white border border-amber-200/90 rounded-xl p-3.5 text-xs space-y-2 hover:border-amber-300 transition-all shadow-2xs"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-amber-200/50">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-extrabold px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-950 border border-amber-300/80 shadow-2xs">
+                                  {cod ? `CTB ${cod}` : `Infração #${idx + 1}`}
+                                </span>
+                                {orgao && (
+                                  <span className="text-[11px] text-slate-600 font-medium">
+                                    Órgão: <strong className="text-slate-800">{orgao}</strong>
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-amber-200/70 text-amber-950 border border-amber-300 flex items-center gap-1 shadow-2xs">
+                                <span>{qtd}x</span> {Number(qtd) > 1 ? 'autuações cadastradas' : 'autuação cadastrada'}
                               </span>
+                            </div>
+
+                            <p className="text-slate-900 font-bold text-xs leading-relaxed">
+                              {desc}
+                            </p>
+
+                            {(dataInf || valor) && (
+                              <div className="flex items-center gap-4 text-[11px] text-slate-500 pt-1 border-t border-amber-100 font-mono">
+                                {dataInf && <span>Data Infração: <strong className="text-slate-800">{formatDateBR(dataInf)}</strong></span>}
+                                {valor && <span>Valor Estimado: <strong className="text-rose-700">R$ {valor}</strong></span>}
+                              </div>
                             )}
                           </div>
-                          <span className="font-bold text-[10.5px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
-                            <span>{qtd}x</span> {Number(qtd) > 1 ? 'autuações' : 'autuação'}
-                          </span>
-                        </div>
-
-                        <p className="text-slate-900 font-semibold text-xs leading-relaxed">
-                          {desc}
-                        </p>
-
-                        {(dataInf || valor) && (
-                          <div className="flex items-center gap-3 text-[10.5px] text-slate-500 pt-0.5">
-                            {dataInf && <span>Data: <strong className="text-slate-700 font-mono">{formatDateBR(dataInf)}</strong></span>}
-                            {valor && <span>Valor: <strong className="text-rose-700 font-mono">R$ {valor}</strong></span>}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Bloco 4: Cursos Especializados */}
           <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
