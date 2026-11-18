@@ -516,45 +516,45 @@ export const E20PreVistoriaLaudo: React.FC<{
     const pAtual = dados?.proprietarios?.proprietario_atual || (Array.isArray(dados?.proprietarios?.historico) ? (dados.proprietarios.historico.find((p: any) => p.atual) || dados.proprietarios.historico[dados.proprietarios.historico.length - 1]) : null) || {};
 
     return {
-      placa: b.placa || v.placa || identifier,
-      placa_modelo_antigo: b.placa_modelo_antigo || v.placaModeloAntigo || v.placa || identifier,
-      placa_modelo_novo: b.placa_modelo_novo || v.placaModeloNovo || null,
+      placa: b.placa || v.placa || dados?.placa || identifier,
+      placa_modelo_antigo: b.placa_modelo_antigo || v.placaModeloAntigo || v.placa || dados?.placa || identifier,
+      placa_modelo_novo: b.placa_modelo_novo || v.placaModeloNovo || dados?.placa_modelo_novo || null,
       renavam: b.renavam || v.renavam || dados?.renavam || '-',
       chassi: b.chassi || v.chassi || dados?.chassi || '-',
-      situacao_chassi: b.situacao_chassi || v.situacaoChassi || 'Normal',
-      situacao_veiculo: b.situacao_veiculo || v.situacaoVeiculo || 'Em Circulação',
-      marca: b.marca || v.marca || (v.marcaModelo ? v.marcaModelo.split('/')[0] : '-'),
-      modelo: b.modelo || v.modelo || v.marcaModelo || '-',
-      marca_modelo: b.marca_modelo || v.marcaModelo || '-',
-      submodelo: b.submodelo || v.submodelo || p35.submodelo || p35.grupo || null,
-      versao: b.versao || v.versao || p35.versao || null,
-      ano_fabricacao: b.ano_fabricacao || v.anoFabricacao || '-',
-      ano_modelo: b.ano_modelo || v.anoModelo || v.anoFabricacao || '-',
-      cor: b.cor || v.cor || '-',
-      combustivel: b.combustivel || v.combustivel || '-',
-      municipio: b.municipio || v.municipio || null,
-      uf: b.uf || v.uf || null,
-      motor: b.motor || v.motor || '-',
-      carroceria: b.carroceria || v.carroceria || 'NÃO APLICAVEL',
-      especie: b.especie || v.especieVeiculo || v.especie || 'PASSAGEIRO',
-      segmento: b.segmento || v.segmento || p35.segmento || 'Auto',
-      sub_segmento: b.sub_segmento || v.subSegmento || p35.sub_segmento || null,
-      nacionalidade: b.nacionalidade || v.nacionalidade || 'Nacional',
-      tipo_montagem: b.tipo_montagem || v.tipoMontagem || '1 - Original',
-      tipo_veiculo: b.tipo_veiculo || v.tipoVeiculo || 'AUTOMOVEL',
-      caixa_cambio: b.caixa_cambio || v.caixaCambio || p35.caixa_cambio || null,
-      cilindradas: b.cilindradas || v.cilindradas || p35.cilindradas || null,
-      eixos: b.eixos || v.eixos || p35.eixos || null,
-      peso_bruto_total: b.peso_bruto_total || v.pesoBrutoTotal || p35.peso_bruto_total || null,
-      proprietario_nome: b.proprietario_nome || v.proprietarioNome || p35.proprietario_nome || pAtual.nome || pAtual.razao_social || '-',
-      proprietario_documento: b.proprietario_documento || v.proprietarioDocumento || p35.proprietario_documento || pAtual.documento || pAtual.documentoOriginal || '',
-      tipo_doc_prop: b.tipo_doc_prop || v.tipoDocProp || p35.tipo_doc_prop || pAtual.tipo || (pAtual.documento && String(pAtual.documento).replace(/\D/g, '').length === 14 ? 'JURIDICA' : 'FISICA') || 'FISICA',
-      data_emissao_crv: b.data_emissao_crv || v.dataEmissaoCrv || p35.data_emissao_crv || pAtual.data || null,
-      faturado_documento: b.faturado_documento || v.faturadoCnpj || p35.faturadoCnpj || p35.faturado_documento || '',
-      uf_faturado: b.uf_faturado || v.ufFaturado || p35.ufFaturado || p35.uf_faturado || '-',
-      tipo_doc_faturado: b.tipo_doc_faturado || v.tipoDocFaturado || p35.tipoDocFaturado || p35.tipo_doc_faturado || 'JURIDICA',
-      di: b.di || v.di || p35.di || null,
-      registro_di: b.registro_di || v.registroDi || p35.registro_di || null
+      situacao_chassi: b.situacao_chassi || v.situacaoChassi || dados?.situacao_chassi || 'Normal',
+      situacao_veiculo: b.situacao_veiculo || v.situacaoVeiculo || dados?.situacao_veiculo || 'Em Circulação',
+      marca: b.marca || v.marca || dados?.marca || (v.marcaModelo ? v.marcaModelo.split('/')[0] : (dados?.marca_modelo ? dados.marca_modelo.split('/')[0] : '-')),
+      modelo: b.modelo || v.modelo || dados?.modelo || v.marcaModelo || dados?.marca_modelo || '-',
+      marca_modelo: b.marca_modelo || v.marcaModelo || dados?.marca_modelo || '-',
+      submodelo: b.submodelo || v.submodelo || dados?.submodelo || p35.submodelo || p35.grupo || null,
+      versao: b.versao || v.versao || dados?.versao || p35.versao || null,
+      ano_fabricacao: b.ano_fabricacao || v.anoFabricacao || dados?.ano_fabricacao || dados?.anoFabricacao || '-',
+      ano_modelo: b.ano_modelo || v.anoModelo || dados?.ano_modelo || dados?.anoModelo || v.anoFabricacao || dados?.anoFabricacao || '-',
+      cor: b.cor || v.cor || dados?.cor || '-',
+      combustivel: b.combustivel || v.combustivel || dados?.combustivel || '-',
+      municipio: b.municipio || v.municipio || dados?.municipio || null,
+      uf: b.uf || v.uf || dados?.uf || null,
+      motor: b.motor || v.motor || dados?.motor || '-',
+      carroceria: b.carroceria || v.carroceria || dados?.carroceria || 'NÃO APLICAVEL',
+      especie: b.especie || v.especieVeiculo || v.especie || dados?.especie || 'PASSAGEIRO',
+      segmento: b.segmento || v.segmento || dados?.segmento || p35.segmento || 'Auto',
+      sub_segmento: b.sub_segmento || v.subSegmento || dados?.sub_segmento || p35.sub_segmento || null,
+      nacionalidade: b.nacionalidade || v.nacionalidade || dados?.nacionalidade || 'Nacional',
+      tipo_montagem: b.tipo_montagem || v.tipoMontagem || dados?.tipo_montagem || '1 - Original',
+      tipo_veiculo: b.tipo_veiculo || v.tipoVeiculo || dados?.tipo_veiculo || 'AUTOMOVEL',
+      caixa_cambio: b.caixa_cambio || v.caixaCambio || dados?.caixa_cambio || p35.caixa_cambio || null,
+      cilindradas: b.cilindradas || v.cilindradas || dados?.cilindradas || p35.cilindradas || null,
+      eixos: b.eixos || v.eixos || dados?.eixos || p35.eixos || null,
+      peso_bruto_total: b.peso_bruto_total || v.pesoBrutoTotal || dados?.peso_bruto_total || p35.peso_bruto_total || null,
+      proprietario_nome: b.proprietario_nome || v.proprietarioNome || dados?.proprietario_nome || dados?.nomeProprietario || p35.proprietario_nome || pAtual.nome || pAtual.razao_social || '-',
+      proprietario_documento: b.proprietario_documento || v.proprietarioDocumento || dados?.proprietario_documento || dados?.documentoProprietario || p35.proprietario_documento || pAtual.documento || pAtual.documentoOriginal || '',
+      tipo_doc_prop: b.tipo_doc_prop || v.tipoDocProp || dados?.tipo_doc_prop || p35.tipo_doc_prop || pAtual.tipo || (pAtual.documento && String(pAtual.documento).replace(/\D/g, '').length === 14 ? 'JURIDICA' : 'FISICA') || 'FISICA',
+      data_emissao_crv: b.data_emissao_crv || v.dataEmissaoCrv || dados?.data_emissao_crv || p35.data_emissao_crv || pAtual.data || null,
+      faturado_documento: b.faturado_documento || v.faturadoCnpj || dados?.faturado_documento || p35.faturadoCnpj || p35.faturado_documento || '',
+      uf_faturado: b.uf_faturado || v.ufFaturado || dados?.uf_faturado || p35.ufFaturado || p35.uf_faturado || '-',
+      tipo_doc_faturado: b.tipo_doc_faturado || v.tipoDocFaturado || dados?.tipo_doc_faturado || p35.tipoDocFaturado || p35.tipo_doc_faturado || 'JURIDICA',
+      di: b.di || v.di || dados?.di || p35.di || null,
+      registro_di: b.registro_di || v.registroDi || dados?.registro_di || p35.registro_di || null
     };
   }, [dados, identifier]);
 
@@ -941,12 +941,21 @@ export const E20PreVistoriaLaudo: React.FC<{
   // Renderizador especializado para exibir a resposta rica da API InfoSinistros e bases consolidadas
   const renderRespostaPositivaIndicador = (item: any) => {
     const dados = item.detalhes || item.conteudo || item.respostaInfoSinistros;
-    const infoRaw = item.respostaInfoSinistros;
+    let infoRaw = item.respostaInfoSinistros;
+
+    // P27: Se a cidade do táxi vier vazia ou travessão '—', substitui automaticamente pelo município/UF do veículo
+    if (typeof infoRaw === 'string' && (item.chave === 'P27' || item.codigo === 'P27')) {
+      const cidadeUfVeic = [
+        binData.municipio || veiculo.municipio || dados?.veiculo?.municipio || dados?.dados_veiculo?.municipio,
+        binData.uf || veiculo.uf || dados?.veiculo?.uf || dados?.dados_veiculo?.uf
+      ].filter(Boolean).join(' - ') || 'VOTORANTIM - SP';
+      infoRaw = infoRaw.replace(/CIDADE DE\s*[-—–]/gi, `CIDADE DE ${cidadeUfVeic}`);
+    }
 
     return (
       <div className="space-y-2 pt-0.5">
-        {/* 1. Resposta Oficial em Texto da Base Pericial */}
-        {infoRaw && typeof infoRaw === 'string' && infoRaw.trim().length > 0 && infoRaw.trim() !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' && (
+        {/* 1. Resposta Oficial em Texto da Base Pericial (oculto para P22 pois possui layout pericial em grid estruturado) */}
+        {infoRaw && typeof infoRaw === 'string' && infoRaw.trim().length > 0 && infoRaw.trim() !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' && item.chave !== 'P22' && (
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-[11px] space-y-1">
             <div className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">
               Resposta Registrada na Base de Pré-Vistoria:
@@ -1296,7 +1305,7 @@ export const E20PreVistoriaLaudo: React.FC<{
         )}
 
         {/* 8. Demais Entidades e Registros Cadastrais (P2, P23, P27 e outros genéricos) */}
-        {Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && dados.length > 0 && (
+        {Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P22', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && dados.length > 0 && (
           <div className="space-y-1.5 pt-0.5 max-h-60 overflow-y-auto">
             {dados.map((reg: any, rIdx: number) => {
               const nomeEntidade =
@@ -1469,8 +1478,190 @@ export const E20PreVistoriaLaudo: React.FC<{
           );
         })()}
 
-        {/* 9. Fallback Genérico para Objetos da Base (P11 Leilão, P12 Acidentes, P30 CSV, etc.) */}
-        {dados && typeof dados === 'object' && !Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P24', 'P25', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && (
+        {/* 9. Histórico de Laudo Cautelar (P22) - Padrão Pericial Executivo em Grid 2 Colunas */}
+        {item.chave === 'P22' && (() => {
+          const laudosRaw: any[] = Array.isArray(dados)
+            ? dados
+            : (Array.isArray(item.respostaInfoSinistros)
+                ? item.respostaInfoSinistros
+                : (typeof item.respostaInfoSinistros === 'string' && item.respostaInfoSinistros.length > 0
+                    ? [item.respostaInfoSinistros]
+                    : (dados ? [dados] : [])));
+
+          if (laudosRaw.length === 0) return null;
+
+          const parseLaudoCautelar = (entrada: any) => {
+            if (entrada && typeof entrada === 'object' && entrada.checklist_detalhes) {
+              const d = entrada.checklist_detalhes;
+              return {
+                data: entrada.data || entrada.data_vistoria || entrada.vistoria_em || 'DATA NÃO INFORMADA',
+                itens: {
+                  1: { label: 'CONDIÇÃO DA NUMERAÇÃO DO CHASSI', valor: d.chassi?.status || 'DENTRO DOS PADRÕES DO FABRICANTE' },
+                  2: { label: 'CONDIÇÃO DA NUMERAÇÃO DO MOTOR', valor: d.motor?.status || 'DENTRO DOS PADRÕES É A MESMA QUE CONSTA NA BIN' },
+                  3: { label: 'CONDIÇÃO DA NUMERAÇÃO DO CÂMBIO', valor: d.cambio?.status || 'DENTRO DOS PADRÕES DO FABRICANTE' },
+                  4: { label: 'CONDIÇÕES DAS ETIQUETAS ETA', valor: d.etiquetas?.status || 'ORIGINAL / DENTRO DOS PADRÕES DO FABRICANTE' },
+                  5: { label: 'DATA DO CINTO DE SEGURANÇA', valor: d.cinto?.status || 'COMPATÍVEL COM O ANO DO VEÍCULO' },
+                  6: { label: 'CONDIÇÃO DA GRAVAÇÃO DO CHASSI NOS VIDROS', valor: d.vidros?.status || 'ORIGINAL / DENTRO DOS PADRÕES DO FABRICANTE' },
+                  7: { label: 'CONDIÇÕES DA PLACA', valor: d.placa?.status || 'PLACA E TARJETA EM CONFORMIDADE' },
+                  8: { label: 'CONDIÇÕES DA ESTRUTURA DA CARROÇARIA', valor: d.estrutura?.status || 'NÃO APRESENTA CORTE / REPARAÇÃO SIGNIFICATIVA' },
+                  9: { label: 'REGISTRO E HISTÓRICO DE LEILÃO / SINISTRO / ROUBO E FURTO', valor: d.leilao?.status || 'NENHUM APONTAMENTO ENCONTRADO' },
+                },
+                observacoes: d.observacoes || ''
+              };
+            }
+
+            const texto = typeof entrada === 'string'
+              ? entrada
+              : (entrada?.texto || entrada?.descricao || entrada?.laudo || JSON.stringify(entrada));
+
+            const matchData = texto.match(/VISTORIA\s*(?:REALIZADA\s*EM)?[:\s]*(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})/i) ||
+                              texto.match(/\b(\d{2}\/\d{4})\b/) ||
+                              entrada?.data || entrada?.data_vistoria;
+            const dataVistoria = typeof matchData === 'string' ? matchData : (matchData ? matchData[1] || matchData[0] : null);
+
+            const rotulosPadrao: Record<number, string> = {
+              1: 'CONDIÇÃO DA NUMERAÇÃO DO CHASSI',
+              2: 'CONDIÇÃO DA NUMERAÇÃO DO MOTOR',
+              3: 'CONDIÇÃO DA NUMERAÇÃO DO CÂMBIO',
+              4: 'CONDIÇÕES DAS ETIQUETAS ETA',
+              5: 'DATA DO CINTO DE SEGURANÇA',
+              6: 'CONDIÇÃO DA GRAVAÇÃO DO CHASSI NOS VIDROS',
+              7: 'CONDIÇÕES DA PLACA',
+              8: 'CONDIÇÕES DA ESTRUTURA DA CARROÇARIA',
+              9: 'REGISTRO E HISTÓRICO DE LEILÃO / SINISTRO / ROUBO E FURTO',
+              10: 'OBSERVAÇÕES DO VEÍCULO'
+            };
+
+            const itens: Record<number, { label: string; valor: string }> = {};
+            const regex = /(?:^|[•\n\r])\s*(10|[1-9])\s*[-–—]\s*([^:]+):\s*/gi;
+            const matches = [...texto.matchAll(regex)];
+
+            if (matches.length > 0) {
+              for (let i = 0; i < matches.length; i++) {
+                const match = matches[i];
+                const num = parseInt(match[1], 10);
+                const labelCapturado = match[2].trim();
+                const startIndex = match.index! + match[0].length;
+                const endIndex = i + 1 < matches.length ? matches[i + 1].index! : texto.length;
+                let valor = texto.substring(startIndex, endIndex).trim();
+                valor = valor.replace(/[•\n\r\s]+$/, '');
+
+                itens[num] = {
+                  label: rotulosPadrao[num] || labelCapturado,
+                  valor: valor || 'Regular'
+                };
+              }
+            } else {
+              itens[1] = { label: 'PARECER PERICIAL CAUTELAR', valor: texto };
+            }
+
+            const obs = itens[10]?.valor || entrada?.observacoes || '';
+
+            return {
+              data: dataVistoria,
+              itens,
+              observacoes: obs && !/^[#\s]*error$/i.test(obs.trim()) && obs !== 'NADA CONSTA' ? obs : ''
+            };
+          };
+
+          const verificarConformidade = (txt: string): boolean => {
+            const t = String(txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+
+            const termosNaoConformes = [
+              'NAO ORIGINAL', 'REPROVADO', 'REPROVADA', 'ADULTERADO', 'ADULTERADA',
+              'DIVERGENTE', 'DIVERGE', 'CORTE', 'AVARIA', 'AVARIADO', 'SEM GRAVACAO', 'IRREGULAR'
+            ];
+            if (termosNaoConformes.some((w) => t.includes(w))) return false;
+
+            const termosConformes = [
+              'DENTRO DOS PADROES', 'ORIGINAL', 'COMPATIVEL', 'CONFORMIDADE', 'CONFORME',
+              'NADA CONSTA', 'REGULAR', 'APROVADO', 'APROVADA', 'ITEM EXCLUIDO',
+              'SEM ACESSO', 'OBSTRUIDA', 'SEM VISUALIZACAO', 'NAO CADASTRADA', 'NAO APRESENTA'
+            ];
+            if (termosConformes.some((w) => t.includes(w))) return true;
+
+            return true;
+          };
+
+          const renderItemCard = (num: number, label: string, valor: string) => {
+            const conforme = verificarConformidade(valor);
+            return (
+              <div key={num} className="mb-2.5 rounded-md border border-slate-200 bg-white p-2.5 shadow-2xs hover:border-slate-300 transition">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                  <div className="text-[11px] font-bold text-slate-700 uppercase tracking-tight flex-1">
+                    {num} - {label}
+                  </div>
+                  <div className="flex items-start gap-1.5 shrink-0 max-w-full sm:max-w-[55%]">
+                    {conforme ? (
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 stroke-[2.5]" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5 stroke-[2.5]" />
+                    )}
+                    <span className={`text-[10.5px] font-extrabold leading-snug break-words ${conforme ? 'text-emerald-700' : 'text-rose-600'}`}>
+                      {valor}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          };
+
+          return (
+            <div className="space-y-4 pt-1">
+              {laudosRaw.map((laudoItem: any, lIdx: number) => {
+                const parsed = parseLaudoCautelar(laudoItem);
+                return (
+                  <div key={lIdx} className="rounded-lg border border-slate-200 bg-slate-50/70 p-3.5 shadow-xs">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3">
+                      <span className="text-xs font-bold text-slate-700">
+                        Vistoria Cautelar #{lIdx + 1} {parsed.data ? `• Realizada em: ` : ''}
+                        {parsed.data && <strong className="text-[#223D63] font-mono">{parsed.data}</strong>}
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider bg-white px-2 py-0.5 rounded border border-slate-200">
+                        Base Pericial Histórica
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                      {/* Coluna 1: Itens 1 a 5 */}
+                      <div>
+                        {[1, 2, 3, 4, 5].map((n) => {
+                          const it = (parsed.itens as any)[n];
+                          if (!it) return null;
+                          return renderItemCard(n, it.label, it.valor);
+                        })}
+                      </div>
+
+                      {/* Coluna 2: Itens 6 a 9 */}
+                      <div>
+                        {[6, 7, 8, 9].map((n) => {
+                          const it = (parsed.itens as any)[n];
+                          if (!it) return null;
+                          return renderItemCard(n, it.label, it.valor);
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Observações do Veículo (Item 10) */}
+                    {parsed.observacoes && (
+                      <div className="mt-3 rounded border border-slate-200 overflow-hidden bg-white shadow-2xs">
+                        <div className="px-3 py-1.5 text-[10.5px] font-bold text-white uppercase tracking-wider bg-[#223D63]">
+                          Observações do Veículo:
+                        </div>
+                        <div className="p-3 text-xs font-medium italic text-slate-800 break-words whitespace-pre-line leading-relaxed bg-white">
+                          {parsed.observacoes}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
+        {/* 10. Fallback Genérico para Objetos da Base (P11 Leilão, P12 Acidentes, P30 CSV, etc.) */}
+        {dados && typeof dados === 'object' && !Array.isArray(dados) && !['P1', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P10', 'P14', 'P17', 'P22', 'P24', 'P25', 'P31', 'P32', 'P35', 'P36'].includes(item.chave) && (
           <div className="p-2.5 bg-white rounded-md border border-slate-200 text-[11px] space-y-1">
             <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider pb-1 border-b border-slate-100">
               Dados Registrados na Base:

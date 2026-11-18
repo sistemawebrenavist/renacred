@@ -1732,18 +1732,47 @@ export class E20Service {
 
         case 'P27': { // INDÍCIO DE USO COMO TÁXI/PCD
           const positivo = taxiPcdDetectados.length > 0 || hasInfoSinistros;
+          const cidadeVeiculo = [dadosVeiculo.municipio, dadosVeiculo.uf].filter(Boolean).join(' - ') || 'NÃO ESPECIFICADA';
+          
+          let rawConteudoTratado = rawInfoConteudo;
+          if (typeof rawConteudoTratado === 'string') {
+            rawConteudoTratado = rawConteudoTratado.replace(/CIDADE DE\s*[-—–]/gi, `CIDADE DE ${cidadeVeiculo}`);
+          } else if (Array.isArray(rawConteudoTratado)) {
+            rawConteudoTratado = rawConteudoTratado.map((item: any) => {
+              if (item && typeof item === 'object') {
+                const c = item.cidade || item.cidade_origem;
+                if (!c || c === '—' || c === '-' || c.trim() === '') {
+                  return { ...item, cidade: cidadeVeiculo, cidade_origem: cidadeVeiculo };
+                }
+              }
+              return item;
+            });
+          } else if (rawConteudoTratado && typeof rawConteudoTratado === 'object') {
+            const c = rawConteudoTratado.cidade || rawConteudoTratado.cidade_origem;
+            if (!c || c === '—' || c === '-' || c.trim() === '') {
+              rawConteudoTratado = { ...rawConteudoTratado, cidade: cidadeVeiculo, cidade_origem: cidadeVeiculo };
+            }
+          }
+
+          let msgFinal = 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA';
+          if (positivo) {
+            if (typeof rawConteudoTratado === 'string') {
+              msgFinal = rawConteudoTratado;
+            } else if (taxiPcdDetectados.length > 0) {
+              msgFinal = `IDENTIFICADO INDÍCIO DE USO COMO TÁXI OU ISENÇÃO PCD (${cidadeVeiculo})`;
+            } else {
+              msgFinal = `ATENÇÃO: ESTE VEÍCULO OPEROU COMO TÁXI NA CIDADE DE ${cidadeVeiculo}, NO ANO DE ${dadosVeiculo.anoModelo || dadosVeiculo.anoFabricacao || ''}.`;
+            }
+          }
+
           return {
             codigo,
             titulo,
             status: positivo ? 'positivo' : 'negativo',
-            mensagem: positivo
-              ? (typeof rawInfoConteudo === 'string'
-                ? rawInfoConteudo
-                : 'IDENTIFICADO INDÍCIO DE USO COMO TÁXI OU ISENÇÃO PCD')
-              : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
-            conteudo: positivo ? (taxiPcdDetectados.length > 0 ? taxiPcdDetectados : rawInfoConteudo) : null,
-            detalhes: positivo ? (taxiPcdDetectados.length > 0 ? taxiPcdDetectados : rawInfoConteudo) : null,
-            respostaInfoSinistros: rawInfoConteudo
+            mensagem: msgFinal,
+            conteudo: positivo ? (taxiPcdDetectados.length > 0 ? taxiPcdDetectados : rawConteudoTratado) : null,
+            detalhes: positivo ? (taxiPcdDetectados.length > 0 ? taxiPcdDetectados : rawConteudoTratado) : null,
+            respostaInfoSinistros: rawConteudoTratado
           };
         }
 

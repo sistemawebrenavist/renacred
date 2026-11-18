@@ -554,11 +554,16 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
         currentY += 8.5;
 
         // Mensagem técnica de registro (evita duplicar quando o indicador tiver caixa própria de texto)
-        if (item.mensagem && item.mensagem !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' && !['P19', 'P20', 'P24'].includes(item.chave)) {
+        if (item.mensagem && item.mensagem !== 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA' && !['P19', 'P20', 'P22', 'P24'].includes(item.chave)) {
+          let msgExibicao = String(item.mensagem);
+          if (item.chave === 'P27') {
+            const cidadeUfVeic = [veiculo.municipio || dados?.veiculo?.municipio, veiculo.uf || dados?.veiculo?.uf].filter(Boolean).join(' - ') || 'VOTORANTIM - SP';
+            msgExibicao = msgExibicao.replace(/CIDADE DE\s*[-—–]/gi, `CIDADE DE ${cidadeUfVeic}`);
+          }
           doc.setFontSize(6.2);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(30, 41, 59);
-          doc.text(String(item.mensagem).slice(0, 140), 14, currentY + 2.5);
+          doc.text(msgExibicao.slice(0, 140), 14, currentY + 2.5);
           currentY += 5;
         }
 
@@ -1091,7 +1096,174 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           }
         }
 
-        // L. FALLBACK UNIVERSAL PARA QUALQUER ARRAY DE DADOS (CRÍTICO: NUNCA DEIXA VAZIO!)
+        // L. Histórico de Laudo Cautelar (P22) - Tabela Pericial de Conformidade de Itens
+        else if (item.chave === 'P22') {
+          const laudosRaw: any[] = Array.isArray(dadosItem)
+            ? dadosItem
+            : (Array.isArray(item.respostaInfoSinistros)
+                ? item.respostaInfoSinistros
+                : (typeof item.respostaInfoSinistros === 'string' && item.respostaInfoSinistros.length > 0
+                    ? [item.respostaInfoSinistros]
+                    : (dadosItem ? [dadosItem] : [])));
+
+          const rotulosPadrao: Record<number, string> = {
+            1: 'NUMERAÇÃO DO CHASSI',
+            2: 'NUMERAÇÃO DO MOTOR',
+            3: 'NUMERAÇÃO DO CÂMBIO',
+            4: 'ETIQUETAS ETA',
+            5: 'CINTO DE SEGURANÇA',
+            6: 'GRAVAÇÃO NOS VIDROS',
+            7: 'CONDIÇÕES DA PLACA',
+            8: 'ESTRUTURA DA CARROÇARIA',
+            9: 'REGISTRO LEILÃO/SINISTRO',
+            10: 'OBSERVAÇÕES DO VEÍCULO'
+          };
+
+          const verificarConformidade = (txt: string): boolean => {
+            const t = String(txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+            const termosNaoConformes = [
+              'NAO ORIGINAL', 'REPROVADO', 'REPROVADA', 'ADULTERADO', 'ADULTERADA',
+              'DIVERGENTE', 'DIVERGE', 'CORTE', 'AVARIA', 'AVARIADO', 'SEM GRAVACAO', 'IRREGULAR'
+            ];
+            if (termosNaoConformes.some((w) => t.includes(w))) return false;
+            return true;
+          };
+
+          for (let lIdx = 0; lIdx < laudosRaw.length; lIdx++) {
+            const entrada = laudosRaw[lIdx];
+            let dataVistoria = '-';
+            let itensLaudo: { num: number; label: string; valor: string; conforme: boolean }[] = [];
+            let obsTexto = '';
+
+            if (entrada && typeof entrada === 'object' && entrada.checklist_detalhes) {
+              const d = entrada.checklist_detalhes;
+              dataVistoria = entrada.data || entrada.data_vistoria || '-';
+              obsTexto = d.observacoes || '';
+              const mapa = [
+                { num: 1, label: rotulosPadrao[1], valor: d.chassi?.status || 'DENTRO DOS PADRÕES' },
+                { num: 2, label: rotulosPadrao[2], valor: d.motor?.status || 'DENTRO DOS PADRÕES' },
+                { num: 3, label: rotulosPadrao[3], valor: d.cambio?.status || 'DENTRO DOS PADRÕES' },
+                { num: 4, label: rotulosPadrao[4], valor: d.etiquetas?.status || 'ORIGINAL / CONFORME' },
+                { num: 5, label: rotulosPadrao[5], valor: d.cinto?.status || 'COMPATÍVEL COM ANO' },
+                { num: 6, label: rotulosPadrao[6], valor: d.vidros?.status || 'ORIGINAL / CONFORME' },
+                { num: 7, label: rotulosPadrao[7], valor: d.placa?.status || 'CONFORME' },
+                { num: 8, label: rotulosPadrao[8], valor: d.estrutura?.status || 'SEM CORTE/AVARIA' },
+                { num: 9, label: rotulosPadrao[9], valor: d.leilao?.status || 'NENHUM APONTAMENTO' },
+              ];
+              itensLaudo = mapa.map(m => ({ ...m, conforme: verificarConformidade(m.valor) }));
+            } else {
+              const texto = typeof entrada === 'string'
+                ? entrada
+                : (entrada?.texto || entrada?.descricao || entrada?.laudo || JSON.stringify(entrada));
+
+              const matchData = texto.match(/VISTORIA\s*(?:REALIZADA\s*EM)?[:\s]*(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})/i) ||
+                                texto.match(/\b(\d{2}\/\d{4})\b/);
+              dataVistoria = matchData ? (matchData[1] || matchData[0]) : '-';
+
+              const regex = /(?:^|[•\n\r])\s*(10|[1-9])\s*[-–—]\s*([^:]+):\s*/gi;
+              const matches = [...texto.matchAll(regex)];
+
+              if (matches.length > 0) {
+                for (let i = 0; i < matches.length; i++) {
+                  const match = matches[i];
+                  const num = parseInt(match[1], 10);
+                  const labelCapturado = match[2].trim();
+                  const startIndex = match.index! + match[0].length;
+                  const endIndex = i + 1 < matches.length ? matches[i + 1].index! : texto.length;
+                  let valor = texto.substring(startIndex, endIndex).trim().replace(/[•\n\r\s]+$/, '');
+
+                  if (num === 10) {
+                    obsTexto = valor;
+                  } else {
+                    itensLaudo.push({
+                      num,
+                      label: rotulosPadrao[num] || labelCapturado,
+                      valor: valor || 'Regular',
+                      conforme: verificarConformidade(valor)
+                    });
+                  }
+                }
+              } else {
+                itensLaudo.push({
+                  num: 1,
+                  label: 'PARECER PERICIAL CAUTELAR',
+                  valor: texto,
+                  conforme: verificarConformidade(texto)
+                });
+              }
+            }
+
+            if (currentY > 230) {
+              doc.addPage();
+              currentY = 16;
+            }
+
+            doc.setFontSize(6.2);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 58, 138);
+            doc.text(`Laudo Cautelar #${lIdx + 1} • Data da Vistoria: ${dataVistoria}`, 14, currentY + 2);
+            currentY += 4;
+
+            const bodyData = itensLaudo.map(it => [
+              `${it.num} - ${it.label}`,
+              it.valor,
+              it.conforme ? 'CONFORME' : 'NÃO CONFORME'
+            ]);
+
+            autoTable(doc, {
+              startY: currentY,
+              margin: { left: 12, right: 12 },
+              head: [['ITEM AUDITADO', 'PARECER TÉCNICO PERICIAL', 'CONFORMIDADE']],
+              body: bodyData,
+              theme: 'striped',
+              headStyles: {
+                fillColor: [30, 58, 138],
+                textColor: [255, 255, 255],
+                fontSize: 5.8,
+                fontStyle: 'bold',
+                cellPadding: 1.6
+              },
+              bodyStyles: {
+                fontSize: 5.2,
+                textColor: [30, 41, 59],
+                cellPadding: 1.6
+              },
+              columnStyles: {
+                0: { cellWidth: 55, fontStyle: 'bold' },
+                1: { cellWidth: 100 },
+                2: { cellWidth: 31, halign: 'center', fontStyle: 'bold' }
+              },
+              didParseCell: (hookData) => {
+                if (hookData.section === 'body' && hookData.column.index === 2) {
+                  const val = String(hookData.cell.raw);
+                  if (val === 'CONFORME') {
+                    hookData.cell.styles.textColor = [4, 120, 87]; // Emerald 700
+                  } else {
+                    hookData.cell.styles.textColor = [225, 29, 72]; // Rose 600
+                  }
+                }
+              }
+            });
+
+            currentY = (doc as any).lastAutoTable.finalY + 3;
+
+            if (obsTexto && obsTexto !== 'NADA CONSTA' && !/^[#\s]*error$/i.test(obsTexto.trim())) {
+              if (currentY > 250) {
+                doc.addPage();
+                currentY = 16;
+              }
+              doc.setFillColor(241, 245, 249);
+              doc.roundedRect(12, currentY, 186, 7.5, 1, 1, 'FD');
+              doc.setFontSize(5.5);
+              doc.setFont('helvetica', 'bold');
+              doc.setTextColor(30, 41, 59);
+              doc.text(`Observações: ${obsTexto.slice(0, 160)}`, 14, currentY + 4.8);
+              currentY += 10;
+            }
+          }
+        }
+
+        // M. FALLBACK UNIVERSAL PARA QUALQUER ARRAY DE DADOS (CRÍTICO: NUNCA DEIXA VAZIO!)
         else if (Array.isArray(dadosItem) && dadosItem.length > 0) {
           const primeiroItem = dadosItem[0];
           if (typeof primeiroItem === 'object' && primeiroItem !== null) {
@@ -1138,7 +1310,7 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           }
         }
 
-        // M. FALLBACK UNIVERSAL PARA QUALQUER OBJETO DE DADOS
+        // N. FALLBACK UNIVERSAL PARA QUALQUER OBJETO DE DADOS
         else if (typeof dadosItem === 'object' && dadosItem !== null && !Array.isArray(dadosItem)) {
           const entries = Object.entries(dadosItem)
             .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !['id', '_id', 'status', 'sucesso', 'codigo', 'produto_id', 'imagens'].includes(k))
@@ -1177,8 +1349,14 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           }
         }
 
-        // N. FALLBACK UNIVERSAL PARA TEXTO
+        // O. FALLBACK UNIVERSAL PARA TEXTO
         else if (typeof item.respostaInfoSinistros === 'string' && item.respostaInfoSinistros.trim().length > 0) {
+          let textoResp = item.respostaInfoSinistros;
+          if (item.chave === 'P27') {
+            const cidadeUfVeic = [veiculo.municipio || dados?.veiculo?.municipio, veiculo.uf || dados?.veiculo?.uf].filter(Boolean).join(' - ') || 'VOTORANTIM - SP';
+            textoResp = textoResp.replace(/CIDADE DE\s*[-—–]/gi, `CIDADE DE ${cidadeUfVeic}`);
+          }
+
           doc.setFillColor(248, 250, 252);
           doc.setDrawColor(226, 232, 240);
           doc.roundedRect(12, currentY, 186, 11, 1, 1, 'FD');
@@ -1194,7 +1372,7 @@ export const ExportPdfE20Button: React.FC<ExportPdfE20ButtonProps> = ({
           doc.setFontSize(6);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(15, 23, 42);
-          doc.text(String(item.respostaInfoSinistros).slice(0, 140), 17, currentY + 8);
+          doc.text(String(textoResp).slice(0, 140), 17, currentY + 8);
 
           currentY += 14;
         }
