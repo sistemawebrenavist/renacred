@@ -44,6 +44,7 @@ export class InfoSinistrosService {
       timeout: 25000,
       headers: {
         'Content-Type': 'application/json',
+        'x-api-key': this.apiKey,
         'X-API-Key': this.apiKey
       },
       httpsAgent
@@ -53,11 +54,13 @@ export class InfoSinistrosService {
   /**
    * Executa consulta de Pré-Vistoria completa via API B2B oficial da InfoSinistros
    * com chave Super Admin ilimitada (retorna P1 a P37, incluindo BIN Fabril P35).
+   * Possui contingência automática primária (POST /api/v1/veiculos/consulta) e secundária (GET /:placa/:token).
    */
   async consultarPreVistoria(placa: string): Promise<InfoSinistrosPreVistoriaResponse> {
     const cleanPlaca = placa.replace(/[^A-Z0-9]/gi, '').toUpperCase();
     const startTime = Date.now();
 
+    // 1. Tentativa Primária: POST /api/v1/veiculos/consulta
     try {
       logger.info(`[INFOSINISTROS] Solicitando Pré-Vistoria B2B para placa ${cleanPlaca}...`);
 
@@ -82,23 +85,52 @@ export class InfoSinistrosService {
           resultados: data.resultados || {}
         };
       }
+    } catch (primaryError: any) {
+      const msgPrimary = primaryError.response?.data?.mensagem || primaryError.response?.data?.detail || primaryError.message;
+      logger.warn(`[INFOSINISTROS] Rota primária POST falhou para ${cleanPlaca} (${msgPrimary}). Acionando contingência direta GET...`);
 
-      return {
-        sucesso: false,
-        mensagem: 'Resposta inesperada do serviço InfoSinistros',
-        resultados: {}
-      };
-    } catch (error: any) {
-      const duracao = Date.now() - startTime;
-      const msg = error.response?.data?.mensagem || error.response?.data?.detail || error.message;
-      logger.error(`[INFOSINISTROS] Erro ao consultar placa ${cleanPlaca} (${duracao}ms): ${msg}`);
+      // 2. Contingência Automática: GET /:placa/:token (Estilo WDAPI 100% resiliente)
+      try {
+        const fallbackUrl = `/${cleanPlaca}/${encodeURIComponent(this.apiKey)}`;
+        const fallbackResponse = await this.client.get(fallbackUrl, {
+          timeout: 25000
+        });
 
-      return {
-        sucesso: false,
-        mensagem: msg,
-        resultados: {}
-      };
+        const duracao = Date.now() - startTime;
+        logger.info(
+          `[INFOSINISTROS CONTINGÊNCIA] Sucesso via GET para ${cleanPlaca} em ${duracao}ms (Status: ${fallbackResponse.status})`
+        );
+
+        const data = fallbackResponse.data;
+        if (data && typeof data === 'object') {
+          return {
+            sucesso: Boolean(data.sucesso ?? true),
+            cliente: data.cliente,
+            ambiente: data.ambiente,
+            query_fornecida: data.query_fornecida || cleanPlaca,
+            duracaoMs: duracao,
+            produtosContratados: data.produtosContratados || [],
+            resultados: data.resultados || {}
+          };
+        }
+      } catch (fallbackError: any) {
+        const duracao = Date.now() - startTime;
+        const msg = fallbackError.response?.data?.mensagem || fallbackError.response?.data?.detail || fallbackError.message;
+        logger.error(`[INFOSINISTROS] Ambas as rotas falharam para ${cleanPlaca} (${duracao}ms): ${msg}`);
+
+        return {
+          sucesso: false,
+          mensagem: msg,
+          resultados: {}
+        };
+      }
     }
+
+    return {
+      sucesso: false,
+      mensagem: 'Resposta inesperada do serviço InfoSinistros',
+      resultados: {}
+    };
   }
 }
 
