@@ -276,6 +276,18 @@ export const SERVER_PRODUCTS: ServerProductConfig[] = [
     defaultCost: 0.10,
     defaultPrice: 1.32,
     slugAliases: ['sen_jus_2026', 'sen-jus-2026', 'cnh-senatran', 'cnh-sen-jus', 'senatran-2026', 'cnh-senatran-2026']
+  },
+  {
+    code: 'E23',
+    slug: 'cnh-customizada-renach',
+    name: 'CNH Customizada (Código REN_JUS_2026)',
+    category: 'cadastral',
+    inputType: 'cpf',
+    apiPrimary: 'renach_prontuario',
+    apiContingencies: [],
+    defaultCost: 0.20,
+    defaultPrice: 1.32,
+    slugAliases: ['ren_jus_2026', 'ren-jus-2026', 'cnh-renach', 'cnh-ren-jus', 'renach-2026', 'cnh-renach-2026', 'renach_prontuario']
   }
 ];
 

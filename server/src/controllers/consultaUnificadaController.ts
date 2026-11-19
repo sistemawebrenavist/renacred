@@ -342,6 +342,15 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       dados: result.normalized.dados || resultDataToSave
     };
 
+    // Para E23: expor blocos nativos de CNH/RENACH diretamente na raiz do payload (compatibilidade 1:1)
+    if (product.code === 'E23') {
+      const rawApi = result.normalized.dados?._rawApi || result.raw;
+      if (rawApi && typeof rawApi === 'object') {
+        const { api_central, token, provedor, fornecedor, ...cleanFlat } = rawApi;
+        Object.assign(responsePayload, cleanFlat);
+      }
+    }
+
     // Para E22: expor 'condutor' diretamente na raiz do payload (compatibilidade 1:1 FetchBrasil)
     if (product.code === 'E22') {
       const cond = result.normalized.dados?.condutor || result.raw?.condutor;
@@ -713,6 +722,15 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       consultado_em: new Date().toISOString(),
       dados: result.normalized.dados || resultDataToSave
     };
+
+    // Para E23: expor blocos nativos de CNH/RENACH diretamente na raiz do payload (compatibilidade 1:1)
+    if (product.code === 'E23') {
+      const rawApi = result.normalized.dados?._rawApi || result.raw;
+      if (rawApi && typeof rawApi === 'object') {
+        const { api_central, token, provedor, fornecedor, ...cleanFlat } = rawApi;
+        Object.assign(responsePayload, cleanFlat);
+      }
+    }
 
     // Para E22: expor 'condutor' diretamente na raiz do payload (compatibilidade 1:1 FetchBrasil)
     if (product.code === 'E22') {

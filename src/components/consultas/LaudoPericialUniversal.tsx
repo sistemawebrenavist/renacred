@@ -5495,6 +5495,465 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
       );
     }
 
+    // E23: CNH Customizada (Código REN_JUS_2026) - Base DETRAN / RENACH
+    case 'E23': {
+      const cond = dados.condutor || {};
+      const doc = dados.documento || {};
+      const end = dados.endereco || {};
+      const cont = dados.contato || {};
+      const nac = dados.nacionalidade || {};
+      const cnh = dados.cnh || {};
+      const ctrl = dados.controle || {};
+      const exames = Array.isArray(dados.exames) ? dados.exames : [];
+      const cursos = Array.isArray(dados.cursos) ? dados.cursos : [];
+      const eventos = Array.isArray(dados.eventos) ? dados.eventos : [];
+      const impedimentos = Array.isArray(dados.impedimentos) ? dados.impedimentos : [];
+      const infracoes = Array.isArray(dados.infracoes) ? dados.infracoes : [];
+      const ocorrencias = Array.isArray(dados.ocorrencias) ? dados.ocorrencias : [];
+
+      const isVencida = !!cnh.isValidadeVencida;
+      const situacaoDesc = cnh.situacao || cnh.situacao_codigo_descricao || 'CONFIRMADA';
+      const motivoReqDesc = cnh.motivoRequerimento || cnh.motivo_requerimento_descricao?.['5'] || 'RENOVAÇÃO DE EXAMES';
+      const temImpedimento = impedimentos.length > 0 || ocorrencias.length > 0;
+      const temInfracao = infracoes.length > 0;
+
+      const categoriasHistorico = Array.isArray(ctrl.categoriasHistorico) && ctrl.categoriasHistorico.length > 0 
+        ? ctrl.categoriasHistorico 
+        : [
+            { categoria: 'A', dataInicio: formatDateBR(ctrl.data_inicio_categoria_a_iso || ctrl.data_inicio_categoria_a) },
+            { categoria: 'B', dataInicio: formatDateBR(ctrl.data_inicio_categoria_b_iso || ctrl.data_inicio_categoria_b) },
+            { categoria: 'C', dataInicio: formatDateBR(ctrl.data_inicio_categoria_c_iso || ctrl.data_inicio_categoria_c) },
+            { categoria: 'D', dataInicio: formatDateBR(ctrl.data_inicio_categoria_d_iso || ctrl.data_inicio_categoria_d) },
+            { categoria: 'E', dataInicio: formatDateBR(ctrl.data_inicio_categoria_e_iso || ctrl.data_inicio_categoria_e) }
+          ].filter(cat => cat.dataInicio && cat.dataInicio !== '-');
+
+      const telefone = cont.telefoneFormatado || (cont.telefone_celular ? (cont.ddd_celular ? `(${cont.ddd_celular}) ${cont.telefone_celular}` : cont.telefone_celular) : null);
+      const email = cont.email || null;
+      const hasEndereco = !!(end.logradouro || end.bairro || end.municipio || end.cep || end.uf);
+
+      return (
+        <div className="space-y-4">
+          {/* Bloco 1: Identificação Civil & Pessoal do Condutor */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <User className="w-4 h-4 text-purple-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Identificação Civil & Dados Pessoais
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-800 border border-purple-200">
+                Base Oficial DETRAN / RENACH
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nome Completo:</span>
+                <span className="font-bold text-slate-900 text-sm block mt-0.5">{String(cond.nome || dados.nome || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">CPF:</span>
+                <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatDocumento(String(cond.cpf || dados.cpf || identifier || ''))}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Data de Nascimento:</span>
+                <span className="font-mono text-slate-800 font-semibold block mt-0.5">{formatDateBR(cond.dataNascimento || cond.data_nascimento_iso || cond.data_nascimento)}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Sexo:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{String(cond.sexo || cond.cod_sexo_descricao || 'MASCULINO')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Documento de Identidade (RG):</span>
+                <span className="font-mono text-slate-900 font-semibold block mt-0.5">
+                  {doc.numero ? `${doc.numero} ${doc.orgao_expedidor ? `(${doc.orgao_expedidor}/${doc.uf || ''})` : ''}` : '-'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nacionalidade:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{String(nac.descricao || nac.cod_nacionalidade_descricao || 'BRASILEIRO')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Filiação Materna:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{String(cond.nome_mae || cond.nomeMae || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Filiação Paterna:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{String(cond.nome_pai || cond.nomePai || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Município de Nascimento:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">
+                  {end.municipio ? `${end.municipio}${end.uf ? ` - ${end.uf}` : ''}` : (cond.cod_localidade_nascimento ? `Cód. ${cond.cod_localidade_nascimento}` : '-')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 2: Prontuário de Habilitação & CNH */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <FileText className="w-4 h-4 text-purple-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Prontuário de Habilitação & CNH
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${isVencida ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                  {isVencida ? 'Validade Vencida' : 'Validade Regular'}
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
+                  {situacaoDesc}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nº de Registro da CNH:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">{String(cond.num_registro || cnh.num_registro || cond.numeroRegistro || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Formulário RENACH:</span>
+                <span className="font-mono font-bold text-slate-800 block mt-0.5">{String(cond.num_renach || cnh.num_renach || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nº do Espelho CNH:</span>
+                <span className="font-mono text-slate-800 block mt-0.5">{String(cond.num_cnh || cnh.num_cnh || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Nº Registro PGU:</span>
+                <span className="font-mono text-slate-700 block mt-0.5">{String(cond.pgu || cnh.pgu || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Categoria Atual:</span>
+                <span className="font-mono font-bold text-purple-900 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded inline-block mt-0.5">
+                  {String(cnh.categoria_atual || cnh.categoria || '-')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Categoria Autorizada:</span>
+                <span className="font-mono font-semibold text-slate-800 block mt-0.5">{String(cnh.categoria_autorizada || cnh.categoria_atual || cnh.categoria || '-')}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Data da 1ª Habilitação:</span>
+                <span className="font-mono text-slate-800 block mt-0.5">
+                  {formatDateBR(cnh.primeiraHabilitacao || cnh.primeira_habilitacao_iso || cnh.primeira_habilitacao)} {cnh.uf_primeira_habilitacao ? `(${cnh.uf_primeira_habilitacao})` : ''}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Data de Validade CNH:</span>
+                <span className="font-mono font-bold text-slate-900 block mt-0.5">{formatDateBR(cnh.validade || cnh.validade_iso)}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Motivo de Requerimento:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{motivoReqDesc}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Tipo / Permissionário:</span>
+                <span className="text-slate-800 font-medium block mt-0.5">{String(cnh.permissionado_descricao || (cnh.permissionado === '2' ? 'Não (Definitiva)' : 'Sim'))}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Última Emissão Física:</span>
+                <span className="font-mono text-slate-700 block mt-0.5">{formatDateBR(ctrl.dataUltimaEmissao || ctrl.data_ultima_emissao_historico_iso || ctrl.data_ultima_emissao_historico)}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Situação Anterior:</span>
+                <span className="text-slate-600 block mt-0.5">{String(cnh.situacao_anterior_descricao || cnh.situacao_anterior || '-')}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 3: Painel de Categorias Habilitadas & Histórico Temporal */}
+          {categoriasHistorico.length > 0 && (
+            <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <Award className="w-4 h-4 text-purple-600" />
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Histórico Temporal de Categorias Habilitadas
+                  </span>
+                </div>
+                <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                  {categoriasHistorico.length} categoria(s) registrada(s)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-1">
+                {categoriasHistorico.map((catItem: any, idx: number) => (
+                  <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center space-y-1">
+                    <span className="text-[10px] font-semibold text-slate-400 block uppercase">Categoria</span>
+                    <span className="font-mono text-lg font-extrabold text-purple-900 block">{catItem.categoria}</span>
+                    <div className="pt-1 border-t border-slate-200/60">
+                      <span className="text-[9.5px] text-slate-400 block">Início da Categoria:</span>
+                      <span className="font-mono text-xs font-bold text-slate-800 block mt-0.5">{catItem.dataInicio}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bloco 4: Canais de Contato Direto & Endereço Residencial */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-2">
+            {/* Contatos */}
+            <div className="border border-slate-200 rounded-xl p-5 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+              <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
+                <Phone className="w-4 h-4 text-purple-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Canais de Contato do Condutor
+                </span>
+              </div>
+              <div className="space-y-3 text-xs">
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-200/70">
+                  <div className="flex items-center space-x-2">
+                    <Phone className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-slate-500 font-medium">Telefone Celular:</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-900">{telefone || 'Não informado'}</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-200/70">
+                  <div className="flex items-center space-x-2">
+                    <Mail className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-slate-500 font-medium">E-mail:</span>
+                  </div>
+                  <span className="font-mono font-medium text-slate-900 break-all">{email || 'Não informado'}</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-200/70">
+                  <span className="text-slate-500 font-medium">UF de Domínio:</span>
+                  <span className="font-bold text-slate-900">{String(cont.uf_dominio || end.uf || 'PR')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Endereço */}
+            <div className="border border-slate-200 rounded-xl p-5 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+              <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
+                <MapPin className="w-4 h-4 text-purple-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Endereço Cadastrado no DETRAN
+                </span>
+              </div>
+              {hasEndereco ? (
+                <div className="space-y-2 text-xs">
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">Logradouro:</span>
+                    <span className="text-slate-800 font-medium block mt-0.5">
+                      {end.logradouro ? `${end.logradouro}${end.numero ? `, ${end.numero}` : ''}${end.complemento ? ` - Compl: ${end.complemento}` : ''}` : '-'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-medium block">Bairro:</span>
+                      <span className="text-slate-800 font-medium block mt-0.5">{String(end.bairro || '-')}</span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-medium block">CEP:</span>
+                      <span className="font-mono text-slate-800 font-bold block mt-0.5">{formatCEP(end.cep)}</span>
+                    </div>
+                  </div>
+                  <div className="pt-1">
+                    <span className="text-[11px] text-slate-400 font-medium block">Município / UF:</span>
+                    <span className="text-slate-800 font-bold block mt-0.5">{end.municipio ? `${end.municipio}${end.uf ? ` - ${end.uf}` : ''}` : String(end.uf || '-')}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">Endereço residencial não retornado no prontuário.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Bloco 5: Junta Médica & Exames Periciais de Aptidão */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <ShieldCheck className="w-4 h-4 text-purple-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Junta Médica & Exames Periciais de Aptidão
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                {exames.length} exame(s) registrado(s)
+              </span>
+            </div>
+
+            {exames.length > 0 ? (
+              <div className="space-y-3">
+                {exames.map((exItem: any, idx: number) => {
+                  const isApto = String(exItem.resultado || '').toUpperCase().includes('APTO');
+                  return (
+                    <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-3">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 text-sm">
+                              {exItem.descricaoExame || exItem.cod_exame_descricao || 'APTIDÃO FÍSICA E MENTAL'}
+                            </span>
+                            {exItem.codigo && (
+                              <span className="px-1.5 py-0.2 rounded font-mono text-[10px] bg-white border border-slate-200 text-slate-700">
+                                {exItem.codigo}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-500">
+                            Tipo de Operação: <strong>{exItem.tipoAtualizacao || exItem.tipo_atualizacao_descricao || 'SUBSTITUIÇÃO'}</strong> ({exItem.tipoEvento || 'EXAME'})
+                          </span>
+                        </div>
+                        <span className={`px-2.5 py-0.5 rounded font-bold text-xs border ${isApto ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
+                          {exItem.resultado || 'APTO'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div>
+                          <span className="text-[11px] text-slate-400 font-medium block">Data de Realização:</span>
+                          <span className="font-mono font-bold text-slate-900 block mt-0.5">{formatDateBR(exItem.dataExame || exItem.data_exame_iso || exItem.data_exame)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-slate-400 font-medium block">Validade do Laudo:</span>
+                          <span className="font-mono font-bold text-slate-900 block mt-0.5">{formatDateBR(exItem.dataValidade || exItem.data_validade_iso || exItem.data_validade)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-slate-400 font-medium block">Médico Examinador:</span>
+                          <span className="font-mono text-slate-800 block mt-0.5">{exItem.cpfExaminador || exItem.cpf_examinador1 ? formatDocumento(exItem.cpfExaminador || exItem.cpf_examinador1) : '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-slate-400 font-medium block">Clínica Credenciada:</span>
+                          <span className="font-mono text-slate-800 block mt-0.5">{exItem.cnpjClinicaCredenciada || exItem.cnpj_entidade_creden ? formatDocumento(exItem.cnpjClinicaCredenciada || exItem.cnpj_entidade_creden) : '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-slate-400 font-medium block">Município / UF:</span>
+                          <span className="text-slate-800 block mt-0.5">{exItem.municipioExame || exItem.cod_municipio_exame_descricao || '-'}{exItem.ufExame || exItem.uf_exame ? ` (${exItem.ufExame || exItem.uf_exame})` : ''}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-slate-400 font-medium block">Cat. Pretendida / Permitida:</span>
+                          <span className="font-mono font-bold text-slate-800 block mt-0.5">{exItem.categoriaPretendida || exItem.cat_pretendida || 'AB'} / {exItem.categoriaPermitida || exItem.cat_permitida || 'AB'}</span>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <span className="text-[11px] text-slate-400 font-medium block">Restrições / Observações:</span>
+                          <span className="text-slate-700 block mt-0.5">{exItem.restricoes || exItem.restricoes_x || 'Sem restrições médicas registradas'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">Nenhum exame médico pericial constante no prontuário.</p>
+            )}
+          </div>
+
+          {/* Bloco 6: Cursos de Formação, Reciclagem & Atualização */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <GraduationCap className="w-4 h-4 text-purple-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Cursos de Formação, Renovação & Especializações
+                </span>
+              </div>
+              <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                {cursos.length} curso(s) cadastrado(s)
+              </span>
+            </div>
+
+            {cursos.length > 0 ? (
+              <div className="space-y-3">
+                {cursos.map((cItem: any, idx: number) => (
+                  <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-200/60">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">
+                          {cItem.descricaoCurso || cItem.cod_curso_descricao || 'ATUALIZAÇÃO PARA RENOVAÇÃO DA CNH'}
+                        </span>
+                        {cItem.codigo && (
+                          <span className="px-1.5 py-0.2 rounded font-mono text-[10px] bg-white border border-slate-200 text-slate-700">
+                            {cItem.codigo}
+                          </span>
+                        )}
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-800 border border-purple-200">
+                        {cItem.modalidade || cItem.modalidade_descricao || 'PRESENCIAL (Integral)'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                      <div>
+                        <span className="text-[11px] text-slate-400 font-medium block">Data de Início:</span>
+                        <span className="font-mono font-bold text-slate-900 block mt-0.5">{formatDateBR(cItem.dataInicio || cItem.data_inicio_iso || cItem.data_inicio)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-slate-400 font-medium block">Carga Horária:</span>
+                        <span className="font-mono text-slate-800 block mt-0.5">{cItem.cargaHoraria || cItem.carga_horaria || 'Conforme Diretrizes DETRAN'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-slate-400 font-medium block">Entidade Credenciada:</span>
+                        <span className="font-mono text-slate-800 block mt-0.5">{cItem.cnpjEntidade || cItem.cnpj_entidade ? formatDocumento(cItem.cnpjEntidade || cItem.cnpj_entidade) : '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-slate-400 font-medium block">UF do Curso:</span>
+                        <span className="font-bold text-slate-800 block mt-0.5">{String(cItem.ufCurso || cItem.uf_curso || 'PR')}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">Nenhum curso especializado ou de renovação registrado.</p>
+            )}
+          </div>
+
+          {/* Bloco 7: Auditoria Regulatória, Restrições & Bloqueios */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-3 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                {temImpedimento ? (
+                  <ShieldAlert className="w-4 h-4 text-rose-600" />
+                ) : (
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                )}
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Auditoria Regulatória, Bloqueios & Impedimentos
+                </span>
+              </div>
+              <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold border ${temImpedimento ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                {temImpedimento ? 'Consta Apontamento' : 'Nada Consta - Prontuário Regular'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <span className="text-[11px] text-slate-400 font-medium block">Impedimentos Ativos:</span>
+                <span className={`font-bold block mt-0.5 ${impedimentos.length > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                  {impedimentos.length > 0 ? `${impedimentos.length} impedimento(s)` : 'Sem impedimentos ativos'}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <span className="text-[11px] text-slate-400 font-medium block">Ocorrências Administrativas:</span>
+                <span className="font-semibold text-slate-800 block mt-0.5">
+                  {ocorrencias.length > 0 ? `${ocorrencias.length} ocorrência(s)` : 'Nenhuma ocorrência registrada'}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <span className="text-[11px] text-slate-400 font-medium block">Infrações de Trânsito:</span>
+                <span className={`font-semibold block mt-0.5 ${temInfracao ? 'text-amber-700' : 'text-slate-800'}`}>
+                  {infracoes.length > 0 ? `${infracoes.length} infração(ões)` : 'Sem infrações impeditivas no prontuário'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 8: Auditoria Técnica Avançada (Payload Sanitizado Whitelabel) */}
+          <CnhRawDataAccordion
+            dados={dados}
+            title="Auditoria Técnica Avançada RENACH (Payload Oficial Completo Sem Edições)"
+          />
+        </div>
+      );
+    }
+
 
     // Default genérico para laudos de outros produtos
     default: {

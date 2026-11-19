@@ -327,5 +327,22 @@ Implementado com base no benchmark executivo (Infosinistros):
    * **Portal Administrativo:** `src/pages/admin/GerenciarClientes.tsx` (botão `Extrato de Consumo` no menu de ações de cada cliente, abrindo modal analítico completo).
    * **Rota Standalone:** `src/pages/assinante/ExtratoFinanceiro.tsx`.
 
+---
+
+## 15. Tríade Oficial de Produtos CNH: E21, E22 e E23
+
+1. **E21 — CNH Customizada (Código SER_JUS_2026):**
+   - Base Federal: SERPRO (`api=cnh_serpro`). Custo: R$ 0,07 | Venda: R$ 1,32.
+   - Foco: Dados civis completos, filiação paterna/materna, PID e histórico de cursos.
+
+2. **E22 — CNH Customizada (Código SEN_JUS_2026):**
+   - Base Federal: SENATRAN (`api=cnh_senatran`). Custo: R$ 0,10 | Venda: R$ 1,32.
+   - Foco: Espelho fotográfico biométrico oficial em alta resolução, avaliação toxicológica, bloqueios e multas.
+
+3. **E23 — CNH Customizada (Código REN_JUS_2026):**
+   - Base Estadual/Federal: DETRAN / RENACH (`api=renach_prontuario`). Custo: R$ 0,20 | Venda: R$ 1,32.
+   - Foco: Prontuário pericial completo de exames médicos/clínicos, histórico de categorias (A, B, C, D, E), canais de contato (celular e e-mail) e endereço cadastrado.
+   - Whitelabel Estrito: 0% de menção a provedores externos, tokens ou metadados de API.
+
 
 

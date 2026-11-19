@@ -86,6 +86,24 @@ https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=reg\_rg\&query=59
 Preço de Custo: R\$0,03  
 Preço de Venda: R\$1,32
 
+RENACRED  
+PRODUTO "E21 CNH CUSTOMIZADA CODIGO SER_JUS_2026"  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=cnh_serpro\&query=96238550953  
+Preço de Custo: R\$0,07  
+Preço de Venda: R\$1,32
+
+RENACRED  
+PRODUTO "E22 CNH CUSTOMIZADA CODIGO SEN_JUS_2026"  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=cnh_senatran\&query=96238550953  
+Preço de Custo: R\$0,10  
+Preço de Venda: R\$1,32
+
+RENACRED  
+PRODUTO "E23 CNH CUSTOMIZADA CODIGO REN_JUS_2026"  
+https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renach_prontuario\&query=96238550953  
+Preço de Custo: R\$0,20  
+Preço de Venda: R\$1,32
+
 você percebeu que existem alguns produtos ali que tem dois ou três links, e do lado eu coloquei contingência. Ou seja, o primeiro link, ou melhor dizendo, o primeiro link não, refazendo o texto, como eles têm contingência, ou seja, se o primeiro falhar, tem o segundo e às vezes tem o terceiro, eles precisam ser sempre o mesmo layout de exibição na tela para que o cliente nunca veja a diferença de layout explodindo na tela dele se foi no link 1, link 2 ou link 3 o cliente nem sente
 
 tem muitas consultas ali que elas têm dados repetitivos, por exemplo, código no município, 1415, aí embaixo descrição do código, Joinville e Santa Catarina. Então não precisa ter código no município em cima, né, meio que duplicidade. tem bastante coisa assim que que todas as consultas vem nu, nunca vem retorno, não sei se a gente precisaria colocar na tela, entendeu  

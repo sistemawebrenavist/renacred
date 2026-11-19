@@ -646,7 +646,7 @@ export default function TabelaPrecosAdmin() {
         description={
           <div>
             <p>
-              Você tem certeza de que deseja restaurar <strong>todos os 20 produtos</strong> para as tarifas e custos de fábrica definidos originalmente no catálogo da plataforma?
+              Você tem certeza de que deseja restaurar <strong>todos os {products.length} produtos</strong> para as tarifas e custos de fábrica definidos originalmente no catálogo da plataforma?
             </p>
             <p className="mt-2 text-rose-700 font-medium">
               Todas as personalizações globais de custos e preços atuais serão redefinidas imediatamente.

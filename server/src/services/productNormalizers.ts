@@ -1780,7 +1780,180 @@ export function normalizeE22(raw: any, query?: string): NormalizedResult {
 }
 
 /**
- * Mapeador Central de Normalizadores por Código do Produto (E1 a E22)
+ * Normalizador E23: CNH Customizada (Código REN_JUS_2026) - Base RENACH / DETRAN
+ * Preserva 100% dos dados nativos com sanitização estrita Whitelabel (0% de vazamento de fornecedor).
+ */
+export function normalizeE23(raw: any, query?: string): NormalizedResult {
+  if (!raw || raw.isNotFound) {
+    return {
+      totalRegistros: 0,
+      dados: {
+        cpf: query,
+        status: 'REGISTRO_NAO_ENCONTRADO',
+        mensagem: raw?.mensagem || raw?.message || 'Nenhum prontuário de condutor localizado na base RENACH para o CPF informado.'
+      }
+    };
+  }
+
+  // Sanitização Whitelabel estrita preservando todos os campos e estruturas originais
+  const sanitized = sanitizeProviderRawPreserve(raw) || {};
+  delete sanitized.api_central;
+  delete sanitized.fornecedor;
+  delete sanitized.provedor;
+  delete sanitized.token;
+
+  const formatDate = (val?: any) => {
+    if (!val) return undefined;
+    const str = String(val).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) return str;
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+      const parts = str.split('T')[0].split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    if (/^\d{8}$/.test(str)) {
+      return `${str.substring(6, 8)}/${str.substring(4, 6)}/${str.substring(0, 4)}`;
+    }
+    return str;
+  };
+
+  const condutor = sanitized.condutor || {};
+  const documento = sanitized.documento || {};
+  const endereco = sanitized.endereco || {};
+  const nacionalidade = sanitized.nacionalidade || {};
+  const contato = sanitized.contato || {};
+  const cnh = sanitized.cnh || {};
+  const controle = sanitized.controle || {};
+  const exames = Array.isArray(sanitized.exames) ? sanitized.exames : [];
+  const cursos = Array.isArray(sanitized.cursos) ? sanitized.cursos : [];
+  const eventos = Array.isArray(sanitized.eventos) ? sanitized.eventos : [];
+  const impedimentos = Array.isArray(sanitized.impedimentos) ? sanitized.impedimentos : [];
+  const ocorrencias = Array.isArray(sanitized.ocorrencias) ? sanitized.ocorrencias : [];
+  const infracoes = Array.isArray(sanitized.infracoes) ? sanitized.infracoes : [];
+  const liberacoes = Array.isArray(sanitized.liberacoes) ? sanitized.liberacoes : [];
+  const escolas = Array.isArray(sanitized.escolas) ? sanitized.escolas : [];
+
+  // Formatação amigável de celular
+  let telefoneFormatado = contato.telefone_celular;
+  if (contato.ddd_celular && contato.telefone_celular) {
+    const rawTel = String(contato.telefone_celular).replace(/\D/g, '');
+    if (rawTel.length === 9) {
+      telefoneFormatado = `(${contato.ddd_celular}) ${rawTel.substring(0, 5)}-${rawTel.substring(5)}`;
+    } else if (rawTel.length === 8) {
+      telefoneFormatado = `(${contato.ddd_celular}) ${rawTel.substring(0, 4)}-${rawTel.substring(4)}`;
+    } else {
+      telefoneFormatado = `(${contato.ddd_celular}) ${contato.telefone_celular}`;
+    }
+  }
+
+  // Normalização de exames médicos periciais
+  const examesNormalizados = exames.map((ex: any) => ({
+    tipoEvento: ex.tipo_evento_descricao || ex.tipo_evento || 'EXAME',
+    tipoAtualizacao: ex.tipo_atualizacao_descricao || ex.tipo_atualizacao || 'SUBSTITUIÇÃO',
+    codExame: ex.cod_exame,
+    descricaoExame: ex.cod_exame_descricao || ex.codigo_descricao || 'APTIDÃO FÍSICA E MENTAL',
+    codigo: ex.codigo,
+    dataExame: formatDate(ex.data_exame_iso || ex.data_exame),
+    resultado: ex.resultado_descricao || (ex.resultado === '1' ? 'APTO' : ex.resultado || 'APTO'),
+    dataValidade: formatDate(ex.data_validade_iso || ex.data_validade),
+    cpfExaminador: ex.cpf_examinador1 || ex.cpf_examinador2 || undefined,
+    cnpjClinicaCredenciada: ex.cnpj_entidade_creden || undefined,
+    municipioExame: ex.cod_municipio_exame_descricao || undefined,
+    ufExame: ex.uf_exame || undefined,
+    categoriaPretendida: ex.cat_pretendida || undefined,
+    categoriaPermitida: ex.cat_permitida || undefined,
+    observacoes: ex.observacoes && ex.observacoes !== '99' ? ex.observacoes : undefined,
+    restricoes: ex.restricoes_x || undefined
+  }));
+
+  // Normalização de cursos de renovação e especializações
+  const cursosNormalizados = cursos.map((c: any) => ({
+    tipoEvento: c.tipo_evento_descricao || c.tipo_evento || 'CURSO',
+    tipoAtualizacao: c.tipo_atualizacao_descricao || c.tipo_atualizacao || 'INCLUSÃO',
+    codCurso: c.cod_curso,
+    descricaoCurso: c.cod_curso_descricao || c.codigo_descricao || 'ATUALIZAÇÃO PARA RENOVAÇÃO DA CNH',
+    codigo: c.codigo,
+    modalidade: c.modalidade_descricao || (c.modalidade === '1' ? 'PRESENCIAL (Integral)' : c.modalidade),
+    dataInicio: formatDate(c.data_inicio_iso || c.data_inicio),
+    dataFim: formatDate(c.data_fim_iso || c.data_fim),
+    cargaHoraria: c.carga_horaria && c.carga_horaria !== '000' ? `${c.carga_horaria} horas` : undefined,
+    cnpjEntidade: c.cnpj_entidade || undefined,
+    ufCurso: c.uf_curso || undefined,
+    observacoes: c.observacoes_curso && c.observacoes_curso !== '99' ? c.observacoes_curso : undefined
+  }));
+
+  // Histórico de categorias habilitadas
+  const categoriasHistorico = [
+    { categoria: 'A', dataInicio: formatDate(controle.data_inicio_categoria_a_iso || controle.data_inicio_categoria_a) },
+    { categoria: 'B', dataInicio: formatDate(controle.data_inicio_categoria_b_iso || controle.data_inicio_categoria_b) },
+    { categoria: 'C', dataInicio: formatDate(controle.data_inicio_categoria_c_iso || controle.data_inicio_categoria_c) },
+    { categoria: 'D', dataInicio: formatDate(controle.data_inicio_categoria_d_iso || controle.data_inicio_categoria_d) },
+    { categoria: 'E', dataInicio: formatDate(controle.data_inicio_categoria_e_iso || controle.data_inicio_categoria_e) }
+  ].filter(cat => !!cat.dataInicio);
+
+  const hasCondutor = !!(condutor.nome || condutor.num_registro || condutor.cpf || sanitized.numero || query);
+
+  const dados: Record<string, any> = {
+    // 1. Cópia completa 1:1 sanitizada de todos os nós originais
+    ...sanitized,
+
+    // 2. Blocos padronizados com garantias tipográficas para a UI
+    condutor: {
+      ...condutor,
+      cpf: condutor.cpf || sanitized.numero || query,
+      dataNascimento: formatDate(condutor.data_nascimento_iso || condutor.data_nascimento),
+      sexo: condutor.cod_sexo_descricao || (condutor.cod_sexo === '1' ? 'MASCULINO' : condutor.cod_sexo === '2' ? 'FEMININO' : undefined)
+    },
+    documento: {
+      ...documento,
+      tipo: documento.cod_tipo === '1' ? 'RG / IDENTIDADE' : documento.cod_tipo
+    },
+    endereco: {
+      ...endereco,
+      municipio: endereco.cod_municipio_descricao || endereco.municipio
+    },
+    nacionalidade: {
+      ...nacionalidade,
+      descricao: nacionalidade.cod_nacionalidade_descricao || 'BRASILEIRO'
+    },
+    contato: {
+      ...contato,
+      telefoneFormatado
+    },
+    cnh: {
+      ...cnh,
+      primeiraHabilitacao: formatDate(cnh.primeira_habilitacao_iso || cnh.primeira_habilitacao),
+      validade: formatDate(cnh.validade_iso || cnh.validade),
+      situacao: cnh.situacao_codigo_descricao || 'CONFIRMADA',
+      motivoRequerimento: cnh.motivo_requerimento_descricao?.['5'] || 'RENOVAÇÃO DE EXAMES',
+      isValidadeVencida: cnh.validade_iso ? new Date(cnh.validade_iso).getTime() < Date.now() : false
+    },
+    controle: {
+      ...controle,
+      dataUltimaEmissao: formatDate(controle.data_ultima_emissao_historico_iso || controle.data_ultima_emissao_historico),
+      categoriasHistorico
+    },
+    exames: examesNormalizados,
+    cursos: cursosNormalizados,
+    eventos,
+    impedimentos,
+    ocorrencias,
+    infracoes,
+    liberacoes,
+    escolas,
+
+    // 3. Aliases Whitelabel completos para compatibilidade 1:1
+    _dadosCompletos: sanitized,
+    _rawApi: sanitized
+  };
+
+  return {
+    totalRegistros: hasCondutor ? 1 : 0,
+    dados
+  };
+}
+
+/**
+ * Mapeador Central de Normalizadores por Código do Produto (E1 a E23)
  */
 export function normalizeProductResult(code: string, raw: any, query?: string, extraParams?: any): NormalizedResult {
   const upper = code.trim().toUpperCase();
@@ -1807,6 +1980,7 @@ export function normalizeProductResult(code: string, raw: any, query?: string, e
     case 'E20': return normalizeE20(raw, query);
     case 'E21': return normalizeE21(raw, query);
     case 'E22': return normalizeE22(raw, query);
+    case 'E23': return normalizeE23(raw, query);
     default:
       return { totalRegistros: raw ? 1 : 0, dados: cleanObject(raw) };
   }

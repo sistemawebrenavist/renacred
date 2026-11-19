@@ -36,7 +36,10 @@ const TEST_QUERIES: Record<string, { query: string; extraParams?: any }> = {
   E17: { query: 'HENRIQUE SILVA' }, // Busca Nome
   E18: { query: 'MARIA SILVA', extraParams: { tipo: 'mae' } }, // Filiação
   E19: { query: 'MIR2011' },    // Busca RENAVAM
-  E20: { query: 'MIR2011' }     // Pré Vistoria Consolidada
+  E20: { query: 'MIR2011' },    // Pré Vistoria Consolidada
+  E21: { query: '96238550953' }, // CNH SERPRO (SER_JUS_2026)
+  E22: { query: '96238550953' }, // CNH SENATRAN (SEN_JUS_2026)
+  E23: { query: '96238550953' }  // CNH RENACH (REN_JUS_2026)
 };
 
 async function testSingleProduct(code: string): Promise<TestResult> {

@@ -595,13 +595,39 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
       text: 'text-emerald-800',
       border: 'border-emerald-200'
     }
+  },
+  {
+    code: 'E23',
+    slug: 'cnh-customizada-renach',
+    name: 'CNH Customizada (Código REN_JUS_2026)',
+    shortName: 'CNH RENACH (REN_JUS)',
+    category: 'cadastral',
+    categoryLabel: 'Cadastral',
+    inputType: 'cpf',
+    inputLabel: 'CPF do Condutor',
+    placeholder: '000.000.000-00',
+    description: 'Prontuário completo oficial RENACH/DETRAN: dados do condutor, filiação, histórico de exames médicos periciais, cursos de renovação, linha do tempo de eventos, datas históricas por categoria (A, B, C, D, E), canais de contato e endereço.',
+    highlights: [
+      'Prontuário completo de exames médicos e periciais com credenciamento',
+      'Histórico temporal de habilitação por categoria (A, B, C, D, E)',
+      'Cursos de formação, renovação e reciclagem presenciais/EAD',
+      'Canais de contato direto (celular e e-mail) e endereço cadastral'
+    ],
+    defaultCost: 0.20,
+    defaultPrice: 1.32,
+    hasContingency: false,
+    badgeColor: {
+      bg: 'bg-purple-50',
+      text: 'text-purple-800',
+      border: 'border-purple-200'
+    }
   }
 ];
 
 export const CATEGORIES_CONFIG = [
-  { id: 'todos', label: 'Todos os Produtos', count: 22 },
+  { id: 'todos', label: 'Todos os Produtos', count: 23 },
   { id: 'veicular', label: 'Veicular', count: 10 },
-  { id: 'cadastral', label: 'Cadastral', count: 9 },
+  { id: 'cadastral', label: 'Cadastral', count: 10 },
   { id: 'juridico', label: 'Jurídico', count: 2 },
   { id: 'imobiliario', label: 'Imobiliário', count: 1 },
 ];
