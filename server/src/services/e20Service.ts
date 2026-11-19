@@ -1563,39 +1563,13 @@ export class E20Service {
         }
 
         case 'P11': { // HISTÓRICO DE NOTIFICAÇÃO/OFERTA EM EDITAL ELETRÔNICO DE LEILÃO
+          // Apontamento estritamente factual: apenas se constar registro real de leilão na base
           const hasLeilaoDireto = hasInfoSinistros;
-          const temFrotaPublica = registrosFrotaPublica.length > 0 || frotasPublicasDetectadas.length > 0 || p3Info?.status === 'positivo';
-          const positivo = hasLeilaoDireto || temFrotaPublica;
+          const positivo = hasLeilaoDireto;
 
           let registrosLeilao: any[] = [];
           if (hasLeilaoDireto && rawInfoConteudo) {
             registrosLeilao = Array.isArray(rawInfoConteudo) ? [...rawInfoConteudo] : [rawInfoConteudo];
-          }
-
-          if (temFrotaPublica) {
-            // Regra Jurídica/Pericial Renacred: Veículos de órgãos públicos somente podem ser desmobilizados/alienados por leilão público (Lei 14.133/21 e Lei 8.666/93)
-            const orgaoOrigem = registrosFrotaPublica[0]?.orgao || frotasPublicasDetectadas[0]?.nome || p3Info?.conteudo?.razaoSocial || 'ÓRGÃO PÚBLICO';
-            const anoDesmob = registrosFrotaPublica[0]?.ano || extrairApenasAno(frotasPublicasDetectadas[0]?.data) || p3Info?.conteudo?.ano || (dadosVeiculo.anoModelo ? String(dadosVeiculo.anoModelo) : '-');
-            const dataDesmob = registrosFrotaPublica[0]?.data || frotasPublicasDetectadas[0]?.data || null;
-
-            const leilaoPublicoItem = {
-              leiloeiro: 'LEILÃO ADMINISTRATIVO DE FROTA PÚBLICA',
-              comitente: orgaoOrigem,
-              orgao: orgaoOrigem,
-              lote: 'Lote de Desmobilização',
-              tipo: 'Desmobilização de Frota Pública por Edital de Leilão',
-              evento: 'Alienação de Bem Público Inservível/Desmobilizado (Lei 14.133/21 e Lei 8.666/93)',
-              edital: 'Edital de Leilão Público Governamental',
-              ano: String(anoDesmob),
-              data: dataDesmob,
-              detalhes: `Veículo desmobilizado da administração pública (${orgaoOrigem}) mediante alienação obrigatória por edital de leilão público.`,
-              fonte: 'Edital Administrativo / Cadeia Dominial Pública'
-            };
-
-            const jaTem = registrosLeilao.some((l: any) => (l.comitente && l.comitente === orgaoOrigem) || (l.tipo && l.tipo.includes('Frota Pública')));
-            if (!jaTem) {
-              registrosLeilao.push(leilaoPublicoItem);
-            }
           }
 
           return {
@@ -1603,11 +1577,11 @@ export class E20Service {
             titulo,
             status: positivo ? 'positivo' : 'negativo',
             mensagem: positivo
-              ? (hasLeilaoDireto && typeof rawInfoConteudo === 'string'
+              ? (typeof rawInfoConteudo === 'string'
                 ? rawInfoConteudo
                 : (registrosLeilao.length > 0
                   ? `IDENTIFICADA NOTIFICAÇÃO / EDITAL DE LEILÃO (${registrosLeilao.length} registro(s))`
-                  : 'IDENTIFICADA DESMOBILIZAÇÃO DE FROTA PÚBLICA POR EDITAL DE LEILÃO ADMINISTRATIVO'))
+                  : 'IDENTIFICADA NOTIFICAÇÃO / EDITAL DE LEILÃO'))
               : 'NENHUM REGISTRO LOCALIZADO NA BASE INTERNA',
             conteudo: positivo ? (registrosLeilao.length > 0 ? registrosLeilao : rawInfoConteudo) : null,
             detalhes: positivo ? (registrosLeilao.length > 0 ? registrosLeilao : rawInfoConteudo) : null,
