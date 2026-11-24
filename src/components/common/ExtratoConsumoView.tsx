@@ -876,10 +876,12 @@ export default function ExtratoConsumoView({ companyId, companyName, isModal = f
               {(() => {
                 const resData = selectedLaudo.resultData || {};
                 const isFalhaTecnica = selectedLaudo.status === 'ERROR' || 
-                  resData.success === false || 
-                  Boolean(resData.error) || 
-                  (typeof resData.mensagem === 'string' && resData.mensagem.toLowerCase().includes('nao foi possivel')) ||
-                  (typeof resData.message === 'string' && resData.message.toLowerCase().includes('nao foi possivel'));
+                  (!resData.certidao_negativa && resData.status !== 'REGISTRO_NAO_ENCONTRADO' && (
+                    resData.success === false || 
+                    Boolean(resData.error) || 
+                    (typeof resData.mensagem === 'string' && resData.mensagem.toLowerCase().includes('nao foi possivel')) ||
+                    (typeof resData.message === 'string' && resData.message.toLowerCase().includes('nao foi possivel'))
+                  ));
 
                 if (isFalhaTecnica) {
                   return (

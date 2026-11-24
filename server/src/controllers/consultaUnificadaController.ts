@@ -238,10 +238,11 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
     // Se o provedor upstream retornou falha, success: false ou erro explícito sem ser registro não encontrado
     if (
       result.raw &&
+      !result.raw.isNotFound &&
       (result.raw.success === false ||
        result.raw.error === 'resolve_failed' ||
        result.raw.erro === 'resolve_failed' ||
-       (result.raw.error && !result.raw.isNotFound))
+       result.raw.error)
     ) {
       throw new Error('Estamos em manutenção, tente mais tarde');
     }
@@ -339,6 +340,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       hash_autenticacao: hashAutenticacao,
       provedor_utilizado: providerUsedFinal,
       consultado_em: new Date().toISOString(),
+      ...(mensagemRetorno ? { mensagem: mensagemRetorno } : {}),
       dados: result.normalized.dados || resultDataToSave
     };
 
@@ -599,10 +601,11 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
     // Se o provedor upstream retornou falha, success: false ou erro explícito sem ser registro não encontrado
     if (
       result.raw &&
+      !result.raw.isNotFound &&
       (result.raw.success === false ||
        result.raw.error === 'resolve_failed' ||
        result.raw.erro === 'resolve_failed' ||
-       (result.raw.error && !result.raw.isNotFound))
+       result.raw.error)
     ) {
       throw new Error('Estamos em manutenção, tente mais tarde');
     }
@@ -720,6 +723,7 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       hash_autenticacao: hashAutenticacao,
       provedor_utilizado: providerUsedFinal,
       consultado_em: new Date().toISOString(),
+      ...(mensagemRetorno ? { mensagem: mensagemRetorno } : {}),
       dados: result.normalized.dados || resultDataToSave
     };
 

@@ -1475,15 +1475,33 @@ export function normalizeE18(raw: any, query?: string, extraParams?: any): Norma
  * Requisito estrito: Retornar exclusivamente name, type, year, yearManufacture, renavam e plate
  */
 export function normalizeE19(raw: any, query?: string): NormalizedResult {
+  const isNotFound = !!(raw?.isNotFound || raw?.isVeiculoInexistente);
   const v = raw?.vehicle || raw?.veiculo || {};
   const m = v?.model || v?.modelo || {};
   const renavamRaw = v?.renavam || raw?.renavam || raw?.codigoRenavam || v?.codigoRenavam || raw?.veiculo?.codigoRenavam;
   const renavam = renavamRaw ? String(renavamRaw).trim() : null;
 
-  if (!renavam) {
+  if (!renavam || isNotFound) {
+    const cleanPlaca = query ? String(query).toUpperCase().trim() : (raw?.placa_consultada || raw?.placa || null);
+    const msg = raw?.mensagem || (cleanPlaca
+      ? `O veículo de placa ${cleanPlaca} não existe nas bases oficiais de trânsito (SERPRO/SENATRAN).`
+      : 'Veículo não encontrado nas bases oficiais de trânsito.');
+
     return {
       totalRegistros: 0,
-      dados: null
+      dados: {
+        status: 'REGISTRO_NAO_ENCONTRADO',
+        mensagem: msg,
+        parametro_pesquisado: cleanPlaca,
+        total_registros: 0,
+        laudo_pericial: cleanPlaca
+          ? `Certidão Negativa: Veículo ${cleanPlaca} inexistente nas bases oficiais do SERPRO/SENATRAN.`
+          : 'Certidão Negativa: Registro inexistente nas bases oficiais.',
+        certidao_negativa: true,
+        veiculo_inexistente: true,
+        provedor_consultado: raw?.api_central?.api_utilizada || 'placa_serpro',
+        consultado_em: new Date().toISOString()
+      }
     };
   }
 

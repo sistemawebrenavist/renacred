@@ -6,6 +6,8 @@ import { normalizeProductResult, NormalizedResult } from './productNormalizers';
 import { enrichProprietariosWithCnpj } from './cnpjService';
 import { prisma } from '../config/database';
 import { QueryStatus } from '../types/database';
+import { infoPool } from './syncToInfosinistrosService';
+import { infosinistrosService } from './infosinistrosService';
 
 
 export interface ParteDeclaracao {
@@ -139,8 +141,15 @@ export function isFetchBrasilNotFound(data: any, status?: number): boolean {
     }
   }
 
-  // 2. Se a mensagem ou erro for explicitamente "Registro não encontrado" ou "Nada Consta"
-  if (data.error === 'Registro não encontrado' || data.erro === 'Registro não encontrado') {
+  // 2. Se a mensagem ou erro for explicitamente "Registro não encontrado", "Nada Consta" ou "Veículo não encontrado"
+  const errStr = String(data.error || data.erro || '').trim().toLowerCase();
+  if (
+    errStr === 'registro não encontrado' ||
+    errStr === 'registro nao encontrado' ||
+    errStr === 'veículo não encontrado' ||
+    errStr === 'veiculo nao encontrado' ||
+    errStr === 'nada consta'
+  ) {
     return true;
   }
 
@@ -154,7 +163,13 @@ export function isFetchBrasilNotFound(data: any, status?: number): boolean {
       cleanMsg === 'veiculo nao encontrado' ||
       cleanMsg === 'nenhum registro encontrado' ||
       cleanMsg === 'documento não localizado' ||
-      cleanMsg === 'documento nao localizado'
+      cleanMsg === 'documento nao localizado' ||
+      cleanMsg.includes('veículo não encontrado') ||
+      cleanMsg.includes('veiculo nao encontrado') ||
+      cleanMsg.includes('não encontrado no serpro') ||
+      cleanMsg.includes('nao encontrado no serpro') ||
+      cleanMsg.includes('veículo inexistente') ||
+      cleanMsg.includes('veiculo inexistente')
     ) {
       return true;
     }
@@ -473,6 +488,162 @@ export class FetchBrasilService {
   }
 
   /**
+   * Identifica se a resposta da API placa_df indica "Resposta vazia" / DETRAN-DF sem conteúdo
+   */
+  isPlacaDfRespostaVazia(data: any): boolean {
+    if (!data || typeof data !== 'object') return false;
+    const err = String(data.error || data.erro || '').toLowerCase();
+    const msg = String(data.message || data.mensagem || '').toLowerCase();
+    return (
+      data.success === false &&
+      (err.includes('resposta vazia') ||
+       msg.includes('resposta vazia') ||
+       msg.includes('não retornou conteúdo') ||
+       msg.includes('nao retornou conteudo') ||
+       msg.includes('detran-df') ||
+       err.includes('registro não encontrado') ||
+       err.includes('registro nao encontrado') ||
+       msg.includes('registro não encontrado') ||
+       msg.includes('registro nao encontrado'))
+    );
+  }
+
+  /**
+   * Identifica se a resposta da API placa_serpro indica veículo não encontrado
+   */
+  isSerproVeiculoNaoEncontrado(data: any): boolean {
+    if (!data || typeof data !== 'object') return false;
+    const err = String(data.error || data.erro || '').trim().toLowerCase();
+    const msg = String(data.message || data.mensagem || '').trim().toLowerCase();
+    return (
+      err.includes('veículo não encontrado') ||
+      err.includes('veiculo nao encontrado') ||
+      msg.includes('veículo não encontrado') ||
+      msg.includes('veiculo nao encontrado') ||
+      msg.includes('não encontrado no serpro') ||
+      msg.includes('nao encontrado no serpro') ||
+      msg.includes('veículo inexistente') ||
+      msg.includes('veiculo inexistente')
+    );
+  }
+
+  /**
+   * Consulta a Base BIN interna (veiculos_base_bin no PostgreSQL, histórico Renacred e P35 InfoSinistros)
+   * para localizar dados cadastrais e RENAVAM do veículo caso o DETRAN-DF retorne resposta vazia no E19.
+   */
+  async buscarBinInterna(cleanPlaca: string): Promise<{
+    renavam: string;
+    name?: string;
+    type?: string;
+    year?: string;
+    yearManufacture?: string;
+    plate?: string;
+    chassi?: string;
+    source: string;
+    raw?: any;
+  } | null> {
+    const placaClean = cleanPlaca.replace(/[^A-Z0-9]/gi, '').toUpperCase().trim();
+
+    // 1. Tentar na tabela oficial veiculos_base_bin da InfoSinistros (Pool PostgreSQL compartilhado na VPS)
+    try {
+      const res = await infoPool.query(
+        'SELECT * FROM veiculos_base_bin WHERE placa = $1 LIMIT 1',
+        [placaClean]
+      );
+      if (res.rows && res.rows.length > 0) {
+        const row = res.rows[0];
+        const renavamRaw = row.renavam || row.codigo_renavam || row.codigoRenavam;
+        if (renavamRaw && String(renavamRaw).trim() !== '' && String(renavamRaw).toUpperCase() !== 'NADA CONSTA') {
+          const renavam = String(renavamRaw).trim();
+          logger.info(`[BASE BIN INTERNA] Placa ${placaClean} localizada na tabela veiculos_base_bin (RENAVAM: ${renavam})`);
+          return {
+            renavam,
+            name: row.marca_modelo || row.modelo || row.descricao_marca_modelo || row.marca || 'NÃO INFORMADO',
+            type: row.tipo_veiculo || row.tipo || row.especie || 'AUTOMOVEL',
+            year: row.ano_modelo ? String(row.ano_modelo) : (row.ano ? String(row.ano) : undefined),
+            yearManufacture: row.ano_fabricacao ? String(row.ano_fabricacao) : undefined,
+            plate: row.placa || placaClean,
+            chassi: row.chassi || undefined,
+            source: 'veiculos_base_bin',
+            raw: row
+          };
+        }
+      }
+    } catch (err: any) {
+      logger.warn(`[BASE BIN INTERNA] Tabela veiculos_base_bin indisponível ou erro para ${placaClean}: ${err.message}`);
+    }
+
+    // 2. Tentar no histórico de consultas concluídas do banco de dados Renacred (prisma.query)
+    try {
+      const record = await prisma.query.findFirst({
+        where: {
+          identifier: placaClean,
+          status: QueryStatus.COMPLETED,
+          totalDeclaracoes: { gt: 0 },
+          OR: [
+            { requestData: { path: ['product'], equals: 'E12' } },
+            { requestData: { path: ['product'], equals: 'E19' } },
+            { requestData: { path: ['product'], equals: 'E20' } },
+            { requestData: { path: ['product'], equals: 'bin' } },
+            { requestData: { path: ['product'], equals: 'busca-renavam' } },
+            { requestData: { path: ['product'], equals: 'pre-vistoria' } }
+          ]
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (record && record.resultData) {
+        const rawRes: any = record.resultData;
+        const renavamRaw = rawRes.renavam || rawRes.dados?.renavam || rawRes.veiculo?.renavam || rawRes.vehicle?.renavam || rawRes.veiculo?.codigoRenavam;
+        if (renavamRaw && String(renavamRaw).trim() !== '' && String(renavamRaw).toUpperCase() !== 'NADA CONSTA') {
+          const renavam = String(renavamRaw).trim();
+          logger.info(`[BASE BIN INTERNA] Placa ${placaClean} localizada no histórico interno Renacred (Query ${record.id}, RENAVAM: ${renavam})`);
+          return {
+            renavam,
+            name: rawRes.name || rawRes.dados?.name || rawRes.veiculo?.modelo || rawRes.vehicle?.model?.name || 'NÃO INFORMADO',
+            type: rawRes.type || rawRes.dados?.type || rawRes.veiculo?.tipo || rawRes.vehicle?.type || 'AUTOMOVEL',
+            year: rawRes.year || rawRes.dados?.year || rawRes.veiculo?.anoModelo || rawRes.vehicle?.model?.year,
+            yearManufacture: rawRes.yearManufacture || rawRes.dados?.yearManufacture || rawRes.veiculo?.anoFabricacao || rawRes.vehicle?.yearManufacture,
+            plate: rawRes.plate || rawRes.dados?.plate || placaClean,
+            chassi: rawRes.chassi || rawRes.veiculo?.chassi,
+            source: 'base_interna_renacred',
+            raw: rawRes
+          };
+        }
+      }
+    } catch (err: any) {
+      logger.warn(`[BASE BIN INTERNA] Histórico interno Renacred indisponível para ${placaClean}: ${err.message}`);
+    }
+
+    // 3. Tentar via BIN Fabril P35 da InfoSinistros (Admin API Key B2B ilimitada)
+    try {
+      const infoSin = await infosinistrosService.consultarPreVistoria(placaClean);
+      const p35 = infoSin?.resultados?.P35?.conteudo;
+      const renavamP35 = p35?.renavam || p35?.codigoRenavam;
+      if (renavamP35 && String(renavamP35).trim() !== '' && String(renavamP35).toUpperCase() !== 'NADA CONSTA') {
+        const renavam = String(renavamP35).trim();
+        logger.info(`[BASE BIN INTERNA] Placa ${placaClean} localizada na BIN Fabril P35 da InfoSinistros (RENAVAM: ${renavam})`);
+        return {
+          renavam,
+          name: p35.marcaModelo || p35.modelo || 'NÃO INFORMADO',
+          type: p35.tipoVeiculo || 'AUTOMOVEL',
+          year: p35.anoModelo ? String(p35.anoModelo) : undefined,
+          yearManufacture: p35.anoFabricacao ? String(p35.anoFabricacao) : undefined,
+          plate: p35.placa || placaClean,
+          chassi: p35.chassi || undefined,
+          source: 'infosinistros_p35',
+          raw: p35
+        };
+      }
+    } catch (err: any) {
+      logger.warn(`[BASE BIN INTERNA] P35 InfoSinistros indisponível para ${placaClean}: ${err.message}`);
+    }
+
+    logger.info(`[BASE BIN INTERNA] Placa ${placaClean} NÃO localizada na base BIN interna.`);
+    return null;
+  }
+
+  /**
    * Consulta Histórico de Proprietários Veiculares por Placa (PRODUTO E2)
    * A API externa devolve decrescente (mais recente primeiro).
    * Esta função reordena a lista cronologicamente da DATA MAIS ANTIGA para a MAIS RECENTE.
@@ -714,6 +885,13 @@ export class FetchBrasilService {
           processingTimeMs: 5
         };
       }
+    }
+
+    // 1.6 Fluxo Especial Pericial para E19 (Busca de RENAVAM por Placa)
+    // Regra Pericial: placa_df -> se resposta vazia -> base BIN interna -> se negativa -> placa_serpro -> se veículo não encontrado -> laudo negativo tarifado normalmente
+    if (product.code === 'E19') {
+      const cleanPlaca = cleanQuery.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      return await this.consultarE19FluxoEspecial(product, cleanPlaca);
     }
 
     // 2. Deduplicação em voo (Singleflight)
@@ -1010,6 +1188,216 @@ export class FetchBrasilService {
     } finally {
       this.genericInFlight.delete(cacheKey);
     }
+  }
+
+  /**
+   * Fluxo Especial Pericial para o produto E19 (Busca de RENAVAM por Placa):
+   * 1. Consulta primária na API placa_df.
+   * 2. Se a API responder "Resposta vazia" / "O DETRAN-DF não retornou conteúdo na resposta desta placa.":
+   *    -> Verifica se a placa existe na Base BIN interna (veiculos_base_bin / histórico / P35).
+   * 3. Se a base BIN interna for negativa:
+   *    -> Realiza a consulta na API placa_serpro.
+   * 4. Se a placa_serpro retornar "Veículo não encontrado" / "Consulta concluída: veículo não encontrado no SERPRO...":
+   *    -> Cobra normalmente (houve trabalho de pesquisa pericial) e informa ao cliente que o veículo não existe.
+   */
+  async consultarE19FluxoEspecial(
+    product: ServerProductConfig,
+    cleanPlaca: string
+  ): Promise<{
+    product: ServerProductConfig;
+    normalized: NormalizedResult;
+    raw: any;
+    providerUsed: string;
+    processingTimeMs: number;
+  }> {
+    const startTime = Date.now();
+    let rawData: any = null;
+    let providerUsed = 'placa_df';
+    let placaDfVazia = false;
+
+    // Passo 1: Consulta primária na API placa_df
+    try {
+      logger.info(`[E19] Passo 1: Consultando endpoint primário 'placa_df' para ${cleanPlaca}...`);
+      const response = await this.client.get('/', {
+        params: {
+          token: this.token,
+          api: 'placa_df',
+          query: cleanPlaca
+        }
+      });
+      const data = response.data;
+
+      if (this.isPlacaDfRespostaVazia(data)) {
+        logger.info(`[E19] placa_df respondeu com 'Resposta vazia' / DETRAN-DF sem conteúdo para ${cleanPlaca}`);
+        placaDfVazia = true;
+      } else if (
+        data &&
+        typeof data === 'object' &&
+        data.success !== false &&
+        !data.erro &&
+        (!data.error || data.error === '0' || data.error === false)
+      ) {
+        // Sucesso no placa_df
+        rawData = data;
+        providerUsed = 'placa_df';
+        logger.info(`[E19] Sucesso no endpoint 'placa_df' para ${cleanPlaca} em ${Date.now() - startTime}ms`);
+      } else {
+        placaDfVazia = true;
+      }
+    } catch (dfErr: any) {
+      const respData = dfErr.response?.data;
+      if (this.isPlacaDfRespostaVazia(respData)) {
+        logger.info(`[E19] placa_df retornou erro HTTP indicando 'Resposta vazia' para ${cleanPlaca}`);
+        placaDfVazia = true;
+      } else {
+        logger.warn(`[E19] Falha na chamada placa_df para ${cleanPlaca}: ${dfErr.message}`);
+        placaDfVazia = true;
+      }
+    }
+
+    // Passo 2: Se placa_df respondeu vazia, "Verificar se a placa existe na base BIN interna."
+    if (placaDfVazia && !rawData) {
+      logger.info(`[E19] Passo 2: Verificando se a placa ${cleanPlaca} existe na Base BIN interna...`);
+      const binInterna = await this.buscarBinInterna(cleanPlaca);
+
+      if (binInterna && binInterna.renavam) {
+        logger.info(`[E19] Sucesso na Base BIN interna para ${cleanPlaca}! RENAVAM: ${binInterna.renavam} (Origem: ${binInterna.source})`);
+        rawData = {
+          success: true,
+          origem: 'BASE_INTERNA_BIN',
+          vehicle: {
+            plate: cleanPlaca,
+            renavam: binInterna.renavam,
+            name: binInterna.name || 'NÃO INFORMADO',
+            type: binInterna.type || 'AUTOMOVEL',
+            year: binInterna.year,
+            yearManufacture: binInterna.yearManufacture,
+            chassi: binInterna.chassi
+          },
+          api_central: {
+            api_utilizada: 'base_bin_interna',
+            origem: binInterna.source,
+            parametro_utilizado: 'placa',
+            query_fornecida: cleanPlaca,
+            cache_interno: true,
+            timestamp: new Date().toISOString()
+          }
+        };
+        providerUsed = 'base_interna_renacred';
+      } else {
+        // Passo 3: "Se a resposta for negativa, realizar a consulta na api placa_serpro..."
+        logger.info(`[E19] Passo 3: Base BIN interna negativa para ${cleanPlaca}. Consultando API 'placa_serpro'...`);
+        try {
+          const serproResp = await this.client.get('/', {
+            params: {
+              token: this.token,
+              api: 'placa_serpro',
+              query: cleanPlaca
+            }
+          });
+          const serproData = serproResp.data;
+
+          if (this.isSerproVeiculoNaoEncontrado(serproData)) {
+            logger.info(`[E19] placa_serpro confirmou: veículo ${cleanPlaca} NÃO encontrado no SERPRO.`);
+            rawData = {
+              success: false,
+              isNotFound: true,
+              isVeiculoInexistente: true,
+              error: 'Veículo não encontrado',
+              mensagem: `O veículo de placa ${cleanPlaca} não existe nas bases oficiais de trânsito (SERPRO/SENATRAN).`,
+              message: serproData.message || 'Consulta concluída: veículo não encontrado no SERPRO para os dados informados.',
+              placa_consultada: cleanPlaca,
+              api_central: {
+                api_utilizada: 'placa_serpro',
+                parametro_utilizado: 'placa',
+                query_fornecida: cleanPlaca,
+                timestamp: new Date().toISOString()
+              }
+            };
+            providerUsed = 'placa_serpro';
+          } else if (
+            serproData &&
+            typeof serproData === 'object' &&
+            serproData.success !== false &&
+            !serproData.erro &&
+            (!serproData.error || serproData.error === '0' || serproData.error === false)
+          ) {
+            logger.info(`[E19] Sucesso na consulta placa_serpro para ${cleanPlaca}`);
+            rawData = serproData;
+            providerUsed = 'placa_serpro';
+          } else if (isFetchBrasilNotFound(serproData, serproResp.status)) {
+            logger.info(`[E19] placa_serpro retornou 'Registro não encontrado' (${serproResp.status}) para ${cleanPlaca}`);
+            rawData = {
+              success: false,
+              isNotFound: true,
+              isVeiculoInexistente: true,
+              error: 'Veículo não encontrado',
+              mensagem: `O veículo de placa ${cleanPlaca} não existe nas bases oficiais de trânsito (SERPRO/SENATRAN).`,
+              message: extractFetchBrasilMessage(serproData) || 'Consulta concluída: veículo não encontrado no SERPRO para os dados informados.',
+              placa_consultada: cleanPlaca,
+              api_central: {
+                api_utilizada: 'placa_serpro',
+                parametro_utilizado: 'placa',
+                query_fornecida: cleanPlaca,
+                timestamp: new Date().toISOString()
+              }
+            };
+            providerUsed = 'placa_serpro';
+          } else {
+            const errSerproMsg = extractFetchBrasilMessage(serproData) || 'Falha no SERPRO';
+            logger.warn(`[E19] Resposta inesperada do SERPRO para ${cleanPlaca}: ${errSerproMsg}`);
+            throw new Error(errSerproMsg);
+          }
+        } catch (serproErr: any) {
+          const sData = serproErr.response?.data;
+          const status = serproErr.response?.status;
+          if (this.isSerproVeiculoNaoEncontrado(sData) || isFetchBrasilNotFound(sData, status)) {
+            logger.info(`[E19] placa_serpro erro HTTP confirmando veículo ${cleanPlaca} inexistente.`);
+            rawData = {
+              success: false,
+              isNotFound: true,
+              isVeiculoInexistente: true,
+              error: 'Veículo não encontrado',
+              mensagem: `O veículo de placa ${cleanPlaca} não existe nas bases oficiais de trânsito (SERPRO/SENATRAN).`,
+              message: sData?.message || 'Consulta concluída: veículo não encontrado no SERPRO para os dados informados.',
+              placa_consultada: cleanPlaca,
+              api_central: {
+                api_utilizada: 'placa_serpro',
+                parametro_utilizado: 'placa',
+                query_fornecida: cleanPlaca,
+                timestamp: new Date().toISOString()
+              }
+            };
+            providerUsed = 'placa_serpro';
+          } else {
+            logger.error(`[E19] Erro crítico ao consultar placa_serpro para ${cleanPlaca}: ${serproErr.message}`);
+            throw new Error('Estamos em manutenção, tente mais tarde');
+          }
+        }
+      }
+    }
+
+    if (!rawData) {
+      throw new Error('Estamos em manutenção, tente mais tarde');
+    }
+
+    const normalized = normalizeProductResult('E19', rawData, cleanPlaca);
+
+    // Salvar no cache em memória se positivo ou não encontrado oficial
+    const cacheKey = `E19:${cleanPlaca}`;
+    this.genericCache.set(cacheKey, {
+      data: normalized,
+      timestamp: Date.now(),
+      providerUsed
+    });
+
+    return {
+      product,
+      normalized,
+      raw: rawData,
+      providerUsed,
+      processingTimeMs: Date.now() - startTime
+    };
   }
 
   /**

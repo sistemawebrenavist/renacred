@@ -342,11 +342,16 @@ export const LaudoPericialUniversal: React.FC<LaudoPericialUniversalProps> = ({
       {/* Conteúdo Específico do Laudo Higienizado */}
       <div className="space-y-4">
         {totalRegistros === 0 && !dados?.aviso ? (
-          <div className="border border-slate-200 rounded-lg p-8 text-center bg-slate-50/50">
+          <div className="border border-slate-200 rounded-xl p-8 text-center bg-slate-50/50 space-y-2">
             <p className="text-sm font-semibold text-slate-800">Nenhum registro oficial localizado</p>
-            <p className="text-xs text-slate-500 mt-1 max-w-lg mx-auto">
-              A varredura nas bases oficiais federais e serventias públicas não retornou ocorrências para o documento informado.
+            <p className="text-xs text-slate-500 max-w-lg mx-auto">
+              {dados?.mensagem || 'A varredura nas bases oficiais federais e serventias públicas não retornou ocorrências para o documento informado.'}
             </p>
+            {dados?.laudo_pericial && (
+              <span className="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-600 font-mono text-[11px] rounded-lg border border-slate-200">
+                {dados.laudo_pericial}
+              </span>
+            )}
           </div>
         ) : (
           renderConteudoProduto(produto.code, dados, identifier)
