@@ -312,11 +312,13 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       await billingService.chargeQuery(companyId, queryRecord.id, finalCost);
     }
 
-    // Sincronização em tempo real para a InfoSinistros caso seja Produto E2 com histórico
-    if (product.code === 'E2' && totalRegistros > 0) {
+    // Sincronização em tempo real para a base interna InfoSinistros para qualquer produto veicular
+    const isVeicular = product.category === 'veicular' ||
+      ['E2', 'E12', 'E19', 'E20', 'E4', 'E5', 'E8', 'E9', 'E10', 'E14', 'E23'].includes(product.code);
+    if (isVeicular && totalRegistros > 0) {
       setImmediate(() => {
-        syncVeicularToInfosinistros(cleanQuery, result).catch(e =>
-          logger.error(`[SYNC INFOSINISTROS] Erro assíncrono E2 Web: ${e.message}`)
+        syncVeicularToInfosinistros(cleanQuery, result, product.code).catch(e =>
+          logger.error(`[SYNC INFOSINISTROS] Erro assíncrono ${product.code} Web: ${e.message}`)
         );
       });
     }
@@ -675,11 +677,13 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       await billingService.chargeQuery(company.id, queryRecord.id, finalCost);
     }
 
-    // Sincronização em tempo real para a InfoSinistros caso seja Produto E2 com histórico
-    if (product.code === 'E2' && totalRegistros > 0) {
+    // Sincronização em tempo real para a base interna InfoSinistros para qualquer produto veicular
+    const isVeicular = product.category === 'veicular' ||
+      ['E2', 'E12', 'E19', 'E20', 'E4', 'E5', 'E8', 'E9', 'E10', 'E14', 'E23'].includes(product.code);
+    if (isVeicular && totalRegistros > 0) {
       setImmediate(() => {
-        syncVeicularToInfosinistros(cleanQuery, result).catch(e =>
-          logger.error(`[SYNC INFOSINISTROS] Erro assíncrono E2 API: ${e.message}`)
+        syncVeicularToInfosinistros(cleanQuery, result, product.code).catch(e =>
+          logger.error(`[SYNC INFOSINISTROS] Erro assíncrono ${product.code} API: ${e.message}`)
         );
       });
     }
