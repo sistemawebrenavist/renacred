@@ -113,8 +113,8 @@ async function consultarHistoricoBaseInterna(placaLimpa: string): Promise<{
       SELECT id, placa, placaantiga, chassi, renavam, cpfcnpj, tipodocumento, nome,
              uf, municipio, anopropriedade, datainclusao, datalicenciamento, datamovimentacao, fonte, createdat
       FROM historico_proprietarios
-      WHERE UPPER(REPLACE(placa, '-', '')) IN (${placeholders})
-         OR UPPER(REPLACE(COALESCE(placaantiga, ''), '-', '')) IN (${placeholders})
+      WHERE placa IN (${placeholders})
+         OR placaantiga IN (${placeholders})
       ORDER BY anopropriedade ASC NULLS LAST, datamovimentacao ASC NULLS LAST, createdat ASC
     `;
 
@@ -346,8 +346,7 @@ async function consultarDadosVeiculoBloco04(
       const dbRes = await infoPool.query(
         `SELECT chassi, renavam, "anoFabricacao", "anoModelo", "ufPlaca", "cdCorVeiculo"
          FROM veiculos_base_bin
-         WHERE UPPER(REPLACE(placa, '-', '')) IN (${placeholders})
-            OR UPPER(REPLACE(COALESCE("placaModeloAntigo", ''), '-', '')) IN (${placeholders})
+         WHERE placa IN (${placeholders})
          ORDER BY "updatedAt" DESC NULLS LAST
          LIMIT 1`,
         variacoes
@@ -375,10 +374,11 @@ async function consultarDadosVeiculoBloco04(
   // Se não veio valor FIPE na WDAPI, buscar na Tabela FIPE Oficial Gratuita
   if (!valorFipe && marca !== '-' && modelo !== '-') {
     try {
+      const modeloFipeAlvo = String(wd.fipe?.dados?.[0]?.texto_modelo || modelo).trim();
       const fipeResult = await fipeGratisService.consultarFipe({
         marca,
-        modelo,
-        marcaModelo: wd.marcaModelo || `${marca}/${modelo}`,
+        modelo: modeloFipeAlvo,
+        marcaModelo: wd.marcaModelo || `${marca}/${modeloFipeAlvo}`,
         anoModelo,
         anoFabricacao,
         tipoVeiculo: extra.tipo_veiculo
