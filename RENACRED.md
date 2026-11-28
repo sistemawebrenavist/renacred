@@ -104,6 +104,12 @@ https://api.fetchbrasil.pro/?token=FB-78C1-9751-7F03-D237\&api=renach_prontuario
 Preço de Custo: R\$0,20  
 Preço de Venda: R\$1,32
 
+RENACRED  
+PRODUTO "E24 BDVII - BASE DE DADOS DE VEÍCULOS INDENIZADOS INTEGRALMENTE"  
+https://api.fetchbrasil.pro/?token=FB-2414-FE5E-D56B-F396\&api=historico_proprietario\&query=AZZ2H58  
+Preço de Custo: R\$0,17 (R\$0,00 se resolvido na base interna)  
+Preço de Venda: R\$2,50
+
 você percebeu que existem alguns produtos ali que tem dois ou três links, e do lado eu coloquei contingência. Ou seja, o primeiro link, ou melhor dizendo, o primeiro link não, refazendo o texto, como eles têm contingência, ou seja, se o primeiro falhar, tem o segundo e às vezes tem o terceiro, eles precisam ser sempre o mesmo layout de exibição na tela para que o cliente nunca veja a diferença de layout explodindo na tela dele se foi no link 1, link 2 ou link 3 o cliente nem sente
 
 tem muitas consultas ali que elas têm dados repetitivos, por exemplo, código no município, 1415, aí embaixo descrição do código, Joinville e Santa Catarina. Então não precisa ter código no município em cima, né, meio que duplicidade. tem bastante coisa assim que que todas as consultas vem nu, nunca vem retorno, não sei se a gente precisaria colocar na tela, entendeu  

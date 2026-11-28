@@ -288,6 +288,18 @@ export const SERVER_PRODUCTS: ServerProductConfig[] = [
     defaultCost: 0.20,
     defaultPrice: 1.32,
     slugAliases: ['ren_jus_2026', 'ren-jus-2026', 'cnh-renach', 'cnh-ren-jus', 'renach-2026', 'cnh-renach-2026', 'renach_prontuario']
+  },
+  {
+    code: 'E24',
+    slug: 'bdvii',
+    name: 'BDVII - Base de Dados de Veículos Indenizados Integralmente',
+    category: 'veicular',
+    inputType: 'placa',
+    apiPrimary: 'historico_proprietario',
+    apiContingencies: [],
+    defaultCost: 0.17,
+    defaultPrice: 2.50,
+    slugAliases: ['bdvii-indenizados', 'veiculos-indenizados', 'indenizacao-integral', 'sinistro-integral', 'e24-bdvii']
   }
 ];
 

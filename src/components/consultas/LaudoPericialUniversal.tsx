@@ -4555,9 +4555,19 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
     // E17: Busca por Nome Completo
     case 'E17': {
-      const registros = dados.registros || [];
-      const nomePesquisado = dados.nomePesquisado || identifier;
-      const totalHomonimos = dados.totalHomonimos ?? registros.length;
+      const registros = Array.isArray(dados.registros)
+        ? dados.registros
+        : (Array.isArray(dados.homonimos)
+            ? dados.homonimos
+            : (Array.isArray(dados.data) ? dados.data : (Array.isArray(dados) ? dados : [])));
+      const nomePesquisado = dados.nomePesquisado || dados.nome_pesquisado || identifier;
+      const totalHomonimos = typeof dados.totalHomonimos === 'number'
+        ? dados.totalHomonimos
+        : (typeof dados.total_homonimos === 'number'
+            ? dados.total_homonimos
+            : (typeof dados.totalRegistros === 'number'
+                ? dados.totalRegistros
+                : (typeof dados.total_registros === 'number' ? dados.total_registros : registros.length)));
 
       return (
         <div className="space-y-4">
@@ -4583,8 +4593,9 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
             <div className="space-y-3">
               {registros.map((r: any, idx: number) => {
                 const cpfExibicao = r.cpfMascarado || formatCPF(r.cpf);
-                const dataNasc = formatDateBR(r.nascimento);
+                const dataNasc = r.data_nascimento || formatDateBR(r.nascimento || r.dataNascimento) || '-';
                 const idade = r.idade ? `${r.idade} anos` : null;
+                const nomeMae = r.nome_mae || r.mae || r.nomeMae || 'NÃO CONSTA';
 
                 return (
                   <div key={idx} className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
@@ -4629,7 +4640,7 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
                       <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200 sm:col-span-2">
                         <span className="text-[10px] text-slate-400 font-medium block">Nome da Mãe:</span>
-                        <span className="font-bold text-slate-900 block mt-0.5 truncate">{r.mae || 'NÃO CONSTA'}</span>
+                        <span className="font-bold text-slate-900 block mt-0.5 truncate">{nomeMae}</span>
                       </div>
                     </div>
                   </div>
@@ -4643,10 +4654,20 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
     // E18: Busca por Nome de Mãe ou Pai
     case 'E18': {
-      const filhos = dados.filhos || [];
-      const nomePesquisado = dados.nomePesquisado || identifier;
-      const tipo = dados.tipo || 'mae';
-      const totalFilhos = dados.totalFilhos ?? filhos.length;
+      const filhos = Array.isArray(dados.filhos)
+        ? dados.filhos
+        : (Array.isArray(dados.registros)
+            ? dados.registros
+            : (Array.isArray(dados.data) ? dados.data : (Array.isArray(dados) ? dados : [])));
+      const nomePesquisado = dados.nomePesquisado || dados.nome_pesquisado || identifier;
+      const tipo = dados.tipo || dados.tipo_pesquisado || 'mae';
+      const totalFilhos = typeof dados.totalFilhos === 'number'
+        ? dados.totalFilhos
+        : (typeof dados.total_filhos === 'number'
+            ? dados.total_filhos
+            : (typeof dados.totalRegistros === 'number'
+                ? dados.totalRegistros
+                : (typeof dados.total_registros === 'number' ? dados.total_registros : filhos.length)));
 
       return (
         <div className="space-y-4">
@@ -4674,7 +4695,9 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
             <div className="space-y-3">
               {filhos.map((f: any, idx: number) => {
                 const cpfExibicao = f.cpfMascarado || formatCPF(f.cpf);
-                const dataNasc = formatDateBR(f.nascimento);
+                const dataNasc = f.data_nascimento || formatDateBR(f.nascimento || f.dataNascimento) || '-';
+                const nomeMae = f.nome_mae || f.mae || 'NÃO CONSTA';
+                const nomePai = f.nome_pai || f.pai || 'NÃO CONSTA';
 
                 return (
                   <div key={idx} className="border border-slate-200 rounded-xl p-5 bg-white shadow-xs space-y-4">
@@ -4706,12 +4729,12 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
 
                       <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
                         <span className="text-[10px] text-slate-400 font-medium block">Nome da Mãe:</span>
-                        <span className="font-semibold text-slate-900 block mt-0.5 truncate">{f.mae || 'NÃO CONSTA'}</span>
+                        <span className="font-semibold text-slate-900 block mt-0.5 truncate">{nomeMae}</span>
                       </div>
 
                       <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
                         <span className="text-[10px] text-slate-400 font-medium block">Nome do Pai:</span>
-                        <span className="font-semibold text-slate-900 block mt-0.5 truncate">{f.pai || 'NÃO CONSTA'}</span>
+                        <span className="font-semibold text-slate-900 block mt-0.5 truncate">{nomePai}</span>
                       </div>
                     </div>
                   </div>
@@ -5955,6 +5978,273 @@ function renderConteudoProduto(code: string, dados: any, identifier: string) {
             dados={dados}
             title="Auditoria Técnica Avançada RENACH (Payload Oficial Completo Sem Edições)"
           />
+        </div>
+      );
+    }
+
+    // E24: BDVII - Base de Dados de Veículos Indenizados Integralmente
+    case 'E24': {
+      const positivo = Boolean(dados.positivo || dados.consta_indenizacao || dados.status === 'POSITIVO');
+      const entidade = dados.bloco01_entidade || dados.bloco01Entidade || null;
+      const sinistro = dados.bloco02_sinistro || dados.bloco02Sinistro || null;
+      const segurado = dados.bloco03_segurado || dados.bloco03Segurado || null;
+      const veiculo = dados.bloco04_veiculo || dados.bloco04Veiculo || null;
+
+      return (
+        <div className="space-y-4">
+          {/* Banner de Resultado Pericial BDVII */}
+          <div
+            className={`rounded-xl p-5 border shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:p-4 print:break-inside-avoid ${
+              positivo
+                ? 'bg-rose-50/80 border-rose-200'
+                : 'bg-emerald-50/80 border-emerald-200'
+            }`}
+          >
+            <div className="flex items-start space-x-3">
+              <div
+                className={`p-2.5 rounded-xl shrink-0 ${
+                  positivo ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                }`}
+              >
+                {positivo ? <ShieldAlert className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`text-xs font-extrabold uppercase tracking-wider ${
+                      positivo ? 'text-rose-900' : 'text-emerald-900'
+                    }`}
+                  >
+                    {positivo
+                      ? 'POSITIVO — SINISTRO INDENIZADO INTEGRALMENTE (BDVII)'
+                      : 'NEGATIVO — NADA CONSTA NA BASE BDVII'}
+                  </span>
+                </div>
+                <p
+                  className={`text-xs mt-1 ${
+                    positivo ? 'text-rose-800' : 'text-emerald-800'
+                  }`}
+                >
+                  {dados.mensagem ||
+                    (positivo
+                      ? 'Consta registro de Sinistro com Indenização Integral vinculado à transferência dominial para Seguradora Não-Vida.'
+                      : 'Nenhum registro de sinistro com indenização integral localizado no histórico dominial do veículo.')}
+                </p>
+              </div>
+            </div>
+
+            <span
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border shrink-0 self-start sm:self-center ${
+                positivo
+                  ? 'bg-rose-600 text-white border-rose-700'
+                  : 'bg-emerald-600 text-white border-emerald-700'
+              }`}
+            >
+              {positivo ? 'INDENIZADO INTEGRALMENTE' : 'NADA CONSTA'}
+            </span>
+          </div>
+
+          {positivo && (
+            <>
+              {/* BLOCO 01 — DADOS DA ENTIDADE (Apenas 3 campos) */}
+              <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center space-x-2">
+                    <Building className="w-4 h-4 text-rose-600" />
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Bloco 01 — Dados da Entidade
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-800 border border-rose-200">
+                    Seguradora Não-Vida
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                    <span className="text-[11px] text-slate-400 font-medium block">Entidade (Razão Social):</span>
+                    <span className="font-bold text-slate-900 text-sm block mt-0.5">
+                      {entidade?.entidade || entidade?.razao_social || '-'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                    <span className="text-[11px] text-slate-400 font-medium block">CNPJ:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">
+                      {entidade?.cnpj || '-'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                    <span className="text-[11px] text-slate-400 font-medium block">Código SUSEP:</span>
+                    <span className="font-mono font-bold text-rose-700 text-sm block mt-0.5">
+                      {entidade?.codigo_susep || entidade?.codigoSusep || '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* BLOCO 02 — DADOS DO SINISTRO */}
+              <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Bloco 02 — Dados do Sinistro
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                    Perda Total / Indenização
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 text-xs">
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                    <span className="text-[11px] text-slate-400 font-medium block">Ramo:</span>
+                    <span className="font-bold text-slate-900 block mt-0.5">
+                      {sinistro?.ramo || 'Automóvel'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                    <span className="text-[11px] text-slate-400 font-medium block">Tipo de Seguro:</span>
+                    <span className="font-bold text-slate-900 block mt-0.5">
+                      {sinistro?.tipo_seguro || sinistro?.tipoSeguro || 'Compreensivo'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-rose-50/60 rounded-lg border border-rose-200">
+                    <span className="text-[11px] text-rose-500 font-medium block">Status:</span>
+                    <span className="font-bold text-rose-800 block mt-0.5">
+                      {sinistro?.status || 'Sinistro Indenizado Integralmente'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                    <span className="text-[11px] text-slate-400 font-medium block">Data do Sinistro:</span>
+                    <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                      {sinistro?.data_sinistro || sinistro?.dataSinistro || '-'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                    <span className="text-[11px] text-slate-400 font-medium block">Cidade / UF:</span>
+                    <span className="font-bold text-slate-900 block mt-0.5">
+                      {sinistro?.cidade_uf || sinistro?.cidadeUf || '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* BLOCO 03 — DADOS DO SEGURADO */}
+              <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center space-x-2">
+                    <User className="w-4 h-4 text-blue-600" />
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Bloco 03 — Dados do Segurado
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                    Proteção LGPD
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                    <span className="text-[11px] text-slate-400 font-medium block">Nome Completo:</span>
+                    <span className="font-bold text-slate-900 text-sm block mt-0.5">
+                      {segurado?.nome_completo || segurado?.nomeCompleto || 'NÃO INFORMADO'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                    <span className="text-[11px] text-slate-400 font-medium block">Tipo de Documento:</span>
+                    <span className="font-bold text-slate-900 text-sm block mt-0.5">
+                      {segurado?.tipo_documento || segurado?.tipoDocumento || '-'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                    <span className="text-[11px] text-slate-400 font-medium block">Documento:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">
+                      {segurado?.documento || 'NÃO INFORMADO'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* BLOCO 04 — DADOS DO VEÍCULO */}
+          <div className="border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4 bg-white shadow-xs print:border print:p-4 print:break-inside-avoid">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <Car className="w-4 h-4 text-slate-700" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Bloco 04 — Dados do Veículo
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                Ficha Veicular & FIPE
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 text-xs">
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[11px] text-slate-400 font-medium block">Placa:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm block mt-0.5">
+                  {formatPlaca(veiculo?.placa || dados.placa || identifier)}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[11px] text-slate-400 font-medium block">Chassi:</span>
+                <span className="font-mono font-semibold text-slate-900 block mt-0.5 break-all">
+                  {veiculo?.chassi || '-'}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[11px] text-slate-400 font-medium block">RENAVAM:</span>
+                <span className="font-mono font-semibold text-slate-900 block mt-0.5">
+                  {veiculo?.renavam || '-'}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[11px] text-slate-400 font-medium block">Marca:</span>
+                <span className="font-bold text-slate-900 block mt-0.5">
+                  {veiculo?.marca || '-'}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[11px] text-slate-400 font-medium block">Modelo:</span>
+                <span className="font-bold text-slate-900 block mt-0.5">
+                  {veiculo?.modelo || '-'}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[11px] text-slate-400 font-medium block">Ano / Fabricação:</span>
+                <span className="font-mono font-semibold text-slate-900 block mt-0.5">
+                  {veiculo?.ano_fabricacao || veiculo?.anoFabricacao || '-'}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[11px] text-slate-400 font-medium block">Ano / Modelo:</span>
+                <span className="font-mono font-semibold text-slate-900 block mt-0.5">
+                  {veiculo?.ano_modelo || veiculo?.anoModelo || '-'}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[11px] text-slate-400 font-medium block">Cor:</span>
+                <span className="font-bold text-slate-900 block mt-0.5">
+                  {veiculo?.cor || '-'}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50/70 rounded-lg border border-slate-200">
+                <span className="text-[11px] text-slate-400 font-medium block">Código FIPE:</span>
+                <span className="font-mono font-bold text-slate-900 block mt-0.5">
+                  {veiculo?.fipe || '-'}
+                </span>
+              </div>
+              <div className="p-3 bg-emerald-50/70 rounded-lg border border-emerald-200">
+                <span className="text-[11px] text-emerald-600 font-medium block">Valor FIPE:</span>
+                <span className="font-mono font-bold text-emerald-800 block mt-0.5">
+                  {veiculo?.valor || '-'}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       );
     }

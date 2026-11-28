@@ -344,5 +344,19 @@ Implementado com base no benchmark executivo (Infosinistros):
    - Foco: Prontuário pericial completo de exames médicos/clínicos, histórico de categorias (A, B, C, D, E), canais de contato (celular e e-mail) e endereço cadastrado.
    - Whitelabel Estrito: 0% de menção a provedores externos, tokens ou metadados de API.
 
+---
+
+## 16. Produto E24 — BDVII (Base de Dados de Veículos Indenizados Integralmente)
+
+- **Código / Slug:** `E24` / `bdvii` | Categoria: `veicular` | Entrada: `placa`.
+- **Tarifação:** Custo API externa R$ 0,17 (ou R$ 0,00 se localizado na base interna `historico_proprietarios`) | Venda padrão R$ 2,50.
+- **Regra Zero Custo:** Varredura prioritária na base interna `historico_proprietarios` (suportando variações Mercosul/Antiga). Somente aciona `api=historico_proprietario` na FetchBrasil se não houver registro interno, sincronizando o retorno imediatamente no banco.
+- **Gatilho de Positivação:** Seguradora Não-Vida (CNAE `6512-0/00`, cruzamento CNPJ/Raiz na tabela `server/src/data/susep_seguradoras.json` ou heurística segura excluindo corretoras).
+- **Layout em 4 Blocos (`LaudoPericialUniversal.tsx`):**
+  1. **Bloco 01 — Dados da Entidade:** Razão Social, CNPJ e Código SUSEP.
+  2. **Bloco 02 — Dados do Sinistro:** Ramo (`Automóvel`), Tipo (`Compreensivo`), Status (`Sinistro Indenizado Integralmente`), Data do Sinistro (30 dias antes da posse da seguradora) e Cidade/UF do proprietário anterior.
+  3. **Bloco 03 — Dados do Segurado (LGPD):** 1º nome + asteriscos; CPF com 3 primeiros dígitos + asteriscos (ou CNPJ completo para PJ).
+  4. **Bloco 04 — Dados do Veículo:** Placa, Chassi, Renavam, Marca, Modelo, Ano Fab/Mod, Cor, FIPE e Valor.
+
 
 

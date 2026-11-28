@@ -1421,7 +1421,9 @@ export function normalizeE17(raw: any, query?: string): NormalizedResult {
       cpf: cpfDigits,
       sexo,
       nome_mae: item.NOME_MAE || item.nome_mae || null,
+      mae: item.NOME_MAE || item.nome_mae || null,
       data_nascimento: dataNascimento,
+      nascimento: dataNascimento,
       idade: idade !== undefined && !isNaN(idade) ? idade : undefined
     });
   }).filter(Boolean);
@@ -1430,7 +1432,10 @@ export function normalizeE17(raw: any, query?: string): NormalizedResult {
     totalRegistros: homonimos.length,
     dados: homonimos.length > 0 ? cleanObject({
       nome_pesquisado: query || raw?.meta?.nome || (homonimos[0]?.nome ?? null),
+      nomePesquisado: query || raw?.meta?.nome || (homonimos[0]?.nome ?? null),
       total_homonimos: homonimos.length,
+      totalHomonimos: homonimos.length,
+      registros: homonimos,
       homonimos
     }) : null
   };
@@ -1453,9 +1458,12 @@ export function normalizeE18(raw: any, query?: string, extraParams?: any): Norma
       cpf: cpfDigits,
       nome: item.nome || item.NOME,
       nascimento: item.nascimento || item.data_nascimento || item.NASC,
+      data_nascimento: item.nascimento || item.data_nascimento || item.NASC,
       uf: item.uf || item.UF || item.estado,
       nome_mae: item.nome_mae || item.NOME_MAE,
-      nome_pai: item.nome_pai || item.NOME_PAI || null
+      mae: item.nome_mae || item.NOME_MAE,
+      nome_pai: item.nome_pai || item.NOME_PAI || null,
+      pai: item.nome_pai || item.NOME_PAI || null
     });
   }).filter(Boolean);
 
@@ -1463,8 +1471,12 @@ export function normalizeE18(raw: any, query?: string, extraParams?: any): Norma
     totalRegistros: filhos.length,
     dados: filhos.length > 0 ? cleanObject({
       tipo_pesquisado: tipoGenitor,
+      tipo: tipoGenitor,
       nome_pesquisado: query || raw?.meta?.nome,
+      nomePesquisado: query || raw?.meta?.nome,
       total_filhos: filhos.length,
+      totalFilhos: filhos.length,
+      registros: filhos,
       filhos
     }) : null
   };
@@ -1971,7 +1983,73 @@ export function normalizeE23(raw: any, query?: string): NormalizedResult {
 }
 
 /**
- * Mapeador Central de Normalizadores por Código do Produto (E1 a E23)
+ * Normalizador E24: BDVII - Base de Dados de Veículos Indenizados Integralmente
+ */
+export function normalizeE24(raw: any, query?: string): NormalizedResult {
+  const placa = String(raw?.placa || query || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const positivo = Boolean(raw?.positivo);
+
+  const dados = {
+    placa,
+    positivo,
+    status: positivo ? 'POSITIVO' : 'NEGATIVO',
+    consta_indenizacao: positivo,
+    mensagem: raw?.mensagem || (positivo
+      ? 'Consta registro de Sinistro com Indenização Integral (BDVII).'
+      : 'Nenhum registro de sinistro com indenização integral localizado.'),
+    bloco01_entidade: raw?.bloco01Entidade
+      ? {
+          entidade: raw.bloco01Entidade.entidade,
+          razao_social: raw.bloco01Entidade.entidade,
+          cnpj: raw.bloco01Entidade.cnpj,
+          codigo_susep: raw.bloco01Entidade.codigoSusep
+        }
+      : null,
+    bloco02_sinistro: raw?.bloco02Sinistro
+      ? {
+          ramo: raw.bloco02Sinistro.ramo,
+          tipo_seguro: raw.bloco02Sinistro.tipoSeguro,
+          status: raw.bloco02Sinistro.status,
+          data_sinistro: raw.bloco02Sinistro.dataSinistro,
+          data_posse_seguradora: raw.bloco02Sinistro.dataPosseSeguradora,
+          cidade_uf: raw.bloco02Sinistro.cidadeUf
+        }
+      : null,
+    bloco03_segurado: raw?.bloco03Segurado
+      ? {
+          nome_completo: raw.bloco03Segurado.nomeCompleto,
+          tipo_documento: raw.bloco03Segurado.tipoDocumento,
+          documento: raw.bloco03Segurado.documento
+        }
+      : null,
+    bloco04_veiculo: raw?.bloco04Veiculo
+      ? {
+          placa: raw.bloco04Veiculo.placa,
+          chassi: raw.bloco04Veiculo.chassi,
+          renavam: raw.bloco04Veiculo.renavam,
+          marca: raw.bloco04Veiculo.marca,
+          modelo: raw.bloco04Veiculo.modelo,
+          ano_fabricacao: raw.bloco04Veiculo.anoFabricacao,
+          ano_modelo: raw.bloco04Veiculo.anoModelo,
+          cor: raw.bloco04Veiculo.cor,
+          fipe: raw.bloco04Veiculo.fipe,
+          valor: raw.bloco04Veiculo.valor
+        }
+      : null,
+    metadados: {
+      total_proprietarios_analisados: raw?.metadados?.totalProprietariosAnalisados ?? 0,
+      consultado_em: raw?.metadados?.consultadoEm || new Date().toISOString()
+    }
+  };
+
+  return {
+    totalRegistros: positivo ? 1 : 0,
+    dados
+  };
+}
+
+/**
+ * Mapeador Central de Normalizadores por Código do Produto (E1 a E24)
  */
 export function normalizeProductResult(code: string, raw: any, query?: string, extraParams?: any): NormalizedResult {
   const upper = code.trim().toUpperCase();
@@ -1999,6 +2077,7 @@ export function normalizeProductResult(code: string, raw: any, query?: string, e
     case 'E21': return normalizeE21(raw, query);
     case 'E22': return normalizeE22(raw, query);
     case 'E23': return normalizeE23(raw, query);
+    case 'E24': return normalizeE24(raw, query);
     default:
       return { totalRegistros: raw ? 1 : 0, dados: cleanObject(raw) };
   }

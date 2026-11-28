@@ -621,12 +621,38 @@ export const PRODUCTS_CATALOG: ProductDefinition[] = [
       text: 'text-purple-800',
       border: 'border-purple-200'
     }
+  },
+  {
+    code: 'E24',
+    slug: 'bdvii',
+    name: 'BDVII - Base de Dados de Veículos Indenizados Integralmente',
+    shortName: 'BDVII - Indenização Integral',
+    category: 'veicular',
+    categoryLabel: 'Veicular',
+    inputType: 'placa',
+    inputLabel: 'Placa do Veículo',
+    placeholder: 'Ex: AZZ2H58 ou ABC1234',
+    description: 'Inteligência de cruzamento dominial para identificação de veículos com sinistro de indenização integral por seguradoras não-vida, com código SUSEP oficial, data estimada do sinistro, identificação mascarada do segurado (LGPD) e ficha veicular FIPE.',
+    highlights: [
+      'Gatilho inteligente de Seguradora Não-Vida (CNAE 6512-0/00 e Base SUSEP)',
+      'Dados da Entidade Seguradora (Razão Social, CNPJ e Código SUSEP)',
+      'Dados do Sinistro e identificação LGPD do segurado anterior',
+      'Ficha técnica veicular completa com Código FIPE e Valor de Mercado'
+    ],
+    defaultCost: 0.17,
+    defaultPrice: 2.50,
+    hasContingency: false,
+    badgeColor: {
+      bg: 'bg-rose-50',
+      text: 'text-rose-800',
+      border: 'border-rose-200'
+    }
   }
 ];
 
 export const CATEGORIES_CONFIG = [
-  { id: 'todos', label: 'Todos os Produtos', count: 23 },
-  { id: 'veicular', label: 'Veicular', count: 10 },
+  { id: 'todos', label: 'Todos os Produtos', count: 24 },
+  { id: 'veicular', label: 'Veicular', count: 11 },
   { id: 'cadastral', label: 'Cadastral', count: 10 },
   { id: 'juridico', label: 'Jurídico', count: 2 },
   { id: 'imobiliario', label: 'Imobiliário', count: 1 },

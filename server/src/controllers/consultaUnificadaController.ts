@@ -10,7 +10,8 @@ import { validatePlaca } from './veicularController';
 import { logger } from '../utils/logger';
 import { QuerySource, QueryStatus } from '../types/database';
 import { e20Service } from '../services/e20Service';
-import { normalizeE20, NormalizedResult } from '../services/productNormalizers';
+import { e24Service } from '../services/e24Service';
+import { normalizeE20, normalizeE24, NormalizedResult } from '../services/productNormalizers';
 import { getClientNetworkInfo } from '../utils/networkUtils';
 
 interface CachedQueryEntry {
@@ -223,6 +224,14 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
       const normalized = normalizeE20(e20Data, cleanQuery);
       result = { normalized, raw: e20Data };
       custoInternoCalculado = e20Data.custoInternoTotal;
+    } else if (product.code === 'E24') {
+      const e24Data = await e24Service.executarConsultaE24(cleanQuery);
+      const normalized = normalizeE24(e24Data, cleanQuery);
+      result = { normalized, raw: e24Data };
+      (result as any).providerUsed = e24Data.fonteHistorico === 'BASE_INTERNA_RENACRED'
+        ? 'base_interna_renacred'
+        : 'historico_proprietario';
+      custoInternoCalculado = e24Data.custoInternoTotal;
     } else {
       result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
       const providerUsed = (result as any).providerUsed;
@@ -314,7 +323,7 @@ export const executarConsultaWeb = async (req: any, res: Response) => {
 
     // Sincronização em tempo real para a base interna InfoSinistros para qualquer produto veicular
     const isVeicular = product.category === 'veicular' ||
-      ['E2', 'E12', 'E19', 'E20', 'E4', 'E5', 'E8', 'E9', 'E10', 'E14', 'E23'].includes(product.code);
+      ['E2', 'E12', 'E19', 'E20', 'E24', 'E4', 'E5', 'E8', 'E9', 'E10', 'E14', 'E23'].includes(product.code);
     if (isVeicular && totalRegistros > 0) {
       setImmediate(() => {
         syncVeicularToInfosinistros(cleanQuery, result, product.code).catch(e =>
@@ -588,6 +597,14 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
       const normalized = normalizeE20(e20Data, cleanQuery);
       result = { normalized, raw: e20Data };
       custoInternoCalculado = e20Data.custoInternoTotal;
+    } else if (product.code === 'E24') {
+      const e24Data = await e24Service.executarConsultaE24(cleanQuery);
+      const normalized = normalizeE24(e24Data, cleanQuery);
+      result = { normalized, raw: e24Data };
+      (result as any).providerUsed = e24Data.fonteHistorico === 'BASE_INTERNA_RENACRED'
+        ? 'base_interna_renacred'
+        : 'historico_proprietario';
+      custoInternoCalculado = e24Data.custoInternoTotal;
     } else {
       result = await fetchbrasilService.consultarProdutoComContingencia(product.code, cleanQuery, { tipo: tipoParam });
       const providerUsed = (result as any).providerUsed;
@@ -679,7 +696,7 @@ export const executarConsultaApiV1 = async (req: any, res: Response) => {
 
     // Sincronização em tempo real para a base interna InfoSinistros para qualquer produto veicular
     const isVeicular = product.category === 'veicular' ||
-      ['E2', 'E12', 'E19', 'E20', 'E4', 'E5', 'E8', 'E9', 'E10', 'E14', 'E23'].includes(product.code);
+      ['E2', 'E12', 'E19', 'E20', 'E24', 'E4', 'E5', 'E8', 'E9', 'E10', 'E14', 'E23'].includes(product.code);
     if (isVeicular && totalRegistros > 0) {
       setImmediate(() => {
         syncVeicularToInfosinistros(cleanQuery, result, product.code).catch(e =>
